@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DAILY_MISSION_BONUS_XP, PERFECT_WEEK_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
 import { getLevelProgress } from '@/core/ranks';
+import { getScheduledCompletionStreak } from '@/core/streaks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import {
   applyAttributeDeltas,
@@ -190,7 +191,8 @@ export async function incrementHabitProgress(habitId: string, dateKey = toDateKe
   progress.cantidad = Math.min(habit.meta, progress.cantidad + 1);
   progress.actualizadoEn = toIsoTimestamp();
   if (progress.cantidad >= habit.meta) {
-    const xpDelta = getCompletionXp(habit.importancia, 1);
+    const streakDays = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
+    const xpDelta = getCompletionXp(habit.importancia, streakDays + 1);
     const attributeDelta = getAttributeDeltas(xpDelta, habit.atributos);
     db.player.xpTotal = applyXpDelta(db.player.xpTotal, xpDelta);
     db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, attributeDelta);
@@ -381,6 +383,16 @@ function syncPlayer(db: WebDb) {
   db.player.nivel = progress.level;
   db.player.rango = progress.rank;
   db.player.actualizadoEn = toIsoTimestamp();
+}
+
+function getHabitCompletionStreak(db: WebDb, habitId: string, dateKey: string, weekdaysCsv: string) {
+  return getScheduledCompletionStreak(
+    db.events
+      .filter((event) => event.habitId === habitId && event.tipoEvento === 'completado' && event.fecha < dateKey)
+      .map((event) => event.fecha),
+    dateKey,
+    weekdaysCsv,
+  );
 }
 
 function createEvent(

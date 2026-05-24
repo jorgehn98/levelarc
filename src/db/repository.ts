@@ -3,6 +3,7 @@ import { migrateDb } from './migrate';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import { getLevelProgress } from '@/core/ranks';
 import { DAILY_MISSION_BONUS_XP, PERFECT_WEEK_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
+import { getScheduledCompletionStreak } from '@/core/streaks';
 import {
   applyAttributeDeltas,
   createEmptyAttributeXp,
@@ -467,7 +468,7 @@ async function markHabitComplete(habit: HabitRecord, dateKey: string, amount: nu
   const progress = await getOrCreateProgress(habit.id, dateKey);
   if (progress.estado !== 'pendiente') return;
 
-  const streakDays = await getHabitCompletionStreak(habit.id, dateKey);
+  const streakDays = await getHabitCompletionStreak(habit.id, dateKey, habit.diasSemana);
   const player = await ensurePlayer();
   const xpDelta = getCompletionXp(habit.importancia, streakDays + 1);
   const nextXp = applyXpDelta(player.xpTotal, xpDelta);
@@ -644,29 +645,21 @@ async function recalculatePlayerFromEvents() {
   await setPlayerProgress(xpTotal, undefined, atributosXp);
 }
 
-async function getHabitCompletionStreak(habitId: string, dateKey: string) {
+async function getHabitCompletionStreak(habitId: string, dateKey: string, weekdaysCsv: string) {
   const rows = await sqlite.getAllAsync<{ fecha: string }>(
     `
       SELECT fecha
       FROM events
       WHERE habit_id = ? AND tipo_evento = 'completado' AND fecha < ?
       ORDER BY fecha DESC
-      LIMIT 60
     `,
     [habitId, dateKey],
   );
-  const completedDates = new Set(rows.map((row) => row.fecha));
-  let streak = 0;
-  const cursor = new Date(`${dateKey}T12:00:00`);
-
-  while (true) {
-    cursor.setDate(cursor.getDate() - 1);
-    const key = toDateKey(cursor);
-    if (!completedDates.has(key)) break;
-    streak += 1;
-  }
-
-  return streak;
+  return getScheduledCompletionStreak(
+    rows.map((row) => row.fecha),
+    dateKey,
+    weekdaysCsv,
+  );
 }
 
 function normalizeMeta(input: HabitInput) {
