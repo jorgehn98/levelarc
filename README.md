@@ -95,10 +95,10 @@ Proyecto EAS enlazado:
 
 Último APK preview válido:
 
-- Build ID: `a620ba5d-55a7-429c-bdb7-f67bda80bae9`
-- APK: <https://expo.dev/artifacts/eas/mvPFAjN55GCXsGkBCnGxtx.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/a620ba5d-55a7-429c-bdb7-f67bda80bae9>
-- Versión: `1.0.1`, Android versionCode `2`.
+- Build ID: `f8c42fc9-d766-4e58-8859-d2b0a48e76e1`
+- APK: <https://expo.dev/artifacts/eas/wHFNQL4UtiQ5TjGhaY1c1V.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/f8c42fc9-d766-4e58-8859-d2b0a48e76e1>
+- Versión: `1.0.2`, Android versionCode `3`, runtimeVersion `1.0.2`.
 
 Antes de publicar:
 
@@ -108,7 +108,7 @@ npx expo-doctor
 pnpm build:android:preview
 ```
 
-Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `a620ba5d-55a7-429c-bdb7-f67bda80bae9` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
+Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `f8c42fc9-d766-4e58-8859-d2b0a48e76e1` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
 
 `babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
 
@@ -122,6 +122,13 @@ EAS Update está configurado para parches internos compatibles:
 - `production`: futuro AAB/Play Store.
 
 La app incluye en Ajustes un botón para buscar updates, descargarlos y reiniciar LevelArc. También puede recibir updates al arrancar según el comportamiento por defecto de `expo-updates`.
+
+Último update `preview` publicado:
+
+- Update group: `ec18e587-1d1a-416a-ae1e-0afb28c12237`
+- Runtime: `1.0.2`
+- Mensaje: `Initial preview update`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/ec18e587-1d1a-416a-ae1e-0afb28c12237>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 

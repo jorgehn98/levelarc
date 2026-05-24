@@ -180,6 +180,28 @@ Build preview Android actual tras QA:
 - Perfil: `preview`, distribución interna, SDK `56.0.0`, version `1.0.1`, versionCode `2`.
 - Cambios: hábitos nuevos sin días preseleccionados, chips seleccionados legibles en modo oscuro y test para weekdays lunes=1/domingo=7.
 
+Build preview Android actual con EAS Update:
+
+- ID: `f8c42fc9-d766-4e58-8859-d2b0a48e76e1`
+- APK: <https://expo.dev/artifacts/eas/wHFNQL4UtiQ5TjGhaY1c1V.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/f8c42fc9-d766-4e58-8859-d2b0a48e76e1>
+- Estado: terminado correctamente.
+- Fingerprint: `5b23a8e20edbbc1bd0f4b5e29ca41b94ae1b4a56`
+- Perfil: `preview`, canal `preview`, runtimeVersion `1.0.2`, SDK `56.0.0`, version `1.0.2`, versionCode `3`.
+- Incluye `expo-updates`, botón de actualización interna en Ajustes y canales EAS Update.
+
+Update `preview` inicial publicado:
+
+- Update group: `ec18e587-1d1a-416a-ae1e-0afb28c12237`
+- Runtime: `1.0.2`
+- Mensaje: `Initial preview update`
+
+Build preview fallido durante la configuración de EAS Update:
+
+- ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
+- Causa: `:app:createReleaseUpdatesResources` no encontraba `@babel/plugin-transform-react-jsx` bajo pnpm.
+- Acción tomada: `@babel/plugin-transform-react-jsx` añadido como devDependency explícita.
+
 ## Estado real
 
 MVP funcional: sí.

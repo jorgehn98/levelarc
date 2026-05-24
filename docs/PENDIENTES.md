@@ -11,8 +11,9 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Validar si el duplicado `expo-constants` de `expo-doctor` afecta al build nativo.
 - [x] Instalar APK preview `86105d10-d74e-4300-870a-a0081e7aee6c` en Android.
 - [ ] Instalar APK preview `a620ba5d-55a7-429c-bdb7-f67bda80bae9` en Android.
-- [ ] Crear e instalar APK preview con EAS Update activado.
-- [ ] Publicar un update JS de prueba en canal `preview`.
+- [x] Crear APK preview con EAS Update activado.
+- [ ] Instalar APK preview `f8c42fc9-d766-4e58-8859-d2b0a48e76e1` en Android.
+- [x] Publicar un update JS de prueba en canal `preview`.
 - [ ] Validar botón Ajustes > Actualizaciones en Android.
 - [ ] Probar crear hábito en Android.
 - [ ] Probar editar hábito en Android.

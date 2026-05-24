@@ -9,5 +9,11 @@
         "src/*"
       ]
     }
-  }
+  },
+  "exclude": [
+    "dist",
+    ".expo",
+    ".expo-export-check",
+    "node_modules"
+  ]
 }
