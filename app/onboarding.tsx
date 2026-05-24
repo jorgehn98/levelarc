@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronRight, Flame, Shield, Swords, Trophy } from 'lucide-react-native';
+import { ChevronRight, Flame, Swords, Trophy } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -89,7 +89,6 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.privacy}>
-          <Shield color={colors.state.pending} size={12} />
           <Text style={styles.privacyText}>{t(language, 'privacyLine')}</Text>
         </View>
       </View>
@@ -732,9 +731,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: 'center',
-    backgroundColor: colors.background.voidDeep,
-    borderTopColor: colors.background.border,
-    borderTopWidth: 1,
     bottom: 0,
     elevation: 24,
     left: 0,
@@ -742,9 +738,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     position: 'absolute',
     right: 0,
-    shadowColor: colors.background.voidDeep,
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
     zIndex: 50,
   },
   ctaVisual: {
@@ -770,7 +763,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   disabled: {
-    opacity: 0.42,
+    opacity: 0.78,
   },
   pressed: {
     opacity: 0.88,
@@ -786,7 +779,6 @@ const styles = StyleSheet.create({
     color: colors.state.pending,
     fontFamily: typography.font.displayMedium,
     fontSize: 9.5,
-    marginLeft: 6,
     textTransform: 'uppercase',
   },
 });
