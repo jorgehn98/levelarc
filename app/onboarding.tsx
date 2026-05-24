@@ -87,8 +87,11 @@ export default function OnboardingScreen() {
             pointerEvents="none"
             style={[styles.ctaVisual, { backgroundColor: accent, borderColor: accent, shadowColor: accent }, (isSubmitting || (isFirstRun && !isValid)) && styles.disabled]}
           >
+            <View style={styles.ctaSide} />
             <Text style={styles.ctaText}>{isSubmitting ? t(language, 'initializing') : isFirstRun ? t(language, 'beginAscension') : t(language, 'continueAscension')}</Text>
-            {isSubmitting ? <ActivityIndicator color={colors.background.void} size="small" style={styles.ctaIcon} /> : <ChevronRight color={colors.background.void} size={18} style={styles.ctaIcon} />}
+            <View style={styles.ctaSide}>
+              {isSubmitting ? <ActivityIndicator color={colors.background.void} size="small" /> : <ChevronRight color={colors.background.void} size={18} />}
+            </View>
           </View>
         </Pressable>
 
@@ -752,24 +755,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radii.md,
     borderWidth: 1,
+    flexDirection: 'row',
     height: 52,
     justifyContent: 'center',
+    paddingHorizontal: 12,
     shadowOpacity: 0.36,
     shadowRadius: 18,
     width: '100%',
   },
-  ctaIcon: {
-    position: 'absolute',
-    right: 18,
+  ctaSide: {
+    alignItems: 'center',
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
   },
   ctaText: {
     color: colors.background.void,
+    flex: 1,
     fontFamily: typography.font.bodyMedium,
     fontSize: 14,
-    left: 0,
-    paddingHorizontal: 42,
-    position: 'absolute',
-    right: 0,
     textAlign: 'center',
   },
   disabled: {
