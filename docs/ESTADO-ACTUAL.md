@@ -10,6 +10,8 @@ El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de 
 
 La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
 
+La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo.
+
 Todavía no está lista para Play Store: faltan QA real en Android, validar assets en tamaños reales, pulido visual y seguir monitorizando el aviso de `expo-doctor`.
 
 ## Implementado
