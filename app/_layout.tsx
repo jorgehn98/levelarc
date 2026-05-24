@@ -31,7 +31,14 @@ export default function RootLayout() {
   }, [boot, fontsLoaded, isReady]);
 
   useEffect(() => {
-    if (!fontsLoaded || !isReady || pathname === '/onboarding') return;
+    if (!fontsLoaded || !isReady) return;
+
+    if (pathname === '/onboarding') {
+      if (!entryShown) {
+        setEntryShown(true);
+      }
+      return;
+    }
 
     if (!player?.nombre?.trim()) {
       setEntryShown(true);
