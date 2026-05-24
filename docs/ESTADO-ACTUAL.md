@@ -204,6 +204,16 @@ Build preview Android actual con EAS Update:
 - Perfil: `preview`, canal `preview`, runtimeVersion `1.0.2`, SDK `56.0.0`, version `1.0.2`, versionCode `3`.
 - Incluye `expo-updates`, botón de actualización interna en Ajustes y canales EAS Update.
 
+Build preview Android actual con actualización automática al arranque:
+
+- ID: `6e5e6b06-bb05-481d-bcb0-85808bce2981`
+- APK: <https://expo.dev/artifacts/eas/eCtjS5na8CNGaV6SxaiN2X.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/6e5e6b06-bb05-481d-bcb0-85808bce2981>
+- Estado: terminado correctamente.
+- Fingerprint: `2d844f8e79f4e7f2343903a11d0843d6228a08d5`
+- Perfil: `preview`, canal `preview`, runtimeVersion `1.0.2`, SDK `56.0.0`, version `1.0.2`, versionCode `4`.
+- Incluye comprobación automática de EAS Update al arrancar, manteniendo el botón manual de Ajustes como fallback.
+
 Update `preview` inicial publicado:
 
 - Update group: `ec18e587-1d1a-416a-ae1e-0afb28c12237`
@@ -281,6 +291,14 @@ Update `preview` corrigiendo entrada desde onboarding:
 - Mensaje: evita el bucle de redirección al continuar desde onboarding
 - Commit: `ae54d748bbecc084a79d51e4d5748fea2e0f074b`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/58cdb2ed-16e6-46c0-90d5-4b2bdeca1c69>
+
+Update `preview` con comprobación automática al arranque:
+
+- Update group: `1239381d-cd03-4c48-b500-658f7f38ca10`
+- Runtime: `1.0.2`
+- Mensaje: comprueba updates al arrancar y avisa para reiniciar si descarga uno
+- Commit: `bf1fff37aa17566dd021331dd9fb5ae764d32f63`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/1239381d-cd03-4c48-b500-658f7f38ca10>
 
 Build preview fallido durante la configuración de EAS Update:
 
