@@ -250,6 +250,14 @@ Update `preview` con onboarding y nombre de cazador:
 - Commit: `cc75f8aa55f7c8cca01ce1c50872c46d869736f2`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/98feb9cf-db9d-45dd-9501-ab7c3126416e>
 
+Update `preview` con CTA fijo y motion real en onboarding:
+
+- Update group: `d142d5c3-b55c-4465-983a-5312d92f90e6`
+- Runtime: `1.0.2`
+- Mensaje: `Fix onboarding CTA and motion`
+- Commit: `0288fb02fd4456782da0822cde0d2b56b2b1429b`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/d142d5c3-b55c-4465-983a-5312d92f90e6>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
