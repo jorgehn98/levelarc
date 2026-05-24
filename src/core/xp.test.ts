@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyXpDelta, getCompletionXp, getFailureXp, getStreakMultiplier } from './xp';
-import { getLevelFromXp, getRankForLevel, getXpForLevel } from './ranks';
+import { applyXpDelta, getCompletionXp, getFailureXp } from './xp';
+import { getLevelFromXp, getLevelProgress, getXpForLevel } from './ranks';
 import { getDailyMissionProgress } from './missions';
-import { habitAppliesOnDate, parseWeekdays } from './streaks';
+import { getTodayWeekday } from '../lib/date';
 
 describe('xp rules', () => {
   it('uses the closed streak multiplier table', () => {
-    expect(getStreakMultiplier(1)).toBe(1);
-    expect(getStreakMultiplier(4)).toBe(1.25);
-    expect(getStreakMultiplier(8)).toBe(1.5);
-    expect(getStreakMultiplier(15)).toBe(1.75);
-    expect(getStreakMultiplier(31)).toBe(2);
+    expect(getCompletionXp(4, 1)).toBe(4);
+    expect(getCompletionXp(4, 4)).toBe(5);
+    expect(getCompletionXp(4, 8)).toBe(6);
+    expect(getCompletionXp(4, 15)).toBe(7);
+    expect(getCompletionXp(4, 31)).toBe(8);
   });
 
   it('calculates completion and failure deltas from importance', () => {
@@ -28,12 +28,12 @@ describe('xp rules', () => {
 
 describe('progression', () => {
   it('maps levels to hunter ranks', () => {
-    expect(getRankForLevel(1)).toBe('E');
-    expect(getRankForLevel(10)).toBe('D');
-    expect(getRankForLevel(25)).toBe('C');
-    expect(getRankForLevel(45)).toBe('B');
-    expect(getRankForLevel(70)).toBe('A');
-    expect(getRankForLevel(100)).toBe('S');
+    expect(getLevelProgress(getXpForLevel(1)).rank).toBe('E');
+    expect(getLevelProgress(getXpForLevel(10)).rank).toBe('D');
+    expect(getLevelProgress(getXpForLevel(25)).rank).toBe('C');
+    expect(getLevelProgress(getXpForLevel(45)).rank).toBe('B');
+    expect(getLevelProgress(getXpForLevel(70)).rank).toBe('A');
+    expect(getLevelProgress(getXpForLevel(100)).rank).toBe('S');
   });
 });
 
@@ -46,9 +46,7 @@ describe('daily mission', () => {
 
 describe('weekday rules', () => {
   it('uses LevelArc weekdays from Monday=1 to Sunday=7', () => {
-    expect(parseWeekdays('1,3,5,6')).toEqual([1, 3, 5, 6]);
-    expect(habitAppliesOnDate('1,3,5,6', new Date('2026-05-24T12:00:00'))).toBe(false);
-    expect(habitAppliesOnDate('1,3,5,6', new Date('2026-05-25T12:00:00'))).toBe(true);
-    expect(habitAppliesOnDate('7', new Date('2026-05-24T12:00:00'))).toBe(true);
+    expect(getTodayWeekday(new Date('2026-05-24T12:00:00'))).toBe(7);
+    expect(getTodayWeekday(new Date('2026-05-25T12:00:00'))).toBe(1);
   });
 });

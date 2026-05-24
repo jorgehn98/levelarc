@@ -101,7 +101,7 @@ EAS Update is configured. Use `preview` for internal APK QA and `production` for
 - `src/stores/appStore.ts` — Zustand state and app actions.
 - `src/components/` — shared UI.
 - `src/i18n/index.ts` — typed ES/EN dictionary.
-- `src/theme/` — color/rank/typography tokens.
+- `src/theme/` — color and rank tokens.
 
 Do not create backend code, auth, remote sync, or cloud dependencies unless the user explicitly changes the product direction.
 
@@ -168,7 +168,7 @@ Use `src/i18n/index.ts`.
 
 Do not hardcode user-facing strings in screens/components unless they are temporary debug strings. Add ES and EN entries together.
 
-Existing `src/i18n/es.json` and `src/i18n/en.json` are legacy/simple seed files; the active typed dictionary is `src/i18n/index.ts`.
+The active typed dictionary is `src/i18n/index.ts`. Keep ES and EN entries together there.
 
 ## Testing and verification
 

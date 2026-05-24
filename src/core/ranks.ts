@@ -1,7 +1,7 @@
 import type { Rank } from '@/theme/colors';
 
-export const LEVEL_CURVE_BASE = 50;
-export const LEVEL_CURVE_EXPONENT = 1.8;
+const LEVEL_CURVE_BASE = 50;
+const LEVEL_CURVE_EXPONENT = 1.8;
 
 const rankThresholds: Array<{ rank: Rank; minLevel: number }> = [
   { rank: 'S', minLevel: 100 },
@@ -31,7 +31,7 @@ export function getLevelFromXp(totalXp: number): number {
   return level;
 }
 
-export function getRankForLevel(level: number): Rank {
+function getRankForLevel(level: number): Rank {
   const safeLevel = Math.max(1, Math.floor(level));
   return rankThresholds.find(({ minLevel }) => safeLevel >= minLevel)?.rank ?? 'E';
 }

@@ -78,7 +78,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 
 - [ ] Revisar todo el copy ES.
 - [ ] Revisar todo el copy EN.
-- [ ] Eliminar o reutilizar `src/i18n/es.json` y `src/i18n/en.json` si quedan obsoletos.
+- [x] Eliminar `src/i18n/es.json` y `src/i18n/en.json` obsoletos.
 - [ ] Confirmar idioma inicial por configuración del dispositivo o dejar español por defecto.
 
 ## Calidad técnica

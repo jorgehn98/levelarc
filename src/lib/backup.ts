@@ -1,4 +1,4 @@
-export const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 1;
 
 export type BackupPayload = {
   version: typeof BACKUP_VERSION;

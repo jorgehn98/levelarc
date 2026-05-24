@@ -109,6 +109,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 - ES/EN con diccionario tipado en `src/i18n/index.ts`.
 - Español por defecto.
+- JSONs legacy de idioma eliminados; `src/i18n/index.ts` es la única fuente activa.
 
 ### Notificaciones
 
