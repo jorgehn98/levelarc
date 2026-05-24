@@ -5,9 +5,11 @@ node_modules/
 
 # Expo
 .expo/
+.expo-export-check/
 dist/
 web-build/
 expo-env.d.ts
+eas-build-*.log
 
 # Native
 .kotlin/
@@ -25,6 +27,7 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.expo-web.*.log
 
 # macOS
 .DS_Store

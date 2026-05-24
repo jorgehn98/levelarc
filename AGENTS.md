@@ -1,3 +1,221 @@
-# Expo HAS CHANGED
+# AGENTS.md
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before writing any code.
+## Regla cero
+
+Expo HAS CHANGED. Before changing Expo-specific code, read the exact versioned docs for SDK 56:
+
+https://docs.expo.dev/versions/v56.0.0/
+
+Do not assume older Expo Router, Expo SQLite, notifications, or NativeWind setup still applies.
+
+## Referencias obligatorias
+
+Read these before making product, design, architecture, or UX changes:
+
+- `docs/LevelArc-PROYECTO.md` — project bible. Product decisions, scope, gamification, DB concept, tone, stack.
+- `docs/ESTADO-ACTUAL.md` — current built state and known implementation deviations.
+- `docs/ROADMAP.md` — MVP/v1/v2 roadmap and release sequence.
+- `docs/PENDIENTES.md` — prioritized pending work checklist.
+- `DESIGN.md` — design tokens and UI rules.
+- `README.md` — current implementation status, commands, architecture, build notes.
+
+If any instruction conflicts, prefer:
+
+1. Current user request.
+2. `AGENTS.md`.
+3. `docs/LevelArc-PROYECTO.md`.
+4. `DESIGN.md`.
+5. Existing code patterns.
+
+## Documentacion viva
+
+Keep the `docs/` folder current when the project changes:
+
+- `docs/LevelArc-PROYECTO.md` is the original source of truth. Do not rewrite it casually.
+- Update `docs/ESTADO-ACTUAL.md` after implementing, removing, or significantly changing features.
+- Update `docs/ROADMAP.md` when scope, version order, MVP/v1/v2 boundaries, or release strategy changes.
+- Update `docs/PENDIENTES.md` when finishing tasks, discovering new blockers, or changing priorities.
+
+If a change affects MVP status, release readiness, architecture, UX direction, or future scope, update the relevant docs in the same task.
+
+## Proyecto
+
+LevelArc is an offline-first Android habit tracker. No server, no accounts, no remote sync. All user data lives locally.
+
+MVP stack:
+
+- Expo SDK 56 + React Native + TypeScript.
+- Expo Router.
+- Zustand.
+- NativeWind/Tailwind.
+- SQLite + Drizzle on native.
+- AsyncStorage fallback on web for development preview only.
+- Vitest for pure business logic.
+
+Use Spanish UI copy as the default, with English supported through `src/i18n/index.ts`.
+
+## Comandos
+
+Use pnpm. Do not introduce npm/yarn lockfiles.
+
+```bash
+pnpm install
+pnpm start
+pnpm web
+pnpm android
+pnpm check
+pnpm test
+pnpm exec tsc --noEmit
+pnpm db:generate
+pnpm doctor
+pnpm build:android:preview
+pnpm build:android:production
+```
+
+`pnpm check` is the main local gate: TypeScript + tests.
+
+`pnpm doctor` currently may fail one check because Expo SDK 56 + pnpm resolves duplicate `expo-constants` (`56.0.14` through `expo-linking`, `56.0.15` elsewhere). This is documented in `README.md`. Do not hide this with random dependency hacks; the preview native build has passed with this warning.
+
+Keep `babel-preset-expo` as an explicit devDependency. EAS Android release bundling failed without it under pnpm because Metro could not resolve the preset transitively.
+
+## Arquitectura
+
+- `app/` — Expo Router screens.
+- `app/(tabs)/index.tsx` — Today screen.
+- `app/(tabs)/habits.tsx` — habit list.
+- `app/(tabs)/progress.tsx` — rank/XP/history.
+- `app/(tabs)/settings.tsx` — language, notifications, backup, close day.
+- `app/habit/new.tsx` and `app/habit/[id].tsx` — create/edit habit.
+- `src/core/` — pure gamification logic. Keep UI/db out of here.
+- `src/db/schema.ts` — Drizzle schema.
+- `src/db/repository.ts` — native SQLite implementation.
+- `src/db/repository.web.ts` — web AsyncStorage fallback. Keep API compatible with native repository.
+- `src/db/migrate.ts` — runtime SQLite table setup.
+- `src/stores/appStore.ts` — Zustand state and app actions.
+- `src/components/` — shared UI.
+- `src/i18n/index.ts` — typed ES/EN dictionary.
+- `src/theme/` — color/rank/typography tokens.
+
+Do not create backend code, auth, remote sync, or cloud dependencies unless the user explicitly changes the product direction.
+
+## Datos y reglas de negocio
+
+Important invariants:
+
+- `events` is the immutable XP source of truth.
+- `player` is cached and recalculable.
+- `habit_daily_progress` is mutable per-day state for partial countable habits.
+- Habits should be archived, not hard-deleted, so history remains valid.
+- Completing a habit creates a positive XP event.
+- Failing a habit creates a negative XP event.
+- XP penalties must never drop the user below the current level floor.
+- Countable habits award XP only when the full daily target is reached.
+- Countable habits with partial progress are not penalized by close-day.
+- Close-day is manual in the MVP.
+- Weekly habit frequency uses LevelArc convention: Monday=1 ... Sunday=7.
+- Expo weekly notifications use Sunday=1, so map weekdays carefully in `src/lib/notifications.ts`.
+
+## Diseño
+
+Follow `DESIGN.md`.
+
+Key points:
+
+- Dark mode only.
+- Cian brand accent is constant.
+- Rank color is dynamic and should be used only for XP/rank moments.
+- Orbitron is for short display/system text only.
+- Inter is for readable UI/body text.
+- Max radius is 8px unless there is a very clear reason.
+- No decorative gradient/orb/bokeh filler.
+- No marketing-style hero screens inside the app.
+- Do not use Solo Leveling IP, names, copied visuals, or protected marks.
+
+## Web vs native
+
+Native is the real target.
+
+Web exists for fast preview and agent/browser QA. It uses `src/db/repository.web.ts` because `expo-sqlite` web can require WASM/SharedArrayBuffer and break local browser verification.
+
+When adding repository functions, update both:
+
+- `src/db/repository.ts`
+- `src/db/repository.web.ts`
+
+Keep exported types and function names compatible.
+
+## Migrations
+
+When changing `src/db/schema.ts`:
+
+1. Update `src/db/migrate.ts` if runtime native DB needs the change.
+2. Run `pnpm db:generate`.
+3. Check generated SQL under `src/db/migrations/`.
+4. Run `pnpm check`.
+
+Do not create AI tables yet. The project bible documents future AI tables, but MVP should not create unused IA tables.
+
+## i18n
+
+Use `src/i18n/index.ts`.
+
+Do not hardcode user-facing strings in screens/components unless they are temporary debug strings. Add ES and EN entries together.
+
+Existing `src/i18n/es.json` and `src/i18n/en.json` are legacy/simple seed files; the active typed dictionary is `src/i18n/index.ts`.
+
+## Testing and verification
+
+For any meaningful code change:
+
+```bash
+pnpm check
+```
+
+For UI/frontend changes:
+
+- Start Expo web with `pnpm web` or `pnpm exec expo start --web --port 8081 --clear`.
+- Use browser/agent-browser to verify the affected flow.
+- Check console errors.
+
+For React changes, `react-doctor` can be useful:
+
+```bash
+npx -y react-doctor@latest . --verbose
+```
+
+Known note: React Doctor may report false "unused file" warnings because of Expo Router and TS path aliases. Prioritize real correctness issues.
+
+## Build readiness
+
+EAS profiles live in `eas.json`:
+
+- `preview` builds an internal APK.
+- `production` builds an AAB.
+
+Before publishing:
+
+1. `pnpm check`
+2. `pnpm doctor`
+3. `pnpm build:android:preview`
+4. Test on real Android device/emulator.
+5. Validate LevelArc logo/icon/splash/adaptive icon on real Android sizes.
+
+Latest valid preview APK is documented in `README.md` and `docs/ESTADO-ACTUAL.md`.
+
+## Coding style
+
+- Keep solutions simple.
+- Prefer readable local functions over premature abstractions.
+- Keep business logic in `src/core/` where possible.
+- Keep repository/database logic out of UI components.
+- Preserve TypeScript strictness.
+- Avoid unrelated refactors.
+- Do not delete or revert user changes unless explicitly asked.
+
+## Current known gaps
+
+- Android native QA still needed.
+- Brand assets are integrated, but icon/splash/adaptive icon still need real-device validation.
+- Backup export/import exists, but needs Android QA.
+- `expo-doctor` duplicate `expo-constants` warning remains; preview native build has passed with it.
+- UI is MVP-functional, not final Play Store polish.

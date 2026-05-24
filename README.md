@@ -1,0 +1,118 @@
+# LevelArc
+
+Tracker de hábitos gamificado para Android, offline-first, sin cuentas ni servidor.
+
+La biblia inicial del proyecto está guardada en [`docs/LevelArc-PROYECTO.md`](docs/LevelArc-PROYECTO.md). Ese documento manda sobre producto, tono, paleta, gamificación y alcance del MVP.
+
+La guía de diseño operativa está en [`DESIGN.md`](DESIGN.md). Define tokens, criterios visuales y reglas para que futuras pantallas mantengan la misma dirección.
+
+## Estado
+
+MVP funcional:
+
+- Crear, editar y archivar hábitos.
+- Hábitos binarios y contables con meta diaria.
+- Frecuencia por días de la semana.
+- Pantalla Hoy con completar, sumar progreso, fallar y deshacer.
+- XP, niveles, rangos E-S y eventos de historial.
+- Misión diaria fija: completar 3 hábitos y reclamar bonus.
+- Recordatorios locales en native.
+- Backup/exportación JSON e importación/restauración pegando JSON.
+- Idioma ES/EN.
+- Modo oscuro fijo.
+- Identidad visual inicial con logo LevelArc en icono, splash y UI.
+
+## Stack
+
+- Expo + React Native + TypeScript
+- Expo Router
+- Expo Splash Screen
+- Zustand
+- NativeWind/Tailwind
+- SQLite + Drizzle en native
+- AsyncStorage como fallback web de desarrollo
+- Vitest para lógica pura
+
+## Comandos
+
+```bash
+pnpm install
+pnpm start
+pnpm web
+pnpm android
+pnpm check
+pnpm test
+pnpm exec tsc --noEmit
+pnpm db:generate
+npx expo-doctor
+pnpm build:android:preview
+pnpm build:android:production
+```
+
+## Arquitectura
+
+- `app/`: rutas de Expo Router.
+- `src/core/`: reglas puras de XP, rangos, rachas y misión diaria.
+- `src/db/schema.ts`: esquema Drizzle.
+- `src/db/repository.ts`: repositorio native con SQLite.
+- `src/db/repository.web.ts`: fallback web con AsyncStorage para poder probar en navegador.
+- `src/stores/appStore.ts`: estado global y acciones del MVP.
+- `src/components/`: UI reutilizable.
+- `assets/brand/`: set de logos/emblemas LevelArc.
+- `src/i18n/index.ts`: diccionario ES/EN.
+- `DESIGN.md`: tokens y reglas de diseño para agentes/herramientas.
+
+## Notas importantes
+
+- `events` es la fuente de verdad inmutable del XP.
+- `habit_daily_progress` guarda progreso diario mutable, necesario para hábitos contables.
+- Las penalizaciones nunca bajan al usuario de nivel/rango: se clampa al suelo del nivel actual.
+- El cierre del día es manual en el MVP para evitar automatismos frágiles.
+- En web no se usa SQLite porque `expo-sqlite` requiere WASM/SharedArrayBuffer; Android/native sí usa SQLite.
+
+## Siguiente bloque lógico
+
+1. Probar en emulador/dispositivo Android real.
+2. Validar icono/splash/adaptive icon en build real.
+3. Revisar permisos y UX de notificaciones en Android.
+4. Preparar build AAB de production.
+5. Hacer una pasada de diseño fino y textos antes de Play Store.
+
+## Build Android
+
+El repo incluye `eas.json` con dos perfiles útiles:
+
+- `preview`: genera APK interno para probar en dispositivo.
+- `production`: genera AAB para Play Store.
+
+Proyecto EAS enlazado:
+
+- `@jorgex-tech/levelarc`
+- Project ID: `2c6af84a-6180-48ac-ad12-f1b7b61bbf58`
+
+Último APK preview válido:
+
+- Build ID: `86105d10-d74e-4300-870a-a0081e7aee6c`
+- APK: <https://expo.dev/artifacts/eas/hybi6oNPHUQChncupNRcNd.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/86105d10-d74e-4300-870a-a0081e7aee6c>
+
+Antes de publicar:
+
+```bash
+pnpm check
+npx expo-doctor
+pnpm build:android:preview
+```
+
+Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `86105d10-d74e-4300-870a-a0081e7aee6c` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
+
+`babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
+
+Para lanzar EAS desde esta máquina hace falta iniciar sesión:
+
+```bash
+npx eas-cli login
+pnpm build:android:preview
+```
+
+En CI, usar `EXPO_TOKEN`.

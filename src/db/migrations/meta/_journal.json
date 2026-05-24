@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1779582096855,
+      "tag": "0000_brainy_blockbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1779583432461,
+      "tag": "0001_gigantic_daredevil",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779583526695,
+      "tag": "0002_familiar_iron_fist",
+      "breakpoints": true
+    }
+  ]
+}
