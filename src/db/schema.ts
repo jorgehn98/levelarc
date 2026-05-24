@@ -59,4 +59,7 @@ export const dailyMissions = sqliteTable('daily_missions', {
   completados: integer('completados').notNull().default(0),
   reclamada: integer('reclamada', { mode: 'boolean' }).notNull().default(false),
   xpBonus: integer('xp_bonus').notNull().default(10),
+  perfectStreakDays: integer('perfect_streak_days').notNull().default(0),
+  streakBonusClaimed: integer('streak_bonus_claimed', { mode: 'boolean' }).notNull().default(false),
+  streakBonusXp: integer('streak_bonus_xp').notNull().default(30),
 });

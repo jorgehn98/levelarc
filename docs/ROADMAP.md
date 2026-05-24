@@ -26,6 +26,7 @@ Incluye:
 - Pantalla Progreso.
 - Pantalla Ajustes.
 - Misión diaria dinámica: completar todos los hábitos programados para hoy.
+- Misión extra de racha perfecta de 7 días.
 - Recordatorios locales.
 - Exportación JSON.
 - Nombre de jugador persistente, definido en onboarding y editable en Ajustes.

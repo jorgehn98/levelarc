@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { DAILY_MISSION_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
+import { DAILY_MISSION_BONUS_XP, PERFECT_WEEK_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
 import { getLevelProgress } from '@/core/ranks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import {
@@ -68,6 +68,9 @@ export type DailyMissionRecord = {
   completados: number;
   reclamada: boolean;
   xpBonus: number;
+  perfectStreakDays: number;
+  streakBonusClaimed: boolean;
+  streakBonusXp: number;
 };
 
 export type EventRecord = {
@@ -272,6 +275,17 @@ export async function claimDailyMission(dateKey = toDateKey()) {
   await saveDb(db);
 }
 
+export async function claimPerfectWeekMission(dateKey = toDateKey()) {
+  const db = await loadDb();
+  const mission = ensureMission(db, dateKey);
+  syncMission(db, dateKey);
+  if (mission.streakBonusClaimed || mission.perfectStreakDays < 7 || mission.completados < mission.objetivo) return;
+  mission.streakBonusClaimed = true;
+  db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.streakBonusXp);
+  syncPlayer(db);
+  await saveDb(db);
+}
+
 export async function getRecentEvents(limit = 25) {
   const db = await loadDb();
   return db.events.slice().sort((a, b) => b.registradoEn.localeCompare(a.registradoEn)).slice(0, limit);
@@ -305,7 +319,16 @@ function getOrCreateProgress(db: WebDb, habitId: string, dateKey: string) {
 function ensureMission(db: WebDb, dateKey: string) {
   let mission = db.missions.find((item) => item.fecha === dateKey);
   if (!mission) {
-    mission = { fecha: dateKey, objetivo: 0, completados: 0, reclamada: false, xpBonus: DAILY_MISSION_BONUS_XP };
+    mission = {
+      fecha: dateKey,
+      objetivo: 0,
+      completados: 0,
+      reclamada: false,
+      xpBonus: DAILY_MISSION_BONUS_XP,
+      perfectStreakDays: 0,
+      streakBonusClaimed: false,
+      streakBonusXp: PERFECT_WEEK_BONUS_XP,
+    };
     db.missions.push(mission);
   }
   return mission;
@@ -326,9 +349,31 @@ function syncMission(db: WebDb, dateKey: string) {
     (item) => item.fecha === dateKey && item.estado === 'completado' && scheduledHabitIds.has(item.habitId),
   ).length;
   mission.xpBonus = getDailyMissionBonus(mission.objetivo);
+  const previousPerfectStreak = getPreviousPerfectDayStreak(db, dateKey);
+  const isPerfectToday = mission.objetivo > 0 && mission.completados >= mission.objetivo;
+  mission.perfectStreakDays = isPerfectToday ? previousPerfectStreak + 1 : previousPerfectStreak;
+  mission.streakBonusXp = PERFECT_WEEK_BONUS_XP;
+  if (!isPerfectToday) {
+    mission.streakBonusClaimed = false;
+  }
   if (mission.objetivo === 0) {
     mission.reclamada = false;
   }
+}
+
+function getPreviousPerfectDayStreak(db: WebDb, dateKey: string) {
+  let streak = 0;
+  const cursor = new Date(`${dateKey}T12:00:00`);
+
+  while (true) {
+    cursor.setDate(cursor.getDate() - 1);
+    const key = toDateKey(cursor);
+    const mission = db.missions.find((item) => item.fecha === key);
+    if (!mission || mission.objetivo <= 0 || mission.completados < mission.objetivo) break;
+    streak += 1;
+  }
+
+  return streak;
 }
 
 function syncPlayer(db: WebDb) {
@@ -370,6 +415,12 @@ async function loadDb(): Promise<WebDb> {
   }));
   db.events = db.events.map((event) => ({ ...event, attributeDelta: normalizeAttributeXp(event.attributeDelta) }));
   db.player.atributosXp = normalizeAttributeXp(db.player.atributosXp);
+  db.missions = db.missions.map((mission) => ({
+    ...mission,
+    perfectStreakDays: Math.max(0, Math.floor(Number(mission.perfectStreakDays ?? 0))),
+    streakBonusClaimed: Boolean(mission.streakBonusClaimed),
+    streakBonusXp: Math.max(0, Math.floor(Number(mission.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
+  }));
   return db;
 }
 
@@ -461,6 +512,9 @@ function normalizeMission(row: unknown): DailyMissionRecord {
     completados: Math.max(0, Math.floor(asNumber(row.completados))),
     reclamada: asBoolean(row.reclamada),
     xpBonus: Math.max(0, Math.floor(asNumber(row.xp_bonus ?? row.xpBonus))),
+    perfectStreakDays: Math.max(0, Math.floor(asNumber(row.perfect_streak_days ?? row.perfectStreakDays ?? 0))),
+    streakBonusClaimed: asBoolean(row.streak_bonus_claimed ?? row.streakBonusClaimed),
+    streakBonusXp: Math.max(0, Math.floor(asNumber(row.streak_bonus_xp ?? row.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
   };
 }
 

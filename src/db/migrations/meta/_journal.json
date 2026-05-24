@@ -36,6 +36,13 @@
       "when": 1779656234883,
       "tag": "0004_striped_punisher",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1779659300353,
+      "tag": "0005_parched_living_lightning",
+      "breakpoints": true
     }
   ]
 }

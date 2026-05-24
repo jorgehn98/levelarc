@@ -59,7 +59,10 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       objetivo integer DEFAULT 3 NOT NULL,
       completados integer DEFAULT 0 NOT NULL,
       reclamada integer DEFAULT 0 NOT NULL,
-      xp_bonus integer DEFAULT 10 NOT NULL
+      xp_bonus integer DEFAULT 10 NOT NULL,
+      perfect_streak_days integer DEFAULT 0 NOT NULL,
+      streak_bonus_claimed integer DEFAULT 0 NOT NULL,
+      streak_bonus_xp integer DEFAULT 30 NOT NULL
     );
   `);
 
@@ -95,6 +98,24 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
 
   try {
     await sqlite.execAsync("ALTER TABLE player ADD COLUMN atributos_xp text DEFAULT '{}' NOT NULL;");
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE daily_missions ADD COLUMN perfect_streak_days integer DEFAULT 0 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE daily_missions ADD COLUMN streak_bonus_claimed integer DEFAULT 0 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE daily_missions ADD COLUMN streak_bonus_xp integer DEFAULT 30 NOT NULL;');
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }

@@ -111,6 +111,8 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Si no hay hábitos programados para hoy, no hay misión diaria activa.
 - Progreso diario basado en `completados / hábitos de hoy`.
 - Reclamar bonus de XP escalado por carga diaria: 1 hábito +5 XP, 2-3 +10 XP, 4-5 +15 XP, 6+ +20 XP.
+- Misión extra de racha perfecta: si los 6 días anteriores fueron perfectos, en el día 7 aparece una misión de racha. Al completar todos los hábitos del día 7 se puede reclamar un bonus extra de +30 XP.
+- La racha de misión (`player.racha_misiones`) sube al reclamar la misión diaria normal; la racha perfecta se calcula desde `daily_missions`.
 
 ### Persistencia
 

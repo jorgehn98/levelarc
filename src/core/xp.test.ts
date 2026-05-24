@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyXpDelta, getCompletionXp, getFailureXp } from './xp';
 import { getLevelFromXp, getLevelProgress, getXpForLevel } from './ranks';
-import { getDailyMissionBonus, getDailyMissionProgress } from './missions';
+import { getDailyMissionBonus, getDailyMissionProgress, getPerfectWeekMissionProgress } from './missions';
 import { getTodayWeekday } from '../lib/date';
 
 describe('xp rules', () => {
@@ -50,6 +50,12 @@ describe('daily mission', () => {
     expect(getDailyMissionBonus(3)).toBe(10);
     expect(getDailyMissionBonus(5)).toBe(15);
     expect(getDailyMissionBonus(6)).toBe(20);
+  });
+
+  it('tracks the perfect week bonus mission at seven perfect days', () => {
+    expect(getPerfectWeekMissionProgress(6)).toMatchObject({ completed: 6, target: 7, isComplete: false });
+    expect(getPerfectWeekMissionProgress(7)).toMatchObject({ completed: 7, target: 7, isComplete: true });
+    expect(getPerfectWeekMissionProgress(10).completed).toBe(7);
   });
 });
 

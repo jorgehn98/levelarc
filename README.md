@@ -16,6 +16,7 @@ MVP funcional:
 - Pantalla Hoy con completar, sumar progreso, fallar y deshacer.
 - XP, niveles, rangos E-S y eventos de historial.
 - Misión diaria dinámica: completar todos los hábitos de hoy y reclamar bonus.
+- Misión extra por racha perfecta de 7 días.
 - Recordatorios locales en native.
 - Backup/exportación JSON e importación/restauración pegando JSON.
 - Idioma ES/EN.

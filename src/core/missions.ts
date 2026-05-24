@@ -1,4 +1,7 @@
 export const DAILY_MISSION_BONUS_XP = 10;
+export const PERFECT_WEEK_BONUS_XP = 30;
+
+const PERFECT_WEEK_STREAK_DAYS = 7;
 
 export function getDailyMissionBonus(target: number) {
   const safeTarget = Math.max(0, Math.floor(target));
@@ -20,5 +23,15 @@ export function getDailyMissionProgress(completedHabits: number, target: number)
     isAvailable,
     isComplete: isAvailable && safeCompleted >= safeTarget,
     ratio: isAvailable ? Math.min(1, safeCompleted / safeTarget) : 0,
+  };
+}
+
+export function getPerfectWeekMissionProgress(perfectStreakDays: number) {
+  const safeStreak = Math.max(0, Math.floor(perfectStreakDays));
+  return {
+    completed: Math.min(PERFECT_WEEK_STREAK_DAYS, safeStreak),
+    target: PERFECT_WEEK_STREAK_DAYS,
+    isComplete: safeStreak >= PERFECT_WEEK_STREAK_DAYS,
+    ratio: Math.min(1, safeStreak / PERFECT_WEEK_STREAK_DAYS),
   };
 }

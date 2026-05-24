@@ -7,6 +7,7 @@ import type { Language } from '@/i18n';
 import {
   archiveHabit,
   claimDailyMission,
+  claimPerfectWeekMission as claimPerfectWeekMissionRepo,
   closeDay,
   createHabit,
   exportAllData,
@@ -49,6 +50,7 @@ type AppState = {
   failHabit: (id: string) => Promise<void>;
   undoHabit: (id: string) => Promise<void>;
   claimMission: () => Promise<void>;
+  claimPerfectWeekMission: () => Promise<void>;
   closeToday: () => Promise<void>;
   setLanguage: (language: Language) => Promise<void>;
   setPlayerName: (name: string) => Promise<void>;
@@ -118,6 +120,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   claimMission: async () => {
     await claimDailyMission();
+    await get().refresh();
+  },
+  claimPerfectWeekMission: async () => {
+    await claimPerfectWeekMissionRepo();
     await get().refresh();
   },
   closeToday: async () => {

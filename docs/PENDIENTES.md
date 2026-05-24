@@ -84,11 +84,11 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 
 - [ ] Añadir tests para rachas por hábito.
 - [ ] Añadir tests para cierre de día.
-- [ ] Añadir tests para misión diaria.
+- [x] Añadir tests para misión diaria.
 - [ ] Añadir tests para recalcular player desde events.
 - [x] Añadir tests para normalización, reparto y nivel de atributos.
 - [ ] Revisar balance final de curva de atributos frente a nivel/rango.
-- [ ] Revisar multiplicador de racha real: ahora el MVP usa base simple en web fallback.
+- [ ] Igualar multiplicador de racha por hábito en web fallback: ahora web usa base simple.
 - [ ] Revisar si `racha_misiones` debe resetearse si no se reclama misión.
 
 ## i18n

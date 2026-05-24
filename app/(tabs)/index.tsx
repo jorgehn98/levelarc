@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { Check, Gift, Plus, Target } from 'lucide-react-native';
+import { Check, Flame, Gift, Plus, Target } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -9,7 +9,7 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { SystemPanel } from '@/components/SystemPanel';
-import { getDailyMissionProgress } from '@/core/missions';
+import { getDailyMissionProgress, getPerfectWeekMissionProgress } from '@/core/missions';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
@@ -22,9 +22,13 @@ export default function TodayScreen() {
   const failHabit = useAppStore((state) => state.failHabit);
   const undoHabit = useAppStore((state) => state.undoHabit);
   const claimMission = useAppStore((state) => state.claimMission);
+  const claimPerfectWeekMission = useAppStore((state) => state.claimPerfectWeekMission);
   const language = useAppStore((state) => state.language);
   const mission = getDailyMissionProgress(dailyMission?.completados ?? 0, dailyMission?.objetivo ?? todayHabits.length);
+  const perfectWeekMission = getPerfectWeekMissionProgress(dailyMission?.perfectStreakDays ?? 0);
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
+  const canClaimPerfectWeek = perfectWeekMission.isComplete && !dailyMission?.streakBonusClaimed;
+  const showPerfectWeekMission = (dailyMission?.perfectStreakDays ?? 0) >= 6;
   const pendingHabits = todayHabits.filter((habit) => habit.estado === 'pendiente');
   const completedHabits = todayHabits.filter((habit) => habit.estado === 'completado');
   const failedHabits = todayHabits.filter((habit) => habit.estado === 'fallado');
@@ -70,6 +74,35 @@ export default function TodayScreen() {
             <Text style={styles.metaText}>{t(language, 'completedCount', { done: mission.completed, target: mission.target })}</Text>
           )}
         </SystemPanel>
+
+        {showPerfectWeekMission ? (
+          <SystemPanel title={t(language, 'perfectWeekMission')}>
+            <View style={styles.missionTop}>
+              <View style={[styles.missionIcon, perfectWeekMission.isComplete && styles.missionCompleteIcon]}>
+                {perfectWeekMission.isComplete ? <Check color={colors.state.completed} size={18} /> : <Flame color={colors.state.streak} size={18} />}
+              </View>
+              <View style={styles.missionCopy}>
+                <Text style={styles.kicker}>{t(language, 'perfectWeekStatus')}</Text>
+                <Text style={styles.systemText}>{t(language, 'perfectWeekCopy')}</Text>
+              </View>
+              <Text style={[styles.missionCount, perfectWeekMission.isComplete && styles.missionComplete]}>
+                {perfectWeekMission.completed} / {perfectWeekMission.target}
+              </Text>
+            </View>
+
+            <ProgressBar ratio={perfectWeekMission.ratio} color={perfectWeekMission.isComplete ? colors.state.completed : colors.state.streak} />
+
+            {canClaimPerfectWeek ? (
+              <View style={styles.claim}>
+                <Button icon={Flame} label={t(language, 'claimXp', { xp: dailyMission?.streakBonusXp ?? 30 })} onPress={claimPerfectWeekMission} />
+              </View>
+            ) : perfectWeekMission.isComplete ? (
+              <Text style={styles.claimed}>{t(language, 'perfectWeekClaimed')} · +{dailyMission?.streakBonusXp ?? 30} XP</Text>
+            ) : (
+              <Text style={styles.metaText}>{t(language, 'perfectWeekProgress', { done: perfectWeekMission.completed, target: perfectWeekMission.target })}</Text>
+            )}
+          </SystemPanel>
+        ) : null}
 
         {todayHabits.length === 0 ? (
           <View style={styles.emptyState}>

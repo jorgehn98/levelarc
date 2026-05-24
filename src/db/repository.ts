@@ -2,7 +2,7 @@ import { sqlite } from './client';
 import { migrateDb } from './migrate';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import { getLevelProgress } from '@/core/ranks';
-import { DAILY_MISSION_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
+import { DAILY_MISSION_BONUS_XP, PERFECT_WEEK_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
 import {
   applyAttributeDeltas,
   createEmptyAttributeXp,
@@ -69,6 +69,9 @@ export type DailyMissionRecord = {
   completados: number;
   reclamada: boolean;
   xpBonus: number;
+  perfectStreakDays: number;
+  streakBonusClaimed: boolean;
+  streakBonusXp: number;
 };
 
 export type EventRecord = {
@@ -118,6 +121,9 @@ type DailyMissionRow = {
   completados: number;
   reclamada: number;
   xp_bonus: number;
+  perfect_streak_days: number;
+  streak_bonus_claimed: number;
+  streak_bonus_xp: number;
 };
 
 type EventRow = {
@@ -317,6 +323,15 @@ export async function claimDailyMission(dateKey = toDateKey()) {
   await setPlayerProgress(nextXp, player.rachaMisiones + 1);
 }
 
+export async function claimPerfectWeekMission(dateKey = toDateKey()) {
+  const mission = await getDailyMission(dateKey);
+  if (mission.streakBonusClaimed || mission.perfectStreakDays < 7 || mission.completados < mission.objetivo) return;
+  const player = await ensurePlayer();
+  const nextXp = applyXpDelta(player.xpTotal, mission.streakBonusXp);
+  await sqlite.runAsync('UPDATE daily_missions SET streak_bonus_claimed = 1 WHERE fecha = ?', [dateKey]);
+  await setPlayerProgress(nextXp);
+}
+
 export async function getRecentEvents(limit = 25): Promise<EventRecord[]> {
   const rows = await sqlite.getAllAsync<EventRow>(
     `
@@ -415,10 +430,19 @@ export async function importAllData(data: unknown) {
   for (const mission of backup.dailyMissions) {
     await sqlite.runAsync(
       `
-        INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus, perfect_streak_days, streak_bonus_claimed, streak_bonus_xp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [mission.fecha, mission.objetivo, mission.completados, mission.reclamada ? 1 : 0, mission.xpBonus],
+      [
+        mission.fecha,
+        mission.objetivo,
+        mission.completados,
+        mission.reclamada ? 1 : 0,
+        mission.xpBonus,
+        mission.perfectStreakDays,
+        mission.streakBonusClaimed ? 1 : 0,
+        mission.streakBonusXp,
+      ],
     );
   }
 
@@ -507,8 +531,11 @@ async function ensureDailyMission(dateKey: string) {
   if (existing) return;
 
   await sqlite.runAsync(
-    'INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus) VALUES (?, ?, 0, 0, ?)',
-    [dateKey, 0, DAILY_MISSION_BONUS_XP],
+    `
+      INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus, perfect_streak_days, streak_bonus_claimed, streak_bonus_xp)
+      VALUES (?, ?, 0, 0, ?, 0, 0, ?)
+    `,
+    [dateKey, 0, DAILY_MISSION_BONUS_XP, PERFECT_WEEK_BONUS_XP],
   );
 }
 
@@ -538,13 +565,50 @@ async function syncDailyMission(dateKey: string) {
   const objective = target?.count ?? 0;
   const done = completed?.count ?? 0;
   const bonus = getDailyMissionBonus(objective);
-  const current = await sqlite.getFirstAsync<{ reclamada: number }>('SELECT reclamada FROM daily_missions WHERE fecha = ?', [dateKey]);
+  const current = await sqlite.getFirstAsync<{ reclamada: number; streak_bonus_claimed: number }>(
+    'SELECT reclamada, streak_bonus_claimed FROM daily_missions WHERE fecha = ?',
+    [dateKey],
+  );
   const claimed = objective > 0 ? current?.reclamada ?? 0 : 0;
+  const previousPerfectStreak = await getPreviousPerfectDayStreak(dateKey);
+  const isPerfectToday = objective > 0 && done >= objective;
+  const perfectStreakDays = isPerfectToday ? previousPerfectStreak + 1 : previousPerfectStreak;
+  const streakBonusClaimed = isPerfectToday ? current?.streak_bonus_claimed ?? 0 : 0;
 
   await sqlite.runAsync(
-    'UPDATE daily_missions SET objetivo = ?, completados = ?, xp_bonus = ?, reclamada = ? WHERE fecha = ?',
-    [objective, done, bonus, claimed, dateKey],
+    `
+      UPDATE daily_missions
+      SET objetivo = ?, completados = ?, xp_bonus = ?, reclamada = ?, perfect_streak_days = ?, streak_bonus_claimed = ?, streak_bonus_xp = ?
+      WHERE fecha = ?
+    `,
+    [objective, done, bonus, claimed, perfectStreakDays, streakBonusClaimed, PERFECT_WEEK_BONUS_XP, dateKey],
   );
+}
+
+async function getPreviousPerfectDayStreak(dateKey: string) {
+  const rows = await sqlite.getAllAsync<DailyMissionRow>(
+    `
+      SELECT *
+      FROM daily_missions
+      WHERE fecha < ?
+      ORDER BY fecha DESC
+      LIMIT 14
+    `,
+    [dateKey],
+  );
+  let streak = 0;
+  const cursor = new Date(`${dateKey}T12:00:00`);
+  const missionsByDate = new Map(rows.map((row) => [row.fecha, row]));
+
+  while (true) {
+    cursor.setDate(cursor.getDate() - 1);
+    const key = toDateKey(cursor);
+    const mission = missionsByDate.get(key);
+    if (!mission || mission.objetivo <= 0 || mission.completados < mission.objetivo) break;
+    streak += 1;
+  }
+
+  return streak;
 }
 
 async function setPlayerProgress(xpTotal: number, rachaMisiones?: number, atributosXp?: AttributeXp) {
@@ -645,6 +709,9 @@ function mapDailyMission(row: DailyMissionRow): DailyMissionRecord {
     completados: row.completados,
     reclamada: Boolean(row.reclamada),
     xpBonus: row.xp_bonus,
+    perfectStreakDays: row.perfect_streak_days,
+    streakBonusClaimed: Boolean(row.streak_bonus_claimed),
+    streakBonusXp: row.streak_bonus_xp,
   };
 }
 
@@ -746,6 +813,9 @@ function normalizeMission(row: unknown): DailyMissionRecord {
     completados: Math.max(0, Math.floor(asNumber(row.completados))),
     reclamada: asBoolean(row.reclamada),
     xpBonus: Math.max(0, Math.floor(asNumber(row.xp_bonus ?? row.xpBonus))),
+    perfectStreakDays: Math.max(0, Math.floor(asNumber(row.perfect_streak_days ?? row.perfectStreakDays ?? 0))),
+    streakBonusClaimed: asBoolean(row.streak_bonus_claimed ?? row.streakBonusClaimed),
+    streakBonusXp: Math.max(0, Math.floor(asNumber(row.streak_bonus_xp ?? row.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
   };
 }
 
