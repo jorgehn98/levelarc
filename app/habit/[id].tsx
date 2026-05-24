@@ -59,6 +59,8 @@ export default function HabitDetailScreen() {
 
 const styles = StyleSheet.create({
   scroll: {
+    alignItems: 'stretch',
     paddingBottom: 30,
+    width: '100%',
   },
 });

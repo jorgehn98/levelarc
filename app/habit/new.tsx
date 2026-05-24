@@ -30,6 +30,8 @@ export default function NewHabitScreen() {
 
 const styles = StyleSheet.create({
   scroll: {
+    alignItems: 'stretch',
     paddingBottom: 30,
+    width: '100%',
   },
 });

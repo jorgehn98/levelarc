@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Archive, BookOpen, ChevronRight, Dumbbell, ListChecks, Plus, Target } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -41,14 +41,18 @@ export default function HabitsScreen() {
         )}
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.filters}>
-          <FilterChip active={filter === 'active'} count={counts.active} label={t(language, 'active')} onPress={() => setFilter('active')} />
-          <FilterChip active={filter === 'archived'} count={counts.archived} label={t(language, 'archived')} onPress={() => setFilter('archived')} />
-          <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} />
-        </View>
-
-        {filtered.length === 0 ? (
+      <FlatList
+        contentContainerStyle={styles.listContent}
+        data={filtered}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={(
+          <View style={styles.filters}>
+            <FilterChip active={filter === 'active'} count={counts.active} label={t(language, 'active')} onPress={() => setFilter('active')} />
+            <FilterChip active={filter === 'archived'} count={counts.archived} label={t(language, 'archived')} onPress={() => setFilter('archived')} />
+            <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} />
+          </View>
+        )}
+        ListEmptyComponent={(
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
               <Target color={colors.state.pending} size={22} />
@@ -56,14 +60,10 @@ export default function HabitsScreen() {
             <Text style={styles.rowTitle}>{t(language, 'noHabits')}</Text>
             <Text style={styles.rowText}>{t(language, 'feedSystem')}</Text>
           </View>
-        ) : (
-          <View style={styles.list}>
-            {filtered.map((item) => (
-              <HabitRow key={item.id} habit={item} language={language} />
-            ))}
-          </View>
         )}
-      </ScrollView>
+        renderItem={({ item }) => <HabitRow habit={item} language={language} />}
+        showsVerticalScrollIndicator={false}
+      />
     </Screen>
   );
 }
@@ -128,14 +128,15 @@ const styles = StyleSheet.create({
     width: 44,
     ...shadows.primaryGlow,
   },
-  scroll: {
-    gap: 14,
+  listContent: {
+    alignItems: 'stretch',
     paddingBottom: 24,
     width: '100%',
   },
   filters: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 14,
     width: '100%',
   },
   filterChip: {
@@ -169,11 +170,6 @@ const styles = StyleSheet.create({
   activeFilterText: {
     color: colors.background.void,
   },
-  list: {
-    alignSelf: 'stretch',
-    gap: 10,
-    width: '100%',
-  },
   row: {
     alignItems: 'center',
     backgroundColor: colors.background.card,
@@ -183,6 +179,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     minHeight: 72,
+    marginBottom: 10,
     padding: 12,
     width: '100%',
   },
