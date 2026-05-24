@@ -266,6 +266,14 @@ Update `preview` alineando CTA onboarding con la referencia:
 - Commit: `12d99a52cb6afe1957b3d6ebfcb3ddf2dcec973a`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/57dd61c0-fd65-4b29-83ff-6c6eecf4bb13>
 
+Update `preview` cambiando el rol de usuario a Jugador:
+
+- Update group: `e4b7f8ed-70a2-4333-bcff-fd64f76f4b39`
+- Runtime: `1.0.2`
+- Mensaje: cambio de terminología a `Jugador` / `Player`
+- Commit: `7b4dab63adb7338eb5c062a0d9306aa7d0837e8b`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/e4b7f8ed-70a2-4333-bcff-fd64f76f4b39>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
