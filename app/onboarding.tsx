@@ -88,7 +88,7 @@ export default function OnboardingScreen() {
             style={[styles.ctaVisual, { backgroundColor: accent, borderColor: accent, shadowColor: accent }, (isSubmitting || (isFirstRun && !isValid)) && styles.disabled]}
           >
             <Text style={styles.ctaText}>{isSubmitting ? t(language, 'initializing') : isFirstRun ? t(language, 'beginAscension') : t(language, 'continueAscension')}</Text>
-            {isSubmitting ? <ActivityIndicator color={colors.background.void} size="small" /> : <ChevronRight color={colors.background.void} size={18} />}
+            {isSubmitting ? <ActivityIndicator color={colors.background.void} size="small" style={styles.ctaIcon} /> : <ChevronRight color={colors.background.void} size={18} style={styles.ctaIcon} />}
           </View>
         </Pressable>
 
@@ -759,11 +759,16 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     width: '100%',
   },
+  ctaIcon: {
+    position: 'absolute',
+    right: 18,
+  },
   ctaText: {
     color: colors.background.void,
     fontFamily: typography.font.bodyMedium,
     fontSize: 14,
-    marginRight: 8,
+    paddingHorizontal: 42,
+    textAlign: 'center',
   },
   disabled: {
     opacity: 0.78,
