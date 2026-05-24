@@ -9,11 +9,13 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Revisar resultado del build preview EAS `6914231b-d85a-464a-83a3-2794f392ca65`.
 - [x] Relanzar build preview tras añadir `babel-preset-expo`.
 - [x] Validar si el duplicado `expo-constants` de `expo-doctor` afecta al build nativo.
-- [ ] Instalar APK preview `86105d10-d74e-4300-870a-a0081e7aee6c` en Android.
+- [x] Instalar APK preview `86105d10-d74e-4300-870a-a0081e7aee6c` en Android.
+- [ ] Instalar APK preview `a620ba5d-55a7-429c-bdb7-f67bda80bae9` en Android.
 - [ ] Probar crear hábito en Android.
 - [ ] Probar editar hábito en Android.
 - [ ] Probar archivar hábito en Android.
 - [ ] Probar hábito contable hasta completar meta.
+- [ ] Confirmar que un hábito lunes/miércoles/viernes/sábado no aparece en domingo.
 - [ ] Probar fallar hábito y confirmar que no baja de nivel.
 - [ ] Probar deshacer acción del día.
 - [ ] Probar misión diaria y reclamar bonus.

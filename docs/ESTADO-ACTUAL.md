@@ -160,6 +160,16 @@ Build preview Android válido:
 - Fingerprint: `378cdeec443ebd5ab8ec2fa11c66dc4dcc6e394c`
 - Perfil: `preview`, distribución interna, SDK `56.0.0`, version `1.0.0`, versionCode `1`.
 
+Build preview Android actual tras QA:
+
+- ID: `a620ba5d-55a7-429c-bdb7-f67bda80bae9`
+- APK: <https://expo.dev/artifacts/eas/mvPFAjN55GCXsGkBCnGxtx.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/a620ba5d-55a7-429c-bdb7-f67bda80bae9>
+- Estado: terminado correctamente.
+- Fingerprint: `2ad4b4a2ba5c04a2538a5959d9a4b35a8387142a`
+- Perfil: `preview`, distribución interna, SDK `56.0.0`, version `1.0.1`, versionCode `2`.
+- Cambios: hábitos nuevos sin días preseleccionados, chips seleccionados legibles en modo oscuro y test para weekdays lunes=1/domingo=7.
+
 ## Estado real
 
 MVP funcional: sí.

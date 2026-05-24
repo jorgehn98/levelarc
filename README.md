@@ -92,9 +92,10 @@ Proyecto EAS enlazado:
 
 Último APK preview válido:
 
-- Build ID: `86105d10-d74e-4300-870a-a0081e7aee6c`
-- APK: <https://expo.dev/artifacts/eas/hybi6oNPHUQChncupNRcNd.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/86105d10-d74e-4300-870a-a0081e7aee6c>
+- Build ID: `a620ba5d-55a7-429c-bdb7-f67bda80bae9`
+- APK: <https://expo.dev/artifacts/eas/mvPFAjN55GCXsGkBCnGxtx.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/a620ba5d-55a7-429c-bdb7-f67bda80bae9>
+- Versión: `1.0.1`, Android versionCode `2`.
 
 Antes de publicar:
 
@@ -104,7 +105,7 @@ npx expo-doctor
 pnpm build:android:preview
 ```
 
-Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `86105d10-d74e-4300-870a-a0081e7aee6c` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
+Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `a620ba5d-55a7-429c-bdb7-f67bda80bae9` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
 
 `babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
 
