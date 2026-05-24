@@ -365,6 +365,14 @@ Update `preview` con recordatorio configurable de cierre:
 - Commit: `79a7ea0da3cf4acf4bac504ed7533473eb999254`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/7d1ebc24-8f8d-436b-a484-cca0c362a49e>
 
+Update `preview` con selector de hora para recordatorios:
+
+- Update group: `70e19809-c073-484f-ba91-ec052fb3165f`
+- Runtime: `1.0.2`
+- Mensaje: `Use time picker for reminders`
+- Commit: `5c5cb9a0889c4f56a0095a2257b9fa8deb485877`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/70e19809-c073-484f-ba91-ec052fb3165f>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
