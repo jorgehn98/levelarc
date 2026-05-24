@@ -41,12 +41,14 @@ export default function HabitsScreen() {
         )}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} style={styles.scroll}>
         <View style={styles.filters}>
           <FilterChip active={filter === 'active'} count={counts.active} label={t(language, 'active')} onPress={() => setFilter('active')} />
           <FilterChip active={filter === 'archived'} count={counts.archived} label={t(language, 'archived')} onPress={() => setFilter('archived')} />
           <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} />
         </View>
+
+        <Text style={styles.debugText}>QA HABITS v4 · activos {counts.active} · mostrados {filtered.length} · total {counts.all}</Text>
 
         {filtered.length === 0 ? (
           <View style={styles.empty}>
@@ -58,8 +60,8 @@ export default function HabitsScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {filtered.map((habit) => (
-              <HabitRow key={habit.id} habit={habit} language={language} />
+            {filtered.map((habit, index) => (
+              <HabitRow key={`${habit.id}-${index}`} habit={habit} language={language} />
             ))}
           </View>
         )}
@@ -83,36 +85,39 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
   const Icon = habit.tipo === 'contable' ? BookOpen : habit.importancia >= 4 ? Dumbbell : Target;
 
   return (
-    <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.row, isArchived && styles.archivedRow, pressed && styles.pressedRow]}>
-      <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
-        {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
-      </View>
-      <View style={styles.copy}>
-        <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
-        <View style={styles.metaLine}>
-          <Text style={styles.xpText}>+{xp} XP</Text>
-          <Text style={styles.dotText}>·</Text>
-          <Text numberOfLines={1} style={styles.rowText}>
-            {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })}
-          </Text>
-          <Text style={styles.dotText}>·</Text>
-          <Text style={styles.streakText}>{habit.diasSemana}</Text>
+    <View style={[styles.habitCard, isArchived && styles.archivedRow]}>
+      <View style={styles.statusRail} />
+      <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.rowContent, pressed && styles.pressedRow]}>
+        <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
+          {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
         </View>
-        <View style={styles.importanceLine}>
-          {Array.from({ length: 5 }).map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.importanceDot,
-                index < habit.importancia ? styles.activeImportanceDot : styles.inactiveImportanceDot,
-                isArchived && styles.archivedImportanceDot,
-              ]}
-            />
-          ))}
+        <View style={styles.copy}>
+          <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
+          <View style={styles.metaLine}>
+            <Text style={styles.xpText}>+{xp} XP</Text>
+            <Text style={styles.dotText}>·</Text>
+            <Text numberOfLines={1} style={styles.rowText}>
+              {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })}
+            </Text>
+            <Text style={styles.dotText}>·</Text>
+            <Text style={styles.streakText}>{habit.diasSemana}</Text>
+          </View>
+          <View style={styles.importanceLine}>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.importanceDot,
+                  index < habit.importancia ? styles.activeImportanceDot : styles.inactiveImportanceDot,
+                  isArchived && styles.archivedImportanceDot,
+                ]}
+              />
+            ))}
+          </View>
         </View>
-      </View>
-      <ChevronRight color={colors.state.pending} size={20} />
-    </Pressable>
+        <ChevronRight color={colors.state.pending} size={20} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -128,14 +133,30 @@ const styles = StyleSheet.create({
     width: 44,
     ...shadows.primaryGlow,
   },
+  scroll: {
+    alignSelf: 'stretch',
+    flex: 1,
+    width: '100%',
+  },
   scrollContent: {
+    alignItems: 'stretch',
+    flexGrow: 1,
     paddingBottom: 24,
+    width: '100%',
   },
   filters: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 14,
     width: '100%',
+  },
+  debugText: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+    marginBottom: 10,
+    opacity: 0.78,
+    textTransform: 'uppercase',
   },
   filterChip: {
     alignItems: 'center',
@@ -168,19 +189,40 @@ const styles = StyleSheet.create({
   activeFilterText: {
     color: colors.background.void,
   },
-  row: {
-    alignItems: 'center',
+  habitCard: {
+    alignSelf: 'stretch',
     backgroundColor: colors.background.card,
-    borderColor: colors.background.border,
+    borderColor: colors.background.borderBright,
     borderRadius: radii.md,
     borderWidth: 1,
+    minHeight: 72,
+    overflow: 'hidden',
+    position: 'relative',
+    width: '100%',
+    ...shadows.primaryGlow,
+  },
+  statusRail: {
+    backgroundColor: colors.brand.cyanCore,
+    bottom: 0,
+    left: 0,
+    opacity: 0.88,
+    position: 'absolute',
+    top: 0,
+    width: 3,
+  },
+  rowContent: {
+    alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
     minHeight: 72,
-    padding: 12,
+    paddingBottom: 12,
+    paddingLeft: 16,
+    paddingRight: 12,
+    paddingTop: 12,
     width: '100%',
   },
   list: {
+    alignSelf: 'stretch',
     gap: 10,
     width: '100%',
   },
