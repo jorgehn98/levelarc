@@ -56,12 +56,13 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Cargar Inter/Orbitron desde `assets/fonts/`.
 - [x] Unificar cian de marca en `#3FCAE6`.
 - [x] Crear cabecera de jugador con rango, nivel, XP y racha.
-- [ ] Pulir pantalla Hoy completa contra `docs/UI-UX`.
-- [ ] Pulir pantalla Hábitos.
-- [ ] Pulir pantalla Progreso.
-- [ ] Pulir pantalla Ajustes.
-- [ ] Crear onboarding real.
-- [ ] Crear pantalla rank-up real.
+- [x] Pulir pantalla Hoy completa contra `docs/UI-UX`.
+- [x] Pulir pantalla Hábitos.
+- [x] Pulir pantalla Progreso.
+- [x] Pulir pantalla Ajustes.
+- [x] Crear onboarding real.
+- [x] Crear pantalla rank-up real.
+- [x] Pulir formulario crear/editar hábito.
 - [ ] Mejorar estados vacíos.
 - [ ] Añadir confirmación al archivar hábito.
 - [ ] Añadir confirmación al cerrar día.

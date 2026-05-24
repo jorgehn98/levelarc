@@ -77,7 +77,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   refresh: async () => {
     const [habits, todayHabits, player, dailyMission, events] = await Promise.all([
-      listHabits(),
+      listHabits(true),
       listTodayHabits(),
       getPlayer(),
       getDailyMission(),

@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 import type { LucideProps } from 'lucide-react-native';
 
 import { colors, radii, shadows, typography } from '@/theme/colors';
@@ -12,9 +12,10 @@ type ButtonProps = {
   variant?: ButtonVariant;
   disabled?: boolean;
   icon?: ComponentType<LucideProps>;
+  style?: StyleProp<ViewStyle>;
 };
 
-export function Button({ label, onPress, variant = 'primary', disabled, icon: Icon }: ButtonProps) {
+export function Button({ label, onPress, variant = 'primary', disabled, icon: Icon, style }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
@@ -27,6 +28,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
       style={({ pressed }) => [
         styles.button,
         styles[variant],
+        style,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
       ]}

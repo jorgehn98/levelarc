@@ -1,12 +1,12 @@
 import { router, Stack } from 'expo-router';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { HabitForm } from '@/components/HabitForm';
 import { Screen } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import type { HabitInput } from '@/db/repository';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors, typography } from '@/theme/colors';
 
 export default function NewHabitScreen() {
   const saveHabit = useAppStore((state) => state.saveHabit);
@@ -20,7 +20,7 @@ export default function NewHabitScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Nuevo hábito' }} />
-      <Text style={styles.title}>{t(language, 'newHabit')}</Text>
+      <ScreenHeader subtitle="Sistema · registro" title={t(language, 'newHabit')} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <HabitForm language={language} onCancel={() => router.back()} onSave={(input) => void handleSave(input)} />
       </ScrollView>
@@ -29,13 +29,6 @@ export default function NewHabitScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: {
-    color: colors.brand.bone,
-    fontFamily: typography.font.displayBold,
-    fontSize: 28,
-    letterSpacing: 0,
-    marginBottom: 18,
-  },
   scroll: {
     paddingBottom: 30,
   },

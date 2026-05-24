@@ -1,80 +1,168 @@
 import { Link } from 'expo-router';
-import { ChevronRight, Plus } from 'lucide-react-native';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Archive, ChevronRight, ListChecks, Plus, Target } from 'lucide-react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
-import { t } from '@/i18n';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import type { HabitRecord } from '@/db/repository';
+import { t, type Language } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography } from '@/theme/colors';
+
+type HabitFilter = 'active' | 'archived' | 'all';
 
 export default function HabitsScreen() {
   const habits = useAppStore((state) => state.habits);
   const language = useAppStore((state) => state.language);
+  const [filter, setFilter] = useState<HabitFilter>('active');
+  const counts = {
+    active: habits.filter((habit) => !habit.archivado).length,
+    archived: habits.filter((habit) => habit.archivado).length,
+    all: habits.length,
+  };
+  const filtered = habits.filter((habit) => {
+    if (filter === 'all') return true;
+    if (filter === 'archived') return habit.archivado;
+    return !habit.archivado;
+  });
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t(language, 'habits')}</Text>
-        <Link href="/habit/new" asChild>
-          <Pressable style={styles.iconButton}>
-            <Plus color={colors.background.void} size={22} />
-          </Pressable>
-        </Link>
-      </View>
-
-      <FlatList
-        contentContainerStyle={styles.list}
-        data={habits}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.rowTitle}>{t(language, 'noHabits')}</Text>
-            <Text style={styles.rowText}>{t(language, 'feedSystem')}</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <Link href={`/habit/${item.id}`} asChild>
-            <Pressable style={styles.row}>
-              <View style={styles.copy}>
-                <Text style={styles.rowTitle}>{item.nombre}</Text>
-                <Text style={styles.rowText}>
-                  {t(language, 'importance')} {item.importancia} · {item.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: item.meta })} · {item.diasSemana}
-                </Text>
-              </View>
-              <ChevronRight color={colors.state.pending} size={20} />
+      <ScreenHeader
+        icon={ListChecks}
+        subtitle={t(language, 'registeredMissions')}
+        title={t(language, 'habits')}
+        action={(
+          <Link href="/habit/new" asChild>
+            <Pressable style={styles.iconButton}>
+              <Plus color={colors.background.void} size={22} />
             </Pressable>
           </Link>
         )}
       />
+
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.filters}>
+          <FilterChip active={filter === 'active'} count={counts.active} label={t(language, 'active')} onPress={() => setFilter('active')} />
+          <FilterChip active={filter === 'archived'} count={counts.archived} label={t(language, 'archived')} onPress={() => setFilter('archived')} />
+          <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} />
+        </View>
+
+        {filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Target color={colors.state.pending} size={22} />
+            </View>
+            <Text style={styles.rowTitle}>{t(language, 'noHabits')}</Text>
+            <Text style={styles.rowText}>{t(language, 'feedSystem')}</Text>
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {filtered.map((item) => (
+              <HabitRow key={item.id} habit={item} language={language} />
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </Screen>
   );
 }
 
+function FilterChip({ active, count, label, onPress }: { active: boolean; count: number; label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.filterChip, active && styles.activeFilter]}>
+      <Text style={[styles.filterText, active && styles.activeFilterText]}>{label}</Text>
+      <Text style={[styles.filterCount, active && styles.activeFilterText]}>{count}</Text>
+    </Pressable>
+  );
+}
+
+function HabitRow({ habit, language }: { habit: HabitRecord; language: Language }) {
+  const isArchived = habit.archivado;
+  const maxDots = 5;
+
+  return (
+    <Link href={`/habit/${habit.id}`} asChild>
+      <Pressable style={[styles.row, isArchived && styles.archivedRow]}>
+        <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
+          {isArchived ? <Archive color={colors.state.pending} size={18} /> : <Target color={colors.brand.cyanCore} size={18} />}
+        </View>
+        <View style={styles.copy}>
+          <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
+          <Text numberOfLines={1} style={styles.rowText}>
+            {t(language, 'importance')} {habit.importancia} · {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })} · {habit.diasSemana}
+          </Text>
+          <View style={styles.importanceLine}>
+            {Array.from({ length: maxDots }).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.importanceDot,
+                  index < habit.importancia ? styles.activeImportanceDot : styles.inactiveImportanceDot,
+                  isArchived && styles.archivedImportanceDot,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+        <ChevronRight color={colors.state.pending} size={20} />
+      </Pressable>
+    </Link>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 22,
-  },
-  title: {
-    color: colors.brand.bone,
-    fontFamily: typography.font.displayBold,
-    fontSize: 30,
-    letterSpacing: 0,
-  },
   iconButton: {
     alignItems: 'center',
     backgroundColor: colors.brand.cyanCore,
+    borderColor: colors.brand.cyanCore,
     borderRadius: radii.md,
+    borderWidth: 1,
     height: 44,
     justifyContent: 'center',
     width: 44,
     ...shadows.primaryGlow,
   },
-  list: {
-    gap: 12,
+  scroll: {
+    gap: 14,
     paddingBottom: 24,
+  },
+  filters: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  filterChip: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 34,
+    paddingHorizontal: 10,
+  },
+  activeFilter: {
+    backgroundColor: colors.brand.cyanCore,
+    borderColor: colors.brand.cyanCore,
+  },
+  filterText: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+    textTransform: 'uppercase',
+  },
+  filterCount: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+  },
+  activeFilterText: {
+    color: colors.background.void,
+  },
+  list: {
+    gap: 8,
   },
   row: {
     alignItems: 'center',
@@ -83,12 +171,28 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
+    gap: 12,
+    padding: 12,
+  },
+  archivedRow: {
+    opacity: 0.58,
+  },
+  rowIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.background.surface,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  archivedIcon: {
+    borderColor: colors.background.border,
   },
   copy: {
     flex: 1,
-    paddingRight: 10,
+    minWidth: 0,
   },
   empty: {
     alignItems: 'center',
@@ -98,15 +202,49 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 24,
   },
+  emptyIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.background.surface,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: 'center',
+    marginBottom: 10,
+    width: 48,
+  },
   rowTitle: {
     color: colors.brand.bone,
     fontFamily: typography.font.bodyMedium,
-    fontSize: 16,
+    fontSize: 15,
+  },
+  archivedText: {
+    color: colors.brand.boneMuted,
   },
   rowText: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  importanceLine: {
+    flexDirection: 'row',
+    gap: 3,
+    marginTop: 7,
+  },
+  importanceDot: {
+    borderRadius: 1,
+    height: 2,
+    maxWidth: 22,
+    flex: 1,
+  },
+  activeImportanceDot: {
+    backgroundColor: colors.brand.cyanCore,
+  },
+  inactiveImportanceDot: {
+    backgroundColor: colors.background.border,
+  },
+  archivedImportanceDot: {
+    backgroundColor: colors.state.pending,
   },
 });

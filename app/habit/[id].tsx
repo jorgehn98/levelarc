@@ -1,13 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 
 import { HabitForm } from '@/components/HabitForm';
 import { Screen } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import type { HabitInput, HabitRecord } from '@/db/repository';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors, typography } from '@/theme/colors';
+import { colors } from '@/theme/colors';
 
 export default function HabitDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,7 +39,7 @@ export default function HabitDetailScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Hábito' }} />
-      <Text style={styles.title}>{t(language, 'editHabit')}</Text>
+      <ScreenHeader subtitle="Sistema · edición" title={t(language, 'editHabit')} />
       {habit ? (
         <ScrollView contentContainerStyle={styles.scroll}>
           <HabitForm
@@ -57,13 +58,6 @@ export default function HabitDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: {
-    color: colors.brand.bone,
-    fontFamily: typography.font.displayBold,
-    fontSize: 28,
-    letterSpacing: 0,
-    marginBottom: 18,
-  },
   scroll: {
     paddingBottom: 30,
   },

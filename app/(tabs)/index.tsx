@@ -1,17 +1,20 @@
 import { Link } from 'expo-router';
-import { Gift, Plus } from 'lucide-react-native';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Check, Gift, Plus, Target } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { HabitCard } from '@/components/HabitCard';
 import { PlayerHeader } from '@/components/PlayerHeader';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionHeader } from '@/components/SectionHeader';
 import { SystemPanel } from '@/components/SystemPanel';
 import { getDailyMissionProgress } from '@/core/missions';
-import { t } from '@/i18n';
+import type { TodayHabit } from '@/db/repository';
+import { t, type Language } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors, radii, shadows, typography } from '@/theme/colors';
+import { colors, radii, typography } from '@/theme/colors';
 
 export default function TodayScreen() {
   const todayHabits = useAppStore((state) => state.todayHabits);
@@ -24,98 +27,185 @@ export default function TodayScreen() {
   const language = useAppStore((state) => state.language);
   const mission = getDailyMissionProgress(dailyMission?.completados ?? 0, dailyMission?.objetivo ?? 3);
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
+  const pendingHabits = todayHabits.filter((habit) => habit.estado === 'pendiente');
+  const completedHabits = todayHabits.filter((habit) => habit.estado === 'completado');
+  const failedHabits = todayHabits.filter((habit) => habit.estado === 'fallado');
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.kicker}>{t(language, 'systemOnline')}</Text>
-          <Text style={styles.title}>{t(language, 'today')}</Text>
-        </View>
-        <Link href="/habit/new" asChild>
-          <Pressable style={styles.iconButton}>
-            <Plus color={colors.background.void} size={22} />
-          </Pressable>
-        </Link>
-      </View>
+      <ScreenHeader
+        subtitle={t(language, 'habitsToday')}
+        title={t(language, 'today')}
+        action={(
+          <Link href="/habit/new" asChild>
+            <Pressable style={styles.addButton}>
+              <Plus color={colors.background.void} size={22} />
+            </Pressable>
+          </Link>
+        )}
+      />
 
-      <View style={styles.playerHeader}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <PlayerHeader language={language} player={player} />
-      </View>
 
-      <SystemPanel title={t(language, 'dailyMission')}>
-        <Text style={styles.systemText}>{t(language, 'completeThree')}</Text>
-        <ProgressBar ratio={mission.ratio} />
-        <Text style={styles.metaText}>
-          {t(language, 'completedCount', { done: mission.completed, target: mission.target })}
-        </Text>
-        {canClaim ? (
-          <View style={styles.claim}>
-            <Button icon={Gift} label={t(language, 'claimXp', { xp: dailyMission?.xpBonus ?? 10 })} onPress={claimMission} />
+        <SystemPanel title={t(language, 'dailyMission')}>
+          <View style={styles.missionTop}>
+            <View style={[styles.missionIcon, mission.isComplete && styles.missionCompleteIcon]}>
+              {mission.isComplete ? <Check color={colors.state.completed} size={18} /> : <Target color={colors.brand.cyanCore} size={18} />}
+            </View>
+            <View style={styles.missionCopy}>
+              <Text style={styles.kicker}>{t(language, 'missionStatus')}</Text>
+              <Text style={styles.systemText}>{t(language, 'completeThree')}</Text>
+            </View>
+            <Text style={[styles.missionCount, mission.isComplete && styles.missionComplete]}>{mission.completed} / {mission.target}</Text>
           </View>
-        ) : null}
-      </SystemPanel>
 
-      <FlatList
-        contentContainerStyle={styles.list}
-        data={todayHabits}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={
+          <ProgressBar ratio={mission.ratio} color={mission.isComplete ? colors.state.completed : colors.brand.cyanCore} />
+
+          {canClaim ? (
+            <View style={styles.claim}>
+              <Button icon={Gift} label={t(language, 'claimXp', { xp: dailyMission?.xpBonus ?? 10 })} onPress={claimMission} />
+            </View>
+          ) : mission.isComplete ? (
+            <Text style={styles.claimed}>{t(language, 'missionClaimed')} · +{dailyMission?.xpBonus ?? 10} XP</Text>
+          ) : (
+            <Text style={styles.metaText}>{t(language, 'completedCount', { done: mission.completed, target: mission.target })}</Text>
+          )}
+        </SystemPanel>
+
+        {todayHabits.length === 0 ? (
           <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Target color={colors.state.pending} size={24} />
+            </View>
             <Text style={styles.emptyTitle}>{t(language, 'noHabitsToday')}</Text>
             <Text style={styles.emptyText}>{t(language, 'createFirstHabit')}</Text>
           </View>
-        }
-        renderItem={({ item }) => (
-          <HabitCard
-            habit={item}
-            language={language}
-            onFail={() => void failHabit(item.id)}
-            onIncrement={() => void incrementHabit(item.id)}
-            onUndo={() => void undoHabit(item.id)}
-          />
+        ) : (
+          <View style={styles.groups}>
+            <HabitGroup
+              accent={colors.brand.cyanCore}
+              habits={pendingHabits}
+              label={t(language, 'pending')}
+              language={language}
+              onFail={failHabit}
+              onIncrement={incrementHabit}
+              onUndo={undoHabit}
+            />
+            <HabitGroup
+              accent={colors.state.completed}
+              habits={completedHabits}
+              label={t(language, 'completed')}
+              language={language}
+              onFail={failHabit}
+              onIncrement={incrementHabit}
+              onUndo={undoHabit}
+            />
+            <HabitGroup
+              accent={colors.state.failed}
+              habits={failedHabits}
+              label={t(language, 'failed')}
+              language={language}
+              onFail={failHabit}
+              onIncrement={incrementHabit}
+              onUndo={undoHabit}
+            />
+          </View>
         )}
-      />
+      </ScrollView>
     </Screen>
   );
 }
 
+type HabitGroupProps = {
+  habits: TodayHabit[];
+  label: string;
+  accent: string;
+  language: Language;
+  onIncrement: (id: string) => Promise<void>;
+  onFail: (id: string) => Promise<void>;
+  onUndo: (id: string) => Promise<void>;
+};
+
+function HabitGroup({ habits, label, accent, language, onIncrement, onFail, onUndo }: HabitGroupProps) {
+  if (habits.length === 0) return null;
+
+  return (
+    <View style={styles.group}>
+      <SectionHeader accent={accent} count={habits.length} label={label} />
+      <View style={styles.groupList}>
+        {habits.map((item) => (
+          <HabitCard
+            key={item.id}
+            habit={item}
+            language={language}
+            onFail={() => void onFail(item.id)}
+            onIncrement={() => void onIncrement(item.id)}
+            onUndo={() => void onUndo(item.id)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: {
+  scroll: {
+    gap: 16,
+    paddingBottom: 24,
+  },
+  addButton: {
+    alignItems: 'center',
+    backgroundColor: colors.brand.cyanCore,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  missionTop: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 22,
+    gap: 12,
+    marginBottom: 12,
+  },
+  missionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  missionCompleteIcon: {
+    borderColor: colors.state.completed,
+  },
+  missionCopy: {
+    flex: 1,
   },
   kicker: {
     color: colors.brand.cyanCore,
     fontFamily: typography.font.displayMedium,
-    fontSize: 12,
-    letterSpacing: 0,
-  },
-  title: {
-    color: colors.brand.bone,
-    fontFamily: typography.font.displayBold,
-    fontSize: 34,
-    letterSpacing: 0,
-    marginTop: 4,
-  },
-  iconButton: {
-    alignItems: 'center',
-    backgroundColor: colors.brand.cyanCore,
-    borderRadius: radii.md,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-    ...shadows.primaryGlow,
-  },
-  playerHeader: {
-    marginBottom: 16,
+    fontSize: 10,
+    textTransform: 'uppercase',
   },
   systemText: {
     color: colors.brand.bone,
     fontFamily: typography.font.bodyMedium,
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: 3,
+  },
+  missionCount: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayBold,
+    fontSize: 15,
+  },
+  missionComplete: {
+    color: colors.state.completed,
   },
   metaText: {
     color: colors.state.pending,
@@ -126,10 +216,21 @@ const styles = StyleSheet.create({
   claim: {
     marginTop: 14,
   },
-  list: {
-    gap: 12,
-    paddingTop: 18,
-    paddingBottom: 24,
+  claimed: {
+    color: colors.state.completed,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+    marginTop: 10,
+    textTransform: 'uppercase',
+  },
+  groups: {
+    gap: 16,
+  },
+  group: {
+    gap: 10,
+  },
+  groupList: {
+    gap: 10,
   },
   emptyState: {
     alignItems: 'center',
@@ -137,8 +238,18 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderStyle: 'dashed',
     borderWidth: 1,
-    marginTop: 18,
     padding: 24,
+  },
+  emptyIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.background.surface,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: 'center',
+    marginBottom: 12,
+    width: 56,
   },
   emptyTitle: {
     color: colors.brand.bone,

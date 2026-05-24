@@ -8,6 +8,8 @@ El MVP funcional está implementado en Expo + React Native + TypeScript. La app 
 
 El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de marca `#3FCAE6`, tipografía local Inter/Orbitron, componentes base con radios/bordes/glow disciplinados y cabecera de jugador en Hoy.
 
+La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
+
 Todavía no está lista para Play Store: faltan QA real en Android, validar assets en tamaños reales, pulido visual y seguir monitorizando el aviso de `expo-doctor`.
 
 ## Implementado
@@ -71,6 +73,8 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 ### Hoy
 
 - Cabecera de jugador con rango, nivel, XP y racha.
+- Misión diaria con jerarquía visual de Sistema, icono, contador y estado de bonus.
+- Hábitos agrupados por pendiente/completado/fallado.
 - Lista de hábitos que aplican al día actual.
 - Completar hábito binario.
 - Sumar progreso `+1` en hábito contable.
@@ -87,7 +91,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Niveles según curva `50 * nivel^1.8`.
 - Rangos E/D/C/B/A/S.
 - Penalización con suelo de nivel: nunca baja de nivel/rango.
-- Pantalla Progreso con rango, nivel, barra XP e historial.
+- Pantalla Progreso con rank hero, ruta E/D/C/B/A/S, estadísticas y eventos de historial.
 
 ### Misión diaria
 

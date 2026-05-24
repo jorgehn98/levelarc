@@ -1,138 +1,274 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Check, Clock, Flame, Shield, Sparkles, Target, Trophy, X } from 'lucide-react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { BrandMark } from '@/components/BrandMark';
 import { ProgressBar } from '@/components/ProgressBar';
+import { RankBadge } from '@/components/RankBadge';
 import { Screen } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionHeader } from '@/components/SectionHeader';
+import { StatTile } from '@/components/StatTile';
 import { getLevelProgress } from '@/core/ranks';
-import { t } from '@/i18n';
+import type { EventRecord } from '@/db/repository';
+import { t, type Language } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors, radii, shadows, typography } from '@/theme/colors';
+import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
+
+const ranks: Rank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
 
 export default function ProgressScreen() {
   const player = useAppStore((state) => state.player);
   const events = useAppStore((state) => state.events);
+  const habits = useAppStore((state) => state.habits);
   const language = useAppStore((state) => state.language);
   const progress = getLevelProgress(player?.xpTotal ?? 0);
   const accent = getRankAccent(progress.rank);
+  const activeHabits = habits.filter((habit) => !habit.archivado).length;
 
   return (
     <Screen>
-      <Text style={styles.kicker}>{t(language, 'currentRank')}</Text>
-      <View style={[styles.rankBadge, { borderColor: accent }]}>
-        <BrandMark size={156} style={styles.rankWatermark} variant="transparent" />
-        <Text style={[styles.rank, { color: accent }]}>{progress.rank}</Text>
-        <Text style={styles.level}>{t(language, 'level', { level: progress.level })}</Text>
-      </View>
+      <ScreenHeader icon={Shield} subtitle={t(language, 'rankHistoryStats')} title={t(language, 'progress')} />
 
-      <ProgressBar ratio={progress.ratio} color={accent} />
-      <Text style={styles.meta}>
-        {t(language, 'xpToNext', { done: progress.gainedInLevel, target: progress.neededForLevel })}
-      </Text>
-
-      <Text style={styles.sectionTitle}>{t(language, 'history')}</Text>
-      <FlatList
-        contentContainerStyle={styles.list}
-        data={events}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={styles.empty}>{t(language, 'noEvents')}</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.eventRow}>
-            <View>
-              <Text style={styles.eventName}>{item.habitName ?? t(language, 'archivedHabit')}</Text>
-              <Text style={styles.eventMeta}>{item.fecha} · {item.tipoEvento}</Text>
-            </View>
-            <Text style={[styles.eventXp, item.xpDelta >= 0 ? styles.positive : styles.negative]}>
-              {item.xpDelta >= 0 ? '+' : ''}{item.xpDelta} XP
-            </Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={[styles.rankHero, { borderColor: accent }, shadows.rankGlow(accent)]}>
+          <RankBadge glow rank={progress.rank} size={92} />
+          <View style={styles.rankCopy}>
+            <Text style={[styles.kicker, { color: accent }]}>{t(language, 'currentRank')}</Text>
+            <Text style={styles.rankTitle}>{t(language, 'rank', { rank: progress.rank }).toUpperCase()}</Text>
+            <Text style={styles.rankMeta}>{t(language, 'level', { level: progress.level })} · {player?.xpTotal ?? 0} XP</Text>
           </View>
-        )}
-      />
+          <View style={styles.heroProgress}>
+            <ProgressBar ratio={progress.ratio} color={accent} />
+            <View style={styles.xpRow}>
+              <Text style={styles.xpText}>{progress.gainedInLevel} / {progress.neededForLevel} XP</Text>
+              <Text style={[styles.xpText, { color: accent }]}>{Math.round(progress.ratio * 100)}%</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.panel}>
+          <SectionHeader accent={accent} label={t(language, 'ascensionPath')} />
+          <View style={styles.rankLadder}>
+            {ranks.map((rank) => {
+              const isCurrent = rank === progress.rank;
+              const passed = ranks.indexOf(rank) < ranks.indexOf(progress.rank);
+              const rankColor = colors.rank[rank];
+              return (
+                <View key={rank} style={styles.rankStep}>
+                  <View
+                    style={[
+                      styles.rankNode,
+                      {
+                        backgroundColor: isCurrent ? rankColor : passed ? `${rankColor}33` : colors.background.card,
+                        borderColor: isCurrent || passed ? rankColor : colors.background.border,
+                      },
+                      isCurrent && shadows.rankGlow(rankColor),
+                    ]}
+                  >
+                    <Text style={[styles.rankNodeText, { color: isCurrent ? colors.background.void : passed ? rankColor : colors.state.pending }]}>{rank}</Text>
+                  </View>
+                  {isCurrent ? <Text style={[styles.currentRank, { color: rankColor }]}>ACTUAL</Text> : null}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statsRow}>
+            <StatTile color={colors.state.streak} icon={Flame} label={t(language, 'missionStreak')} unit={t(language, 'daysUnit')} value={player?.rachaMisiones ?? 0} />
+            <StatTile color={accent} icon={Trophy} label={t(language, 'level', { level: '' }).trim()} unit={t(language, 'rank', { rank: progress.rank })} value={progress.level} />
+          </View>
+          <View style={styles.statsRow}>
+            <StatTile color={colors.brand.cyanCore} icon={Target} label={t(language, 'activeHabits')} unit={t(language, 'missionsUnit')} value={activeHabits} />
+            <StatTile color={colors.rank.S} icon={Sparkles} label={t(language, 'totalXp')} unit="XP" value={player?.xpTotal ?? 0} />
+          </View>
+        </View>
+
+        <View style={styles.panel}>
+          <SectionHeader label={t(language, 'history')} />
+          <View style={styles.events}>
+            {events.length === 0 ? (
+              <Text style={styles.empty}>{t(language, 'noEvents')}</Text>
+            ) : (
+              events.map((item) => <EventRow key={item.id} event={item} language={language} />)
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </Screen>
   );
 }
 
+function EventRow({ event, language }: { event: EventRecord; language: Language }) {
+  const positive = event.xpDelta >= 0;
+
+  return (
+    <View style={styles.eventRow}>
+      <View style={[styles.eventIcon, positive ? styles.eventPositiveIcon : styles.eventNegativeIcon]}>
+        {positive ? <Check color={colors.state.completed} size={14} /> : <X color={colors.state.failed} size={14} />}
+      </View>
+      <View style={styles.eventCopy}>
+        <Text numberOfLines={1} style={styles.eventName}>{event.habitName ?? t(language, 'archivedHabit')}</Text>
+        <View style={styles.eventMetaRow}>
+          <Clock color={colors.state.pending} size={11} />
+          <Text style={styles.eventMeta}>{event.fecha} · {event.tipoEvento}</Text>
+        </View>
+      </View>
+      <Text style={[styles.eventXp, positive ? styles.positive : styles.negative]}>{positive ? '+' : ''}{event.xpDelta} XP</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  kicker: {
-    color: colors.brand.cyanCore,
-    fontFamily: typography.font.displayMedium,
-    fontSize: 12,
-    letterSpacing: 0,
-    marginBottom: 12,
+  scroll: {
+    gap: 18,
+    paddingBottom: 24,
   },
-  rankBadge: {
+  rankHero: {
     alignItems: 'center',
     backgroundColor: colors.background.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
     overflow: 'hidden',
-    paddingVertical: 30,
-    ...shadows.primaryGlow,
+    padding: 18,
   },
-  rankWatermark: {
-    opacity: 0.16,
-    position: 'absolute',
+  rankCopy: {
+    flex: 1,
+    minWidth: 160,
   },
-  rank: {
-    fontFamily: typography.font.displayBold,
-    fontSize: 76,
-    letterSpacing: 0,
-  },
-  level: {
-    color: colors.brand.bone,
+  kicker: {
     fontFamily: typography.font.displayMedium,
-    fontSize: 18,
-    letterSpacing: 0,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  rankTitle: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayBold,
+    fontSize: 28,
+    lineHeight: 34,
     marginTop: 4,
   },
-  meta: {
-    color: colors.state.pending,
+  rankMeta: {
+    color: colors.brand.boneMuted,
     fontFamily: typography.font.bodyRegular,
-    fontSize: 14,
-    marginTop: 10,
+    fontSize: 13,
+    marginTop: 3,
   },
-  sectionTitle: {
-    color: colors.brand.bone,
+  heroProgress: {
+    flexBasis: '100%',
+    gap: 7,
+  },
+  xpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  xpText: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+  },
+  panel: {
+    backgroundColor: colors.background.surface,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    padding: 14,
+  },
+  rankLadder: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  rankStep: {
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 56,
+  },
+  rankNode: {
+    alignItems: 'center',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  rankNodeText: {
     fontFamily: typography.font.displayBold,
-    fontSize: 18,
-    letterSpacing: 0,
-    marginTop: 28,
+    fontSize: 15,
   },
-  list: {
+  currentRank: {
+    fontFamily: typography.font.displayMedium,
+    fontSize: 8,
+  },
+  statsGrid: {
     gap: 10,
-    paddingTop: 12,
-    paddingBottom: 24,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  events: {
+    gap: 8,
+    marginTop: 12,
   },
   empty: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
+    paddingVertical: 12,
+    textAlign: 'center',
   },
   eventRow: {
     alignItems: 'center',
-    backgroundColor: colors.background.card,
-    borderColor: colors.background.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderBottomColor: colors.background.border,
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 14,
+    gap: 10,
+    paddingBottom: 10,
+    paddingTop: 2,
+  },
+  eventIcon: {
+    alignItems: 'center',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  eventPositiveIcon: {
+    backgroundColor: `${colors.state.completed}1A`,
+    borderColor: colors.state.completed,
+  },
+  eventNegativeIcon: {
+    backgroundColor: `${colors.state.failed}1A`,
+    borderColor: colors.state.failed,
+  },
+  eventCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   eventName: {
     color: colors.brand.bone,
     fontFamily: typography.font.bodyMedium,
-    fontSize: 15,
+    fontSize: 13,
+  },
+  eventMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 3,
   },
   eventMeta: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
-    fontSize: 12,
-    marginTop: 3,
+    fontSize: 11,
   },
   eventXp: {
     fontFamily: typography.font.displayBold,
-    fontSize: 13,
-    letterSpacing: 0,
+    fontSize: 12,
   },
   positive: {
     color: colors.state.completed,

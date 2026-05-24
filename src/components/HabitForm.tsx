@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
+import { Target } from 'lucide-react-native';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import type { HabitInput, HabitRecord, HabitType } from '@/db/repository';
-import type { HabitImportance } from '@/core/xp';
+import { getCompletionXp, type HabitImportance } from '@/core/xp';
 import { t, type Language } from '@/i18n';
 import { colors, radii, typography } from '@/theme/colors';
 
@@ -38,6 +39,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
 
   const canSave = name.trim().length > 0 && days.length > 0;
   const normalizedGoal = useMemo(() => Math.max(1, Number.parseInt(goal, 10) || 1), [goal]);
+  const xpPreview = getCompletionXp(importance, 0);
 
   function toggleDay(dayId: number) {
     setDays((current) =>
@@ -58,25 +60,39 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
 
   const actions = (
     <View style={styles.actions}>
-      {onCancel ? <Button label={t(language, 'cancel')} onPress={onCancel} variant="secondary" /> : null}
+      {onCancel ? <Button label={t(language, 'cancel')} onPress={onCancel} style={styles.actionButton} variant="secondary" /> : null}
       <Button
         disabled={!canSave}
         label={habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
         onPress={handleSave}
+        style={styles.primaryAction}
       />
     </View>
   );
 
   return (
     <View style={styles.form}>
-      {actions}
+      <View style={styles.preview}>
+        <View style={styles.previewIcon}>
+          <Target color={colors.brand.cyanCore} size={22} />
+        </View>
+        <View style={styles.previewCopy}>
+          <Text style={styles.previewKicker}>{t(language, 'habitPreview')}</Text>
+          <Text numberOfLines={1} style={[styles.previewName, !name.trim() && styles.previewPlaceholder]}>
+            {name.trim() || t(language, 'namePlaceholder')}
+          </Text>
+          <Text style={styles.previewMeta}>
+            +{xpPreview} XP · {type === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: normalizedGoal })}
+          </Text>
+        </View>
+      </View>
 
       <Field label={t(language, 'name')}>
         <TextInput
           autoFocus
           cursorColor={colors.brand.cyanCore}
           onChangeText={setName}
-          placeholder="Ej: Leer 20 minutos"
+          placeholder={t(language, 'namePlaceholder')}
           placeholderTextColor={colors.state.pending}
           selectionColor={colors.brand.cyanShadow}
           style={styles.input}
@@ -165,7 +181,7 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   label: {
-    color: colors.brand.cyanCore,
+    color: colors.state.pending,
     fontFamily: typography.font.displayMedium,
     fontSize: 12,
     letterSpacing: 0,
@@ -173,7 +189,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.card,
     borderColor: colors.background.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -196,5 +212,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  primaryAction: {
+    flex: 2,
+  },
+  preview: {
+    alignItems: 'center',
+    backgroundColor: colors.background.surface,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+  },
+  previewIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  previewCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  previewKicker: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  previewName: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 15,
+    marginTop: 4,
+  },
+  previewPlaceholder: {
+    color: colors.state.pending,
+  },
+  previewMeta: {
+    color: colors.rank.S,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+    marginTop: 3,
   },
 });

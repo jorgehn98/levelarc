@@ -1,17 +1,23 @@
-import { Bell, Download, Languages, Moon, RefreshCw, Skull, Upload } from 'lucide-react-native';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useState } from 'react';
 import * as Updates from 'expo-updates';
+import { Bell, Download, Globe, Info, Moon, RefreshCw, Shield, Skull, Upload } from 'lucide-react-native';
+import type { LucideProps } from 'lucide-react-native';
+import type { ComponentType, ReactNode } from 'react';
+import { useState } from 'react';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
-import { t } from '@/i18n';
+import { PlayerHeader } from '@/components/PlayerHeader';
 import { Screen } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionHeader } from '@/components/SectionHeader';
+import { t } from '@/i18n';
 import { requestNotificationPermissions } from '@/lib/notifications';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
 export default function SettingsScreen() {
   const language = useAppStore((state) => state.language);
+  const player = useAppStore((state) => state.player);
   const setLanguage = useAppStore((state) => state.setLanguage);
   const exportBackup = useAppStore((state) => state.exportBackup);
   const importBackup = useAppStore((state) => state.importBackup);
@@ -50,44 +56,29 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <Text style={styles.title}>{t(language, 'settings')}</Text>
-      <ScrollView contentContainerStyle={styles.list}>
-        <View style={styles.row}>
-          <Languages color={colors.brand.cyanCore} size={22} />
-          <View style={styles.copy}>
-            <Text style={styles.rowTitle}>{t(language, 'language')}</Text>
-            <Text style={styles.rowValue}>{language === 'es' ? 'Español' : 'English'}</Text>
+      <ScreenHeader icon={Shield} subtitle="Configuración · Sistema" title={t(language, 'settings')} />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <PlayerHeader language={language} player={player} />
+
+        <SettingsSection label={t(language, 'preferences')}>
+          <SettingRow icon={Globe} title={t(language, 'language')} value={language === 'es' ? 'Español' : 'English'}>
             <View style={styles.actions}>
               <Button label="ES" onPress={() => void setLanguage('es')} variant={language === 'es' ? 'selected' : 'secondary'} />
               <Button label="EN" onPress={() => void setLanguage('en')} variant={language === 'en' ? 'selected' : 'secondary'} />
             </View>
-          </View>
-        </View>
+          </SettingRow>
 
-        <View style={styles.row}>
-          <Moon color={colors.brand.cyanCore} size={22} />
-          <View style={styles.copy}>
-            <Text style={styles.rowTitle}>{t(language, 'theme')}</Text>
-            <Text style={styles.rowValue}>{t(language, 'darkFixed')}</Text>
-          </View>
-        </View>
+          <SettingRow icon={Moon} title={t(language, 'theme')} value={t(language, 'darkFixed')} />
 
-        <View style={styles.row}>
-          <Bell color={colors.brand.cyanCore} size={22} />
-          <View style={styles.copy}>
-            <Text style={styles.rowTitle}>{t(language, 'notifications')}</Text>
-            <Text style={styles.rowValue}>{t(language, 'notificationCopy')}</Text>
+          <SettingRow icon={Bell} title={t(language, 'notifications')} value={t(language, 'notificationCopy')}>
             <View style={styles.actions}>
               <Button label={t(language, 'activate')} onPress={() => void requestNotificationPermissions()} variant="secondary" />
             </View>
-          </View>
-        </View>
+          </SettingRow>
+        </SettingsSection>
 
-        <View style={styles.row}>
-          <RefreshCw color={colors.brand.cyanCore} size={22} />
-          <View style={styles.copy}>
-            <Text style={styles.rowTitle}>{t(language, 'updates')}</Text>
-            <Text style={styles.rowValue}>{t(language, 'updatesCopy')}</Text>
+        <SettingsSection label={t(language, 'data')}>
+          <SettingRow icon={RefreshCw} title={t(language, 'updates')} value={t(language, 'updatesCopy')}>
             <View style={styles.actions}>
               <Button
                 disabled={isCheckingUpdate}
@@ -96,36 +87,33 @@ export default function SettingsScreen() {
                 variant="secondary"
               />
             </View>
-          </View>
-        </View>
+          </SettingRow>
 
-        <View style={styles.row}>
-          <Download color={colors.brand.cyanCore} size={22} />
-          <View style={styles.copy}>
-            <Text style={styles.rowTitle}>{t(language, 'backup')}</Text>
-            <Text style={styles.rowValue}>{t(language, 'backupCopy')}</Text>
+          <SettingRow icon={Download} title={t(language, 'backup')} value={t(language, 'backupCopy')}>
             <View style={styles.actions}>
-              <Button label={t(language, 'export')} onPress={() => void exportBackup()} />
+              <Button icon={Download} label={t(language, 'export')} onPress={() => void exportBackup()} />
               <Button icon={Upload} label={t(language, 'import')} onPress={() => setIsImportOpen(true)} variant="secondary" />
             </View>
-          </View>
-        </View>
+          </SettingRow>
+        </SettingsSection>
 
-        <View style={styles.row}>
-          <Skull color={colors.state.failed} size={22} />
-          <View style={styles.copy}>
-            <Text style={styles.rowTitle}>{t(language, 'closeDay')}</Text>
-            <Text style={styles.rowValue}>{t(language, 'closeDayCopy')}</Text>
+        <SettingsSection accent={colors.state.failed} label={t(language, 'danger')}>
+          <SettingRow icon={Skull} iconColor={colors.state.failed} title={t(language, 'closeDay')} value={t(language, 'closeDayCopy')}>
             <View style={styles.actions}>
               <Button label={t(language, 'closeDay')} onPress={() => void closeToday()} variant="danger" />
             </View>
-          </View>
-        </View>
+          </SettingRow>
+        </SettingsSection>
+
+        <SettingsSection label={t(language, 'about')}>
+          <SettingRow icon={Info} iconColor={colors.state.pending} title="LevelArc" value={t(language, 'versionLine')} />
+        </SettingsSection>
       </ScrollView>
 
       <Modal animationType="fade" onRequestClose={() => setIsImportOpen(false)} transparent visible={isImportOpen}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalPanel}>
+            <Text style={styles.modalKicker}>◆ SISTEMA</Text>
             <Text style={styles.modalTitle}>{t(language, 'importBackup')}</Text>
             <Text style={styles.modalCopy}>{t(language, 'importBackupCopy')}</Text>
             <TextInput
@@ -155,52 +143,106 @@ export default function SettingsScreen() {
   );
 }
 
+function SettingsSection({ children, label, accent }: { children: ReactNode; label: string; accent?: string }) {
+  return (
+    <View style={styles.section}>
+      <SectionHeader accent={accent} label={label} />
+      <View style={styles.sectionPanel}>{children}</View>
+    </View>
+  );
+}
+
+function SettingRow({
+  children,
+  icon: Icon,
+  iconColor = colors.brand.cyanCore,
+  title,
+  value,
+}: {
+  children?: ReactNode;
+  icon: ComponentType<LucideProps>;
+  iconColor?: string;
+  title: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowTop}>
+        <View style={styles.iconTile}>
+          <Icon color={iconColor} size={17} />
+        </View>
+        <View style={styles.copy}>
+          <Text style={styles.rowTitle}>{title}</Text>
+          <Text style={styles.rowValue}>{value}</Text>
+        </View>
+      </View>
+      {children ? <View style={styles.rowActions}>{children}</View> : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  title: {
-    color: colors.brand.bone,
-    fontFamily: typography.font.displayBold,
-    fontSize: 30,
-    letterSpacing: 0,
-    marginBottom: 22,
+  scroll: {
+    gap: 20,
+    paddingBottom: 28,
   },
-  list: {
-    gap: 12,
-    paddingBottom: 24,
+  section: {
+    gap: 8,
   },
-  row: {
-    alignItems: 'flex-start',
-    backgroundColor: colors.background.card,
+  sectionPanel: {
+    backgroundColor: colors.background.surface,
     borderColor: colors.background.border,
     borderRadius: radii.md,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  row: {
+    borderBottomColor: colors.background.border,
+    borderBottomWidth: 1,
+    gap: 12,
+    padding: 14,
+  },
+  rowTop: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
-    minHeight: 68,
-    padding: 16,
+    gap: 12,
+  },
+  iconTile: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
   },
   copy: {
     flex: 1,
-    marginLeft: 14,
   },
   rowTitle: {
     color: colors.brand.bone,
     fontFamily: typography.font.bodyMedium,
-    fontSize: 16,
+    fontSize: 15,
   },
   rowValue: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 17,
     marginTop: 3,
+  },
+  rowActions: {
+    marginLeft: 46,
   },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 12,
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.74)',
+    backgroundColor: 'rgba(5, 5, 9, 0.78)',
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -213,16 +255,22 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '100%',
   },
+  modalKicker: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+  },
   modalTitle: {
     color: colors.brand.bone,
     fontFamily: typography.font.displayBold,
     fontSize: 20,
-    letterSpacing: 0,
+    marginTop: 4,
   },
   modalCopy: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
     fontSize: 13,
+    lineHeight: 18,
     marginTop: 8,
   },
   backupInput: {
