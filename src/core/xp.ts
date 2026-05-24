@@ -3,10 +3,10 @@ import { getLevelFromXp, getXpForLevel } from './ranks';
 export type HabitImportance = 1 | 2 | 3 | 4 | 5;
 
 function getStreakMultiplier(streakDays: number): number {
-  if (streakDays >= 31) return 2;
-  if (streakDays >= 15) return 1.75;
-  if (streakDays >= 8) return 1.5;
-  if (streakDays >= 4) return 1.25;
+  if (streakDays >= 31) return 1.5;
+  if (streakDays >= 15) return 1.35;
+  if (streakDays >= 8) return 1.2;
+  if (streakDays >= 4) return 1.1;
   return 1;
 }
 

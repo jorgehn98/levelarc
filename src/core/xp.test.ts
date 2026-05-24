@@ -6,16 +6,16 @@ import { getDailyMissionBonus, getDailyMissionProgress, getPerfectWeekMissionPro
 import { getTodayWeekday } from '../lib/date';
 
 describe('xp rules', () => {
-  it('uses the closed streak multiplier table', () => {
+  it('caps the habit streak multiplier at x1.50', () => {
     expect(getCompletionXp(4, 1)).toBe(4);
-    expect(getCompletionXp(4, 4)).toBe(5);
-    expect(getCompletionXp(4, 8)).toBe(6);
-    expect(getCompletionXp(4, 15)).toBe(7);
-    expect(getCompletionXp(4, 31)).toBe(8);
+    expect(getCompletionXp(4, 4)).toBe(4);
+    expect(getCompletionXp(4, 8)).toBe(5);
+    expect(getCompletionXp(4, 15)).toBe(5);
+    expect(getCompletionXp(4, 31)).toBe(6);
   });
 
   it('calculates completion and failure deltas from importance', () => {
-    expect(getCompletionXp(4, 8)).toBe(6);
+    expect(getCompletionXp(4, 8)).toBe(5);
     expect(getFailureXp(4)).toBe(-4);
   });
 
