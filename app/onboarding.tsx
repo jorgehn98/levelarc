@@ -36,9 +36,9 @@ export default function OnboardingScreen() {
     setIsSubmitting(true);
     try {
       if (isFirstRun || name.trim() !== player?.nombre) {
-        await setPlayerName(name);
+        await setPlayerName(name.trim());
       }
-      router.replace('/(tabs)');
+      router.replace('/');
     } finally {
       setIsSubmitting(false);
     }
@@ -78,15 +78,19 @@ export default function OnboardingScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 12, 26) }]}>
-        <View style={[styles.ctaVisual, { backgroundColor: accent, borderColor: accent, shadowColor: accent }, (isSubmitting || (isFirstRun && !isValid)) && styles.disabled]}>
-          <Text style={styles.ctaText}>{isSubmitting ? t(language, 'initializing') : isFirstRun ? t(language, 'beginAscension') : t(language, 'continueAscension')}</Text>
-          {isSubmitting ? <ActivityIndicator color={colors.background.void} size="small" /> : <ChevronRight color={colors.background.void} size={18} />}
-          <Pressable
-            disabled={isSubmitting || (isFirstRun && !isValid)}
-            onPress={() => void handleContinue()}
-            style={({ pressed }) => [styles.ctaHitArea, pressed && styles.pressed]}
-          />
-        </View>
+        <Pressable
+          disabled={isSubmitting || (isFirstRun && !isValid)}
+          onPress={() => void handleContinue()}
+          style={({ pressed }) => [styles.ctaPressable, pressed && styles.pressed]}
+        >
+          <View
+            pointerEvents="none"
+            style={[styles.ctaVisual, { backgroundColor: accent, borderColor: accent, shadowColor: accent }, (isSubmitting || (isFirstRun && !isValid)) && styles.disabled]}
+          >
+            <Text style={styles.ctaText}>{isSubmitting ? t(language, 'initializing') : isFirstRun ? t(language, 'beginAscension') : t(language, 'continueAscension')}</Text>
+            {isSubmitting ? <ActivityIndicator color={colors.background.void} size="small" /> : <ChevronRight color={colors.background.void} size={18} />}
+          </View>
+        </Pressable>
 
         <View style={styles.privacy}>
           <Text style={styles.privacyText}>{t(language, 'privacyLine')}</Text>
@@ -740,6 +744,10 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
   },
+  ctaPressable: {
+    maxWidth: 320,
+    width: '100%',
+  },
   ctaVisual: {
     alignItems: 'center',
     borderRadius: radii.md,
@@ -747,14 +755,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 52,
     justifyContent: 'center',
-    maxWidth: 320,
     shadowOpacity: 0.36,
     shadowRadius: 18,
     width: '100%',
-  },
-  ctaHitArea: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: radii.md,
   },
   ctaText: {
     color: colors.background.void,
