@@ -35,8 +35,8 @@ export default function SettingsScreen() {
             <Text style={styles.rowTitle}>{t(language, 'language')}</Text>
             <Text style={styles.rowValue}>{language === 'es' ? 'Español' : 'English'}</Text>
             <View style={styles.actions}>
-              <Button label="ES" onPress={() => void setLanguage('es')} variant={language === 'es' ? 'primary' : 'secondary'} />
-              <Button label="EN" onPress={() => void setLanguage('en')} variant={language === 'en' ? 'primary' : 'secondary'} />
+              <Button label="ES" onPress={() => void setLanguage('es')} variant={language === 'es' ? 'selected' : 'secondary'} />
+              <Button label="EN" onPress={() => void setLanguage('en')} variant={language === 'en' ? 'selected' : 'secondary'} />
             </View>
           </View>
         </View>
@@ -91,9 +91,11 @@ export default function SettingsScreen() {
             <Text style={styles.modalCopy}>{t(language, 'importBackupCopy')}</Text>
             <TextInput
               multiline
+              cursorColor={colors.brand.cyanCore}
               onChangeText={setBackupJson}
               placeholder={t(language, 'pasteBackupJson')}
               placeholderTextColor={colors.state.pending}
+              selectionColor={colors.brand.cyanShadow}
               style={styles.backupInput}
               textAlignVertical="top"
               value={backupJson}

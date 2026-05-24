@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { applyXpDelta, getCompletionXp, getFailureXp, getStreakMultiplier } from './xp';
 import { getLevelFromXp, getRankForLevel, getXpForLevel } from './ranks';
 import { getDailyMissionProgress } from './missions';
+import { habitAppliesOnDate, parseWeekdays } from './streaks';
 
 describe('xp rules', () => {
   it('uses the closed streak multiplier table', () => {
@@ -40,5 +41,14 @@ describe('daily mission', () => {
   it('marks the fixed mission complete at three completed habits', () => {
     expect(getDailyMissionProgress(2).isComplete).toBe(false);
     expect(getDailyMissionProgress(3).isComplete).toBe(true);
+  });
+});
+
+describe('weekday rules', () => {
+  it('uses LevelArc weekdays from Monday=1 to Sunday=7', () => {
+    expect(parseWeekdays('1,3,5,6')).toEqual([1, 3, 5, 6]);
+    expect(habitAppliesOnDate('1,3,5,6', new Date('2026-05-24T12:00:00'))).toBe(false);
+    expect(habitAppliesOnDate('1,3,5,6', new Date('2026-05-25T12:00:00'))).toBe(true);
+    expect(habitAppliesOnDate('7', new Date('2026-05-24T12:00:00'))).toBe(true);
   });
 });

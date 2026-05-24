@@ -4,7 +4,7 @@ import type { LucideProps } from 'lucide-react-native';
 
 import { colors } from '@/theme/colors';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'selected' | 'danger' | 'ghost';
 
 type ButtonProps = {
   label: string;
@@ -16,8 +16,9 @@ type ButtonProps = {
 
 export function Button({ label, onPress, variant = 'primary', disabled, icon: Icon }: ButtonProps) {
   const isPrimary = variant === 'primary';
+  const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
-  const textColor = isPrimary ? colors.background.void : isDanger ? colors.state.failed : colors.brand.bone;
+  const textColor = isPrimary ? colors.background.void : isSelected ? colors.brand.cyanCore : isDanger ? colors.state.failed : colors.brand.bone;
 
   return (
     <Pressable
@@ -54,6 +55,10 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.background.card,
     borderColor: colors.background.border,
+  },
+  selected: {
+    backgroundColor: colors.background.card,
+    borderColor: colors.brand.cyanCore,
   },
   danger: {
     backgroundColor: colors.background.card,

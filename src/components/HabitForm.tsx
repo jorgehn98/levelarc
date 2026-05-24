@@ -31,7 +31,7 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
   const [type, setType] = useState<HabitType>(habit?.tipo ?? 'binario');
   const [goal, setGoal] = useState(String(habit?.meta ?? 1));
   const [days, setDays] = useState<number[]>(
-    habit?.diasSemana ? habit.diasSemana.split(',').map(Number) : weekDays.map((day) => day.id),
+    habit?.diasSemana ? habit.diasSemana.split(',').map(Number) : [],
   );
   const [reminder, setReminder] = useState(habit?.horaRecordatorio ?? '');
 
@@ -49,9 +49,11 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
       <Field label={t(language, 'name')}>
         <TextInput
           autoFocus
+          cursorColor={colors.brand.cyanCore}
           onChangeText={setName}
           placeholder="Ej: Leer 20 minutos"
           placeholderTextColor={colors.state.pending}
+          selectionColor={colors.brand.cyanShadow}
           style={styles.input}
           value={name}
         />
@@ -64,7 +66,7 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
               key={value}
               label={String(value)}
               onPress={() => setImportance(value as HabitImportance)}
-              variant={importance === value ? 'primary' : 'secondary'}
+              variant={importance === value ? 'selected' : 'secondary'}
             />
           ))}
         </View>
@@ -72,18 +74,20 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
 
       <Field label={t(language, 'type')}>
         <View style={styles.twoCols}>
-          <Button label={t(language, 'binary')} onPress={() => setType('binario')} variant={type === 'binario' ? 'primary' : 'secondary'} />
-          <Button label={t(language, 'countable')} onPress={() => setType('contable')} variant={type === 'contable' ? 'primary' : 'secondary'} />
+          <Button label={t(language, 'binary')} onPress={() => setType('binario')} variant={type === 'binario' ? 'selected' : 'secondary'} />
+          <Button label={t(language, 'countable')} onPress={() => setType('contable')} variant={type === 'contable' ? 'selected' : 'secondary'} />
         </View>
       </Field>
 
       {type === 'contable' ? (
         <Field label={t(language, 'dailyGoal')}>
           <TextInput
+            cursorColor={colors.brand.cyanCore}
             keyboardType="number-pad"
             onChangeText={setGoal}
             placeholder="4"
             placeholderTextColor={colors.state.pending}
+            selectionColor={colors.brand.cyanShadow}
             style={styles.input}
             value={goal}
           />
@@ -97,7 +101,7 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
               key={day.id}
               label={day.label}
               onPress={() => toggleDay(day.id)}
-              variant={days.includes(day.id) ? 'primary' : 'secondary'}
+              variant={days.includes(day.id) ? 'selected' : 'secondary'}
             />
           ))}
         </View>
@@ -105,9 +109,11 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
 
       <Field label={t(language, 'reminder')}>
         <TextInput
+          cursorColor={colors.brand.cyanCore}
           onChangeText={setReminder}
           placeholder="08:30"
           placeholderTextColor={colors.state.pending}
+          selectionColor={colors.brand.cyanShadow}
           style={styles.input}
           value={reminder}
         />
