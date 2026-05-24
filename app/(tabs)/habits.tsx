@@ -99,9 +99,17 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
             <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
             <View style={styles.metaLine}>
               <Text style={styles.xpText}>+{xp} XP</Text>
-              <Text style={styles.metaPill}>
-                {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })}
-              </Text>
+              {habit.tipo === 'contable' ? <Text style={styles.metaPill}>{t(language, 'goal', { goal: habit.meta })}</Text> : null}
+              <View style={styles.attributeChips}>
+                {attributes.map((attributeId) => {
+                  const attribute = getHabitAttribute(attributeId);
+                  return (
+                    <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
+                      <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
+                    </View>
+                  );
+                })}
+              </View>
               <Text numberOfLines={1} style={styles.daysText}>{formatWeekdays(habit.diasSemana)}</Text>
             </View>
             <View style={styles.importanceLine}>
@@ -115,16 +123,6 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
                   ]}
                 />
               ))}
-            </View>
-            <View style={styles.attributeChips}>
-              {attributes.map((attributeId) => {
-                const attribute = getHabitAttribute(attributeId);
-                return (
-                  <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
-                    <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
-                  </View>
-                );
-              })}
             </View>
           </View>
           <ChevronRight color={colors.state.pending} size={20} />
@@ -292,6 +290,8 @@ const styles = StyleSheet.create({
   metaLine: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
     marginTop: 5,
     minWidth: 0,
   },
@@ -299,13 +299,11 @@ const styles = StyleSheet.create({
     color: colors.rank.S,
     fontFamily: typography.font.displayMedium,
     fontSize: 11,
-    marginRight: 8,
   },
   metaPill: {
     color: colors.brand.boneMuted,
     fontFamily: typography.font.bodyRegular,
     fontSize: 12,
-    marginRight: 8,
   },
   daysText: {
     flex: 1,
@@ -322,7 +320,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 5,
-    marginTop: 8,
   },
   attributeChip: {
     borderRadius: radii.sm,

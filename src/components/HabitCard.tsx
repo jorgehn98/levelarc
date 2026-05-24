@@ -38,18 +38,20 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
         </View>
         <View style={styles.copy}>
           <Text style={styles.title}>{habit.nombre}</Text>
-          <Text style={styles.meta}>
-            {t(language, 'importance')} {habit.importancia} · {habit.tipo === 'binario' ? t(language, 'binary') : `${habit.cantidad}/${habit.meta}`}
-          </Text>
-          <View style={styles.attributeChips}>
-            {attributes.map((attributeId) => {
-              const attribute = getHabitAttribute(attributeId);
-              return (
-                <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
-                  <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
-                </View>
-              );
-            })}
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>
+              {t(language, 'importance')} {habit.importancia}{habit.tipo === 'contable' ? ` · ${habit.cantidad}/${habit.meta}` : ''}
+            </Text>
+            <View style={styles.attributeChips}>
+              {attributes.map((attributeId) => {
+                const attribute = getHabitAttribute(attributeId);
+                return (
+                  <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
+                    <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         </View>
         <Text style={[styles.state, isDone && styles.doneText, isFailed && styles.failedText]}>
@@ -140,17 +142,22 @@ const styles = StyleSheet.create({
     fontFamily: typography.font.bodyMedium,
     fontSize: 17,
   },
+  metaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 4,
+  },
   meta: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
     fontSize: 13,
-    marginTop: 4,
   },
   attributeChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 5,
-    marginTop: 8,
   },
   attributeChip: {
     borderRadius: radii.sm,
