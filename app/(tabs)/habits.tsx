@@ -1,10 +1,11 @@
-import { Link } from 'expo-router';
-import { Archive, ChevronRight, ListChecks, Plus, Target } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Archive, BookOpen, ChevronRight, Dumbbell, ListChecks, Plus, Target } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { getCompletionXp } from '@/core/xp';
 import type { HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
@@ -34,11 +35,9 @@ export default function HabitsScreen() {
         subtitle={t(language, 'registeredMissions')}
         title={t(language, 'habits')}
         action={(
-          <Link href="/habit/new" asChild>
-            <Pressable style={styles.iconButton}>
-              <Plus color={colors.background.void} size={22} />
-            </Pressable>
-          </Link>
+          <Pressable onPress={() => router.push('/habit/new')} style={styles.iconButton}>
+            <Plus color={colors.background.void} size={22} />
+          </Pressable>
         )}
       />
 
@@ -80,35 +79,40 @@ function FilterChip({ active, count, label, onPress }: { active: boolean; count:
 
 function HabitRow({ habit, language }: { habit: HabitRecord; language: Language }) {
   const isArchived = habit.archivado;
-  const maxDots = 5;
+  const xp = getCompletionXp(habit.importancia, 0);
+  const Icon = habit.tipo === 'contable' ? BookOpen : habit.importancia >= 4 ? Dumbbell : Target;
 
   return (
-    <Link href={`/habit/${habit.id}`} asChild>
-      <Pressable style={[styles.row, isArchived && styles.archivedRow]}>
-        <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
-          {isArchived ? <Archive color={colors.state.pending} size={18} /> : <Target color={colors.brand.cyanCore} size={18} />}
-        </View>
-        <View style={styles.copy}>
-          <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
+    <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.row, isArchived && styles.archivedRow, pressed && styles.pressedRow]}>
+      <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
+        {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
+      </View>
+      <View style={styles.copy}>
+        <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
+        <View style={styles.metaLine}>
+          <Text style={styles.xpText}>+{xp} XP</Text>
+          <Text style={styles.dotText}>·</Text>
           <Text numberOfLines={1} style={styles.rowText}>
-            {t(language, 'importance')} {habit.importancia} · {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })} · {habit.diasSemana}
+            {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })}
           </Text>
-          <View style={styles.importanceLine}>
-            {Array.from({ length: maxDots }).map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.importanceDot,
-                  index < habit.importancia ? styles.activeImportanceDot : styles.inactiveImportanceDot,
-                  isArchived && styles.archivedImportanceDot,
-                ]}
-              />
-            ))}
-          </View>
+          <Text style={styles.dotText}>·</Text>
+          <Text style={styles.streakText}>{habit.diasSemana}</Text>
         </View>
-        <ChevronRight color={colors.state.pending} size={20} />
-      </Pressable>
-    </Link>
+        <View style={styles.importanceLine}>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.importanceDot,
+                index < habit.importancia ? styles.activeImportanceDot : styles.inactiveImportanceDot,
+                isArchived && styles.archivedImportanceDot,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+      <ChevronRight color={colors.state.pending} size={20} />
+    </Pressable>
   );
 }
 
@@ -127,10 +131,12 @@ const styles = StyleSheet.create({
   scroll: {
     gap: 14,
     paddingBottom: 24,
+    width: '100%',
   },
   filters: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
+    width: '100%',
   },
   filterChip: {
     alignItems: 'center',
@@ -138,10 +144,12 @@ const styles = StyleSheet.create({
     borderColor: colors.background.border,
     borderRadius: radii.sm,
     borderWidth: 1,
+    flex: 1,
     flexDirection: 'row',
     gap: 6,
+    justifyContent: 'center',
     minHeight: 34,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   activeFilter: {
     backgroundColor: colors.brand.cyanCore,
@@ -150,7 +158,7 @@ const styles = StyleSheet.create({
   filterText: {
     color: colors.brand.bone,
     fontFamily: typography.font.displayMedium,
-    fontSize: 11,
+    fontSize: 10,
     textTransform: 'uppercase',
   },
   filterCount: {
@@ -162,7 +170,9 @@ const styles = StyleSheet.create({
     color: colors.background.void,
   },
   list: {
-    gap: 8,
+    alignSelf: 'stretch',
+    gap: 10,
+    width: '100%',
   },
   row: {
     alignItems: 'center',
@@ -172,7 +182,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
+    minHeight: 72,
     padding: 12,
+    width: '100%',
+  },
+  pressedRow: {
+    opacity: 0.88,
+    transform: [{ scale: 0.99 }],
   },
   archivedRow: {
     opacity: 0.58,
@@ -216,7 +232,7 @@ const styles = StyleSheet.create({
   rowTitle: {
     color: colors.brand.bone,
     fontFamily: typography.font.bodyMedium,
-    fontSize: 15,
+    fontSize: 16,
   },
   archivedText: {
     color: colors.brand.boneMuted,
@@ -225,17 +241,38 @@ const styles = StyleSheet.create({
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
     fontSize: 12,
-    marginTop: 4,
+  },
+  metaLine: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 5,
+    minWidth: 0,
+  },
+  xpText: {
+    color: colors.rank.S,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+  },
+  dotText: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 12,
+  },
+  streakText: {
+    color: colors.state.streak,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
   },
   importanceLine: {
     flexDirection: 'row',
     gap: 3,
-    marginTop: 7,
+    marginTop: 8,
+    maxWidth: 86,
   },
   importanceDot: {
     borderRadius: 1,
     height: 2,
-    maxWidth: 22,
     flex: 1,
   },
   activeImportanceDot: {

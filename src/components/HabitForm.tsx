@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { Target } from 'lucide-react-native';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { BarChart3, Check, Target } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import type { HabitInput, HabitRecord, HabitType } from '@/db/repository';
@@ -101,22 +101,36 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       </Field>
 
       <Field label={t(language, 'importance')}>
-        <View style={styles.segmentRow}>
+        <View style={styles.importanceGrid}>
           {[1, 2, 3, 4, 5].map((value) => (
-            <Button
+            <Pressable
               key={value}
-              label={String(value)}
               onPress={() => setImportance(value as HabitImportance)}
-              variant={importance === value ? 'selected' : 'secondary'}
-            />
+              style={[styles.importanceCard, importance === value && styles.selectedCard]}
+            >
+              <Text style={[styles.importanceValue, importance === value && styles.selectedText]}>{value}</Text>
+              <Text style={styles.importanceXp}>+{getCompletionXp(value as HabitImportance, 0)}</Text>
+            </Pressable>
           ))}
         </View>
       </Field>
 
       <Field label={t(language, 'type')}>
-        <View style={styles.twoCols}>
-          <Button label={t(language, 'binary')} onPress={() => setType('binario')} variant={type === 'binario' ? 'selected' : 'secondary'} />
-          <Button label={t(language, 'countable')} onPress={() => setType('contable')} variant={type === 'contable' ? 'selected' : 'secondary'} />
+        <View style={styles.typeGrid}>
+          <TypeCard
+            active={type === 'binario'}
+            description={t(language, 'binaryHelp')}
+            icon={<Check color={type === 'binario' ? colors.brand.cyanCore : colors.state.pending} size={18} />}
+            label={t(language, 'binary')}
+            onPress={() => setType('binario')}
+          />
+          <TypeCard
+            active={type === 'contable'}
+            description={t(language, 'countableHelp')}
+            icon={<BarChart3 color={type === 'contable' ? colors.brand.cyanCore : colors.state.pending} size={18} />}
+            label={t(language, 'countable')}
+            onPress={() => setType('contable')}
+          />
         </View>
       </Field>
 
@@ -136,14 +150,15 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       ) : null}
 
       <Field label={t(language, 'days')}>
-        <View style={styles.segmentRow}>
+        <View style={styles.daysGrid}>
           {weekDays.map((day) => (
-            <Button
+            <Pressable
               key={day.id}
-              label={day.label}
               onPress={() => toggleDay(day.id)}
-              variant={days.includes(day.id) ? 'selected' : 'secondary'}
-            />
+              style={[styles.dayButton, days.includes(day.id) && styles.selectedDayButton]}
+            >
+              <Text style={[styles.dayText, days.includes(day.id) && styles.selectedDayText]}>{day.label}</Text>
+            </Pressable>
           ))}
         </View>
       </Field>
@@ -167,9 +182,31 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   );
 }
 
+function TypeCard({
+  active,
+  description,
+  icon,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  description: string;
+  icon: ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={[styles.typeCard, active && styles.selectedCard]}>
+      {icon}
+      <Text style={[styles.typeTitle, active && styles.selectedText]}>{label}</Text>
+      <Text style={styles.typeDescription}>{description}</Text>
+    </Pressable>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <View>
+    <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       {children}
     </View>
@@ -178,7 +215,16 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 const styles = StyleSheet.create({
   form: {
-    gap: 18,
+    gap: 16,
+    width: '100%',
+  },
+  field: {
+    backgroundColor: colors.background.surface,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    padding: 14,
+    width: '100%',
   },
   label: {
     color: colors.state.pending,
@@ -199,14 +245,96 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 14,
   },
+  importanceGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  importanceCard: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 54,
+    justifyContent: 'center',
+  },
+  selectedCard: {
+    backgroundColor: `${colors.brand.cyanCore}1A`,
+    borderColor: colors.brand.cyanCore,
+  },
+  importanceValue: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayBold,
+    fontSize: 17,
+  },
+  selectedText: {
+    color: colors.brand.cyanCore,
+  },
+  importanceXp: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+    marginTop: 2,
+  },
   segmentRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  twoCols: {
+  typeGrid: {
     flexDirection: 'row',
     gap: 10,
+  },
+  typeCard: {
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    gap: 7,
+    minHeight: 112,
+    padding: 12,
+  },
+  typeTitle: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayBold,
+    fontSize: 13,
+    textTransform: 'uppercase',
+  },
+  typeDescription: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'space-between',
+  },
+  dayButton: {
+    alignItems: 'center',
+    aspectRatio: 1,
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 38,
+  },
+  selectedDayButton: {
+    backgroundColor: colors.brand.cyanCore,
+    borderColor: colors.brand.cyanCore,
+  },
+  dayText: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayBold,
+    fontSize: 12,
+  },
+  selectedDayText: {
+    color: colors.background.void,
   },
   actions: {
     flexDirection: 'row',
