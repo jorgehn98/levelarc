@@ -201,6 +201,14 @@ Update `preview` inicial publicado:
 - Runtime: `1.0.2`
 - Mensaje: `Initial preview update`
 
+Update `preview` con base de design system:
+
+- Update group: `6efa229b-71a2-4dc8-9746-5fbb51bdb918`
+- Runtime: `1.0.2`
+- Mensaje: `Add design system foundation`
+- Commit: `ef9115f52af4eba0ed36115fc986598e5ac05cf1`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6efa229b-71a2-4dc8-9746-5fbb51bdb918>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
