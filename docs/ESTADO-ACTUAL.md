@@ -329,6 +329,14 @@ Update `preview` simplificando cabecera de jugador:
 - Commit: `76d88882f6d1dbeecab6756b59797a3a695eb459`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/f291b585-62c1-4596-a722-2505a064e169>
 
+Update `preview` capando el multiplicador de racha por hábito:
+
+- Update group: `ddd5452e-5106-4479-9c82-49d4015e708c`
+- Runtime: `1.0.2`
+- Mensaje: `Cap habit streak multiplier`
+- Commit: `2a3755c1a52cfac7fdd40ca2eb6b7b692fe9d0b9`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/ddd5452e-5106-4479-9c82-49d4015e708c>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
