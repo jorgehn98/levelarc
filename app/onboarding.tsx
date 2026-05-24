@@ -1,7 +1,9 @@
 import { router } from 'expo-router';
 import { ChevronRight, Flame, Shield, Swords, Trophy } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Defs, Path, Pattern, Rect } from 'react-native-svg';
 
 import { BrandMark } from '@/components/BrandMark';
 import { ProgressBar } from '@/components/ProgressBar';
@@ -45,28 +47,33 @@ export default function OnboardingScreen() {
       <BackgroundFx accent={accent} />
       <CornerTicks accent={accent} />
 
-      <View style={[styles.content, isFirstRun ? styles.firstContent : styles.returnContent]}>
-        <LogoOrbit accent={accent} compact={!isFirstRun} />
+      <ScrollView
+        contentContainerStyle={[styles.content, isFirstRun ? styles.firstContent : styles.returnContent]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+      >
+        <AnimatedIntro>
+          <LogoOrbit accent={accent} compact={!isFirstRun} />
 
-        <Text style={[styles.wordmark, !isFirstRun && styles.wordmarkCompact]}>
-          LEVEL<Text style={{ color: accent }}>ARC</Text>
-        </Text>
-        <Text style={[styles.systemLabel, { color: accent }]}>[ {isFirstRun ? t(language, 'systemActivated') : t(language, 'systemOnlineShort')} ]</Text>
+          <FlickerWordmark accent={accent} compact={!isFirstRun} />
+          <Text style={[styles.systemLabel, { color: accent }]}>[ {isFirstRun ? t(language, 'systemActivated') : t(language, 'systemOnlineShort')} ]</Text>
 
-        {isFirstRun ? (
-          <FirstRunPanel accent={accent} language={language} name={name} onChangeName={setName} />
-        ) : (
-          <ReturnPanel
-            accent={accent}
-            activeHabits={activeHabits}
-            language={language}
-            name={player?.nombre ?? t(language, 'hunterId')}
-            progress={progress}
-            streak={player?.rachaMisiones ?? 0}
-            totalXp={player?.xpTotal ?? 0}
-          />
-        )}
-      </View>
+          {isFirstRun ? (
+            <FirstRunPanel accent={accent} language={language} name={name} onChangeName={setName} />
+          ) : (
+            <ReturnPanel
+              accent={accent}
+              activeHabits={activeHabits}
+              language={language}
+              name={player?.nombre ?? t(language, 'hunterId')}
+              progress={progress}
+              streak={player?.rachaMisiones ?? 0}
+              totalXp={player?.xpTotal ?? 0}
+            />
+          )}
+        </AnimatedIntro>
+      </ScrollView>
 
       <View style={styles.footer}>
         <Pressable
@@ -95,9 +102,23 @@ export default function OnboardingScreen() {
 function BackgroundFx({ accent }: { accent: string }) {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <HexGridBg accent={accent} />
       <View style={[styles.glow, { backgroundColor: accent }]} />
       <View style={styles.scanlines} />
     </View>
+  );
+}
+
+function HexGridBg({ accent }: { accent: string }) {
+  return (
+    <Svg height="100%" style={StyleSheet.absoluteFill} width="100%">
+      <Defs>
+        <Pattern height="32" id="hex-grid" patternUnits="userSpaceOnUse" width="28">
+          <Path d="M14 0 L28 8 L28 24 L14 32 L0 24 L0 8 Z" fill="none" opacity={0.07} stroke={accent} strokeWidth="1" />
+        </Pattern>
+      </Defs>
+      <Rect fill="url(#hex-grid)" height="100%" width="100%" />
+    </Svg>
   );
 }
 
@@ -115,17 +136,121 @@ function CornerTicks({ accent }: { accent: string }) {
 function LogoOrbit({ accent, compact }: { accent: string; compact: boolean }) {
   const size = compact ? 156 : 180;
   const markSize = compact ? 108 : 124;
+  const spin = useRef(new Animated.Value(0)).current;
+  const pulseA = useRef(new Animated.Value(0)).current;
+  const pulseB = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const spinLoop = Animated.loop(
+      Animated.timing(spin, {
+        duration: 28000,
+        easing: Easing.linear,
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+    );
+    const makePulse = (value: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(value, {
+            duration: 3000,
+            easing: Easing.out(Easing.cubic),
+            toValue: 1,
+            useNativeDriver: true,
+          }),
+          Animated.timing(value, {
+            duration: 0,
+            toValue: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+    const pulseLoopA = makePulse(pulseA, 0);
+    const pulseLoopB = makePulse(pulseB, 1500);
+
+    spinLoop.start();
+    pulseLoopA.start();
+    pulseLoopB.start();
+
+    return () => {
+      spinLoop.stop();
+      pulseLoopA.stop();
+      pulseLoopB.stop();
+    };
+  }, [pulseA, pulseB, spin]);
+
+  const rotate = spin.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+  const pulseStyle = (value: Animated.Value) => ({
+    opacity: value.interpolate({ inputRange: [0, 0.8, 1], outputRange: [0.7, 0, 0] }),
+    transform: [{ scale: value.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1.18] }) }],
+  });
 
   return (
     <View style={[styles.logoOrbit, { height: size, width: size }]}>
-      <View style={[styles.logoRingDashed, { borderColor: `${accent}88` }]} />
+      <Animated.View style={[styles.logoRingDashed, { borderColor: `${accent}88`, transform: [{ rotate }] }]} />
       <View style={[styles.logoRingInner, { borderColor: `${accent}55` }]} />
-      <View style={[styles.logoPulse, { borderColor: accent }]} />
+      <Animated.View style={[styles.logoPulse, { borderColor: accent }, pulseStyle(pulseA)]} />
+      <Animated.View style={[styles.logoPulse, { borderColor: accent }, pulseStyle(pulseB)]} />
       <View style={[styles.logoMark, { shadowColor: accent }]}>
         <BrandMark size={markSize} variant="transparent" />
       </View>
     </View>
   );
+}
+
+function FlickerWordmark({ accent, compact }: { accent: string; compact: boolean }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(opacity, { duration: 180, toValue: 1, useNativeDriver: true }),
+        Animated.timing(opacity, { duration: 70, toValue: 0.45, useNativeDriver: true }),
+        Animated.timing(opacity, { duration: 110, toValue: 1, useNativeDriver: true }),
+      ]),
+      Animated.timing(translateY, {
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, translateY]);
+
+  return (
+    <Animated.Text style={[styles.wordmark, compact && styles.wordmarkCompact, { opacity, transform: [{ translateY }] }]}>
+      LEVEL<Text style={{ color: accent }}>ARC</Text>
+    </Animated.Text>
+  );
+}
+
+function AnimatedIntro({ children }: { children: ReactNode }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, translateY]);
+
+  return <Animated.View style={[styles.intro, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
 
 function FirstRunPanel({
@@ -148,12 +273,12 @@ function FirstRunPanel({
         <View style={styles.inputWrap}>
           <TextInput
             autoCapitalize="words"
-            autoFocus
             cursorColor={colors.brand.cyanCore}
             maxLength={24}
             onChangeText={(value) => onChangeName(value.slice(0, 24))}
             placeholder={t(language, 'hunterNamePlaceholder')}
             placeholderTextColor={colors.state.pending}
+            returnKeyType="done"
             selectionColor={colors.brand.cyanShadow}
             style={[styles.nameInput, name.trim() && { borderColor: accent, shadowColor: accent }]}
             value={name}
@@ -268,6 +393,9 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
   },
+  scroll: {
+    flex: 1,
+  },
   glow: {
     alignSelf: 'center',
     borderRadius: 220,
@@ -313,16 +441,22 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 28,
     position: 'relative',
     zIndex: 1,
   },
   firstContent: {
+    paddingBottom: 18,
     paddingTop: 44,
   },
   returnContent: {
+    paddingBottom: 18,
     paddingTop: 36,
+  },
+  intro: {
+    alignItems: 'center',
+    width: '100%',
   },
   logoOrbit: {
     alignItems: 'center',
@@ -609,9 +743,12 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: 'center',
+    backgroundColor: colors.background.void,
+    borderTopColor: colors.background.border,
+    borderTopWidth: 1,
     paddingBottom: 26,
     paddingHorizontal: 24,
-    position: 'relative',
+    paddingTop: 12,
     zIndex: 1,
   },
   cta: {

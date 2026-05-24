@@ -10,7 +10,7 @@ El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de 
 
 La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
 
-La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera activación con nombre de cazador e "Iniciar ascensión"; siguientes aperturas con resumen de rango/XP/racha y "Continuar ascensión". El nombre se guarda en `player.nombre` y se puede modificar desde Ajustes.
+La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera activación con nombre de cazador e "Iniciar ascensión"; siguientes aperturas con resumen de rango/XP/racha y "Continuar ascensión". El nombre se guarda en `player.nombre` y se puede modificar desde Ajustes. El CTA queda fijo abajo y el logo usa anillos animados reales; el modo retorno adapta acentos, glow y CTA al rango actual.
 
 La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo. Las filas de hábito usan `View` como tarjeta real y dejan `Pressable` solo como objetivo táctil interno para evitar problemas de layout en Android.
 
