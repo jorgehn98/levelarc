@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Archive, BookOpen, ChevronRight, Dumbbell, ListChecks, Plus, Target } from 'lucide-react-native';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -16,7 +16,9 @@ type HabitFilter = 'active' | 'archived' | 'all';
 export default function HabitsScreen() {
   const habits = useAppStore((state) => state.habits);
   const language = useAppStore((state) => state.language);
+  const { width } = useWindowDimensions();
   const [filter, setFilter] = useState<HabitFilter>('active');
+  const contentWidth = Math.max(280, width - 40);
   const counts = {
     active: habits.filter((habit) => !habit.archivado).length,
     archived: habits.filter((habit) => habit.archivado).length,
@@ -46,10 +48,13 @@ export default function HabitsScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={(
-          <View style={styles.filters}>
-            <FilterChip active={filter === 'active'} count={counts.active} label={t(language, 'active')} onPress={() => setFilter('active')} />
-            <FilterChip active={filter === 'archived'} count={counts.archived} label={t(language, 'archived')} onPress={() => setFilter('archived')} />
-            <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} />
+          <View>
+            <Text style={styles.updateMarker}>UI HABITS FIX · b3</Text>
+            <View style={styles.filters}>
+              <FilterChip active={filter === 'active'} count={counts.active} label={t(language, 'active')} onPress={() => setFilter('active')} width={(contentWidth - 16) / 3} />
+              <FilterChip active={filter === 'archived'} count={counts.archived} label={t(language, 'archived')} onPress={() => setFilter('archived')} width={(contentWidth - 16) / 3} />
+              <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} width={(contentWidth - 16) / 3} />
+            </View>
           </View>
         )}
         ListEmptyComponent={(
@@ -61,29 +66,29 @@ export default function HabitsScreen() {
             <Text style={styles.rowText}>{t(language, 'feedSystem')}</Text>
           </View>
         )}
-        renderItem={({ item }) => <HabitRow habit={item} language={language} />}
+        renderItem={({ item }) => <HabitRow cardWidth={contentWidth} habit={item} language={language} />}
         showsVerticalScrollIndicator={false}
       />
     </Screen>
   );
 }
 
-function FilterChip({ active, count, label, onPress }: { active: boolean; count: number; label: string; onPress: () => void }) {
+function FilterChip({ active, count, label, onPress, width }: { active: boolean; count: number; label: string; onPress: () => void; width: number }) {
   return (
-    <Pressable onPress={onPress} style={[styles.filterChip, active && styles.activeFilter]}>
+    <Pressable onPress={onPress} style={[styles.filterChip, { width }, active && styles.activeFilter]}>
       <Text style={[styles.filterText, active && styles.activeFilterText]}>{label}</Text>
       <Text style={[styles.filterCount, active && styles.activeFilterText]}>{count}</Text>
     </Pressable>
   );
 }
 
-function HabitRow({ habit, language }: { habit: HabitRecord; language: Language }) {
+function HabitRow({ cardWidth, habit, language }: { cardWidth: number; habit: HabitRecord; language: Language }) {
   const isArchived = habit.archivado;
   const xp = getCompletionXp(habit.importancia, 0);
   const Icon = habit.tipo === 'contable' ? BookOpen : habit.importancia >= 4 ? Dumbbell : Target;
 
   return (
-    <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.row, isArchived && styles.archivedRow, pressed && styles.pressedRow]}>
+    <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.row, { width: cardWidth }, isArchived && styles.archivedRow, pressed && styles.pressedRow]}>
       <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
         {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
       </View>
@@ -129,15 +134,21 @@ const styles = StyleSheet.create({
     ...shadows.primaryGlow,
   },
   listContent: {
-    alignItems: 'stretch',
+    alignItems: 'flex-start',
     paddingBottom: 24,
-    width: '100%',
   },
   filters: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 14,
-    width: '100%',
+  },
+  updateMarker: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+    marginBottom: 8,
+    opacity: 0.72,
+    textTransform: 'uppercase',
   },
   filterChip: {
     alignItems: 'center',
@@ -145,7 +156,6 @@ const styles = StyleSheet.create({
     borderColor: colors.background.border,
     borderRadius: radii.sm,
     borderWidth: 1,
-    flex: 1,
     flexDirection: 'row',
     gap: 6,
     justifyContent: 'center',
@@ -181,7 +191,6 @@ const styles = StyleSheet.create({
     minHeight: 72,
     marginBottom: 10,
     padding: 12,
-    width: '100%',
   },
   pressedRow: {
     opacity: 0.88,
