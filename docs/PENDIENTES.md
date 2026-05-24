@@ -16,8 +16,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Publicar un update JS de prueba en canal `preview`.
 - [ ] Validar botón Ajustes > Actualizaciones en Android.
 - [ ] Probar crear hábito en Android.
-- [ ] Probar onboarding inicial en Android: guardar nombre y entrar con "Iniciar ascensión".
-- [ ] Probar entrada de retorno en Android: resumen de rango/XP y "Continuar ascensión".
+- [ ] Probar onboarding inicial en Android: guardar nombre y entrar con "Iniciar juego".
+- [ ] Probar entrada de retorno en Android: resumen de rango/XP y "Continuar jugando".
 - [ ] Probar cambio de nombre desde Ajustes.
 - [ ] Probar editar hábito en Android.
 - [ ] Probar archivar hábito en Android.
@@ -59,7 +59,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Portar fundamentos de `docs/UI-UX` al design system runtime.
 - [x] Cargar Inter/Orbitron desde `assets/fonts/`.
 - [x] Unificar cian de marca en `#3FCAE6`.
-- [x] Crear cabecera de jugador con rango, nivel, XP y racha.
+- [x] Concentrar rango, nivel, XP y racha en Progreso.
+- [x] Dejar Ajustes con cabecera simple de identidad.
 - [x] Pulir pantalla Hoy completa contra `docs/UI-UX`.
 - [x] Pulir pantalla Hábitos.
 - [x] Pulir pantalla Progreso.

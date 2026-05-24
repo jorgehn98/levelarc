@@ -6,11 +6,11 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Ese documento
 
 El MVP funcional está implementado en Expo + React Native + TypeScript. La app ya permite crear hábitos, marcarlos en el día, ganar/perder XP, ver progreso, cambiar idioma, exportar/importar backup y usar la primera identidad visual real de LevelArc.
 
-El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de marca `#3FCAE6`, tipografía local Inter/Orbitron, componentes base con radios/bordes/glow disciplinados y cabecera de jugador en Hoy.
+El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de marca `#3FCAE6`, tipografía local Inter/Orbitron y componentes base con radios/bordes/glow disciplinados.
 
 La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
 
-La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera activación con nombre de jugador e "Iniciar ascensión"; siguientes aperturas con resumen de rango/XP/racha y "Continuar ascensión". El nombre se guarda en `player.nombre` y se puede modificar desde Ajustes. El CTA queda fijo abajo y el logo usa anillos animados reales; el modo retorno adapta acentos, glow y CTA al rango actual.
+La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera activación con nombre de jugador e "Iniciar juego"; siguientes aperturas con resumen de rango/XP/racha y "Continuar jugando". El nombre se guarda en `player.nombre` y se puede modificar desde Ajustes. El CTA queda fijo abajo y el logo usa anillos animados reales; el modo retorno adapta acentos, glow y CTA al rango actual.
 
 La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo. Las filas de hábito usan `View` como tarjeta real y dejan `Pressable` solo como objetivo táctil interno para evitar problemas de layout en Android.
 
@@ -76,7 +76,6 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 ### Hoy
 
-- Cabecera de jugador con rango, nivel, XP y racha.
 - Misión diaria con jerarquía visual de Sistema, icono, contador y estado de bonus.
 - Hábitos agrupados por pendiente/completado/fallado.
 - Lista de hábitos que aplican al día actual.
@@ -89,6 +88,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 ### XP y progreso
 
+- Pantalla Progreso concentra rango, nivel, XP y racha.
 - Eventos de XP.
 - `events` como fuente de verdad inmutable.
 - `player` cacheado.

@@ -4,7 +4,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { HabitCard } from '@/components/HabitCard';
-import { PlayerHeader } from '@/components/PlayerHeader';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -19,7 +18,6 @@ import { colors, radii, typography } from '@/theme/colors';
 export default function TodayScreen() {
   const todayHabits = useAppStore((state) => state.todayHabits);
   const dailyMission = useAppStore((state) => state.dailyMission);
-  const player = useAppStore((state) => state.player);
   const incrementHabit = useAppStore((state) => state.incrementHabit);
   const failHabit = useAppStore((state) => state.failHabit);
   const undoHabit = useAppStore((state) => state.undoHabit);
@@ -46,8 +44,6 @@ export default function TodayScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <PlayerHeader language={language} player={player} />
-
         <SystemPanel title={t(language, 'dailyMission')}>
           <View style={styles.missionTop}>
             <View style={[styles.missionIcon, mission.isComplete && styles.missionCompleteIcon]}>
