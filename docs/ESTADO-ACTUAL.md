@@ -300,6 +300,14 @@ Update `preview` con comprobación automática al arranque:
 - Commit: `bf1fff37aa17566dd021331dd9fb5ae764d32f63`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/1239381d-cd03-4c48-b500-658f7f38ca10>
 
+Update `preview` centrando el CTA de onboarding:
+
+- Update group: `d58e75f6-da76-428b-b052-3ef3c756751f`
+- Runtime: `1.0.2`
+- Mensaje: centra el texto del CTA y cambia los textos a `Iniciar juego` / `Continuar jugando`
+- Commit: `67e194c1b982e25a0cd9d497826af8ea1dc93704`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/d58e75f6-da76-428b-b052-3ef3c756751f>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
