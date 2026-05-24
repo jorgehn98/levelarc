@@ -1,13 +1,15 @@
 import '../global.css';
 
+import * as Updates from 'expo-updates';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { useAppStore } from '@/stores/appStore';
+import { t } from '@/i18n';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -19,16 +21,43 @@ export default function RootLayout() {
   });
   const boot = useAppStore((state) => state.boot);
   const isReady = useAppStore((state) => state.isReady);
+  const language = useAppStore((state) => state.language);
   const player = useAppStore((state) => state.player);
   const pathname = usePathname();
   const router = useRouter();
   const [entryShown, setEntryShown] = useState(false);
+  const [startupUpdateChecked, setStartupUpdateChecked] = useState(false);
 
   useEffect(() => {
     if (fontsLoaded && !isReady) {
       void boot();
     }
   }, [boot, fontsLoaded, isReady]);
+
+  useEffect(() => {
+    if (!fontsLoaded || !isReady || startupUpdateChecked) return;
+
+    setStartupUpdateChecked(true);
+
+    async function checkStartupUpdate() {
+      if (!Updates.isEnabled) return;
+
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (!result.isAvailable) return;
+
+        await Updates.fetchUpdateAsync();
+        Alert.alert(t(language, 'updateReady'), t(language, 'updateReadyCopy'), [
+          { text: t(language, 'later'), style: 'cancel' },
+          { text: t(language, 'restart'), onPress: () => void Updates.reloadAsync() },
+        ]);
+      } catch {
+        // Startup checks should never block the app. Manual update remains in Settings.
+      }
+    }
+
+    void checkStartupUpdate();
+  }, [fontsLoaded, isReady, language, startupUpdateChecked]);
 
   useEffect(() => {
     if (!fontsLoaded || !isReady) return;
