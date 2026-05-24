@@ -338,6 +338,14 @@ Update `preview` capando el multiplicador de racha por hábito:
 - Commit: `2a3755c1a52cfac7fdd40ca2eb6b7b692fe9d0b9`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/ddd5452e-5106-4479-9c82-49d4015e708c>
 
+Update `preview` respetando días programados en rachas:
+
+- Update group: `d2cc9514-5569-487d-870d-a3b1b23d87ad`
+- Runtime: `1.0.2`
+- Mensaje: `Respect habit schedules in streaks`
+- Commit: `ec2e0b780937dd013a634914b31cb262d5dd41e4`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/d2cc9514-5569-487d-870d-a3b1b23d87ad>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
