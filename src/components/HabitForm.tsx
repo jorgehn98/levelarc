@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { BarChart3, Check } from 'lucide-react-native';
+import { BarChart3, Check, ChevronDown, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -25,6 +25,8 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   const [name, setName] = useState(habit?.nombre ?? '');
   const [icon, setIcon] = useState<HabitIconId>(normalizeHabitIcon(habit?.icono ?? defaultHabitIcon));
   const [attributes, setAttributes] = useState<AttributeId[]>(normalizeHabitAttributes(habit?.atributos));
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(true);
+  const [isAttributePickerOpen, setIsAttributePickerOpen] = useState(false);
   const [importance, setImportance] = useState<HabitImportance>(habit?.importancia ?? 3);
   const [type, setType] = useState<HabitType>(habit?.tipo ?? 'binario');
   const [goal, setGoal] = useState(String(habit?.meta ?? 1));
@@ -36,14 +38,19 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   const canSave = name.trim().length > 0 && days.length > 0 && attributes.length > 0;
   const normalizedGoal = useMemo(() => Math.max(1, Number.parseInt(goal, 10) || 1), [goal]);
   const xpPreview = getCompletionXp(importance, 0);
+  const selectedIcon = habitIcons.find((item) => item.id === icon) ?? habitIcons[0];
+  const SelectedIcon = selectedIcon.icon;
+  const selectedAttributes = habitAttributes.filter((item) => attributes.includes(item.id));
 
   function toggleDay(dayId: number) {
+    setIsAttributePickerOpen(false);
     setDays((current) =>
       current.includes(dayId) ? current.filter((day) => day !== dayId) : [...current, dayId].sort((a, b) => a - b),
     );
   }
 
   function selectEveryDay() {
+    setIsAttributePickerOpen(false);
     setDays(weekDays.map((day) => day.id));
   }
 
@@ -53,6 +60,16 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       if (current.length >= maxHabitAttributes) return current;
       return [...current, attributeId];
     });
+  }
+
+  function selectIcon(iconId: HabitIconId) {
+    setIcon(iconId);
+    setIsIconPickerOpen(false);
+    setIsAttributePickerOpen(true);
+  }
+
+  function closeAttributePicker() {
+    setIsAttributePickerOpen(false);
   }
 
   function handleSave() {
@@ -98,7 +115,25 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
         </View>
       </View>
 
-      <Field label={t(language, 'pickIcon')}>
+      <CollapsibleField
+        isOpen={isIconPickerOpen}
+        label={t(language, 'pickIcon')}
+        onToggle={() => {
+          setIsIconPickerOpen((current) => {
+            const next = !current;
+            if (next) setIsAttributePickerOpen(false);
+            return next;
+          });
+        }}
+        summary={(
+          <View style={styles.iconSummary}>
+            <View style={styles.summaryIconTile}>
+              <SelectedIcon color={colors.brand.cyanCore} size={17} />
+            </View>
+            <Text style={styles.summaryText}>{selectedIcon.label}</Text>
+          </View>
+        )}
+      >
         <View style={styles.iconGrid}>
           {habitIcons.map((item) => {
             const Icon = item.icon;
@@ -107,7 +142,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
             return (
               <Pressable
                 key={item.id}
-                onPress={() => setIcon(item.id)}
+                onPress={() => selectIcon(item.id)}
                 style={[styles.iconOption, isSelected && styles.selectedIconOption]}
               >
                 <Icon color={isSelected ? colors.background.void : colors.brand.bone} size={20} />
@@ -116,13 +151,29 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
             );
           })}
         </View>
-      </Field>
+      </CollapsibleField>
 
-      <Field label={t(language, 'attributes')}>
-        <View style={styles.attributeHeader}>
-          <Text style={styles.attributeHelp}>{t(language, 'attributesHelp')}</Text>
-          <Text style={styles.attributeCount}>{attributes.length}/{maxHabitAttributes}</Text>
-        </View>
+      <CollapsibleField
+        isOpen={isAttributePickerOpen}
+        label={t(language, 'attributes')}
+        onToggle={() => {
+          setIsAttributePickerOpen((current) => {
+            const next = !current;
+            if (next) setIsIconPickerOpen(false);
+            return next;
+          });
+        }}
+        summary={(
+          <View style={styles.selectedAttributeSummary}>
+            {selectedAttributes.map((item) => (
+              <View key={item.id} style={[styles.attributePill, { borderColor: item.color, backgroundColor: `${item.color}14` }]}>
+                <Text style={[styles.attributePillText, { color: item.color }]}>{item.code}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        trailing={<Text style={styles.attributeCount}>{attributes.length}/{maxHabitAttributes}</Text>}
+      >
         <View style={styles.attributeGrid}>
           {habitAttributes.map((item) => {
             const Icon = item.icon;
@@ -154,13 +205,13 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
             );
           })}
         </View>
-      </Field>
+      </CollapsibleField>
 
       <Field label={t(language, 'name')}>
         <TextInput
-          autoFocus
           cursorColor={colors.brand.cyanCore}
           onChangeText={setName}
+          onFocus={closeAttributePicker}
           placeholder={t(language, 'namePlaceholder')}
           placeholderTextColor={colors.state.pending}
           selectionColor={colors.brand.cyanShadow}
@@ -174,7 +225,10 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
           {[1, 2, 3, 4, 5].map((value) => (
             <Pressable
               key={value}
-              onPress={() => setImportance(value as HabitImportance)}
+              onPress={() => {
+                closeAttributePicker();
+                setImportance(value as HabitImportance);
+              }}
               style={[styles.importanceCard, importance === value && styles.selectedCard]}
             >
               <Text style={[styles.importanceValue, importance === value && styles.selectedText]}>{value}</Text>
@@ -191,14 +245,20 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
             description={t(language, 'binaryHelp')}
             icon={<Check color={type === 'binario' ? colors.brand.cyanCore : colors.state.pending} size={18} />}
             label={t(language, 'binary')}
-            onPress={() => setType('binario')}
+            onPress={() => {
+              closeAttributePicker();
+              setType('binario');
+            }}
           />
           <TypeCard
             active={type === 'contable'}
             description={t(language, 'countableHelp')}
             icon={<BarChart3 color={type === 'contable' ? colors.brand.cyanCore : colors.state.pending} size={18} />}
             label={t(language, 'countable')}
-            onPress={() => setType('contable')}
+            onPress={() => {
+              closeAttributePicker();
+              setType('contable');
+            }}
           />
         </View>
       </Field>
@@ -209,6 +269,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
             cursorColor={colors.brand.cyanCore}
             keyboardType="number-pad"
             onChangeText={setGoal}
+            onFocus={closeAttributePicker}
             placeholder="4"
             placeholderTextColor={colors.state.pending}
             selectionColor={colors.brand.cyanShadow}
@@ -244,6 +305,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
         <TextInput
           cursorColor={colors.brand.cyanCore}
           onChangeText={setReminder}
+          onFocus={closeAttributePicker}
           placeholder="08:30"
           placeholderTextColor={colors.state.pending}
           selectionColor={colors.brand.cyanShadow}
@@ -290,6 +352,40 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function CollapsibleField({
+  children,
+  isOpen,
+  label,
+  onToggle,
+  summary,
+  trailing,
+}: {
+  children: ReactNode;
+  isOpen: boolean;
+  label: string;
+  onToggle: () => void;
+  summary: ReactNode;
+  trailing?: ReactNode;
+}) {
+  const Chevron = isOpen ? ChevronDown : ChevronRight;
+
+  return (
+    <View style={styles.field}>
+      <Pressable onPress={onToggle} style={styles.collapsibleHeader}>
+        <View style={styles.collapsibleTitle}>
+          <Text style={[styles.label, styles.collapsibleLabel, !isOpen && styles.collapsibleLabelClosed]}>{label}</Text>
+          {isOpen ? null : summary}
+        </View>
+        <View style={styles.collapsibleActions}>
+          {trailing}
+          <Chevron color={colors.brand.boneMuted} size={18} />
+        </View>
+      </Pressable>
+      {isOpen ? <View style={styles.collapsibleBody}>{children}</View> : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   form: {
     gap: 16,
@@ -310,6 +406,51 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     marginBottom: 8,
     textTransform: 'uppercase',
+  },
+  collapsibleHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  collapsibleTitle: {
+    flex: 1,
+    minWidth: 0,
+  },
+  collapsibleLabel: {
+    marginBottom: 0,
+  },
+  collapsibleLabelClosed: {
+    marginBottom: 6,
+  },
+  collapsibleActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  collapsibleBody: {
+    marginTop: 8,
+  },
+  iconSummary: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  summaryIconTile: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  summaryText: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 13,
   },
   input: {
     backgroundColor: colors.background.card,
@@ -395,24 +536,25 @@ const styles = StyleSheet.create({
   selectedIconOptionText: {
     color: colors.background.void,
   },
-  attributeHeader: {
-    alignItems: 'center',
+  selectedAttributeSummary: {
     flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  attributeHelp: {
-    color: colors.brand.boneMuted,
-    flex: 1,
-    fontFamily: typography.font.bodyRegular,
-    fontSize: 12,
-    lineHeight: 16,
+    flexWrap: 'wrap',
+    gap: 5,
   },
   attributeCount: {
     color: colors.rank.S,
     fontFamily: typography.font.displayBold,
     fontSize: 11,
+  },
+  attributePill: {
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  attributePillText: {
+    fontFamily: typography.font.displayBold,
+    fontSize: 8,
   },
   attributeGrid: {
     gap: 8,
