@@ -258,6 +258,14 @@ Update `preview` con CTA fijo y motion real en onboarding:
 - Commit: `0288fb02fd4456782da0822cde0d2b56b2b1429b`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/d142d5c3-b55c-4465-983a-5312d92f90e6>
 
+Update `preview` alineando CTA onboarding con la referencia:
+
+- Update group: `57dd61c0-fd65-4b29-83ff-6c6eecf4bb13`
+- Runtime: `1.0.2`
+- Mensaje: `Align onboarding CTA with reference`
+- Commit: `12d99a52cb6afe1957b3d6ebfcb3ddf2dcec973a`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/57dd61c0-fd65-4b29-83ff-6c6eecf4bb13>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
