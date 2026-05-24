@@ -107,9 +107,10 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 ### Misión diaria
 
-- Misión fija: completar 3 hábitos.
-- Progreso diario.
-- Reclamar bonus de XP.
+- Misión dinámica: completar todos los hábitos programados para hoy.
+- Si no hay hábitos programados para hoy, no hay misión diaria activa.
+- Progreso diario basado en `completados / hábitos de hoy`.
+- Reclamar bonus de XP escalado por carga diaria: 1 hábito +5 XP, 2-3 +10 XP, 4-5 +15 XP, 6+ +20 XP.
 
 ### Persistencia
 

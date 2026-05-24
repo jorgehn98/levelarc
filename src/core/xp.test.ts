@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyXpDelta, getCompletionXp, getFailureXp } from './xp';
 import { getLevelFromXp, getLevelProgress, getXpForLevel } from './ranks';
-import { getDailyMissionProgress } from './missions';
+import { getDailyMissionBonus, getDailyMissionProgress } from './missions';
 import { getTodayWeekday } from '../lib/date';
 
 describe('xp rules', () => {
@@ -38,9 +38,18 @@ describe('progression', () => {
 });
 
 describe('daily mission', () => {
-  it('marks the fixed mission complete at three completed habits', () => {
-    expect(getDailyMissionProgress(2).isComplete).toBe(false);
-    expect(getDailyMissionProgress(3).isComplete).toBe(true);
+  it('requires all scheduled habits for the day', () => {
+    expect(getDailyMissionProgress(2, 3).isComplete).toBe(false);
+    expect(getDailyMissionProgress(3, 3).isComplete).toBe(true);
+    expect(getDailyMissionProgress(0, 0).isAvailable).toBe(false);
+  });
+
+  it('scales the daily mission bonus by daily load', () => {
+    expect(getDailyMissionBonus(0)).toBe(0);
+    expect(getDailyMissionBonus(1)).toBe(5);
+    expect(getDailyMissionBonus(3)).toBe(10);
+    expect(getDailyMissionBonus(5)).toBe(15);
+    expect(getDailyMissionBonus(6)).toBe(20);
   });
 });
 

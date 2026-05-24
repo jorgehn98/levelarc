@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { DAILY_MISSION_BONUS_XP, DAILY_MISSION_TARGET } from '@/core/missions';
+import { DAILY_MISSION_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
 import { getLevelProgress } from '@/core/ranks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import {
@@ -305,7 +305,7 @@ function getOrCreateProgress(db: WebDb, habitId: string, dateKey: string) {
 function ensureMission(db: WebDb, dateKey: string) {
   let mission = db.missions.find((item) => item.fecha === dateKey);
   if (!mission) {
-    mission = { fecha: dateKey, objetivo: DAILY_MISSION_TARGET, completados: 0, reclamada: false, xpBonus: DAILY_MISSION_BONUS_XP };
+    mission = { fecha: dateKey, objetivo: 0, completados: 0, reclamada: false, xpBonus: DAILY_MISSION_BONUS_XP };
     db.missions.push(mission);
   }
   return mission;
@@ -313,7 +313,22 @@ function ensureMission(db: WebDb, dateKey: string) {
 
 function syncMission(db: WebDb, dateKey: string) {
   const mission = ensureMission(db, dateKey);
-  mission.completados = db.progress.filter((item) => item.fecha === dateKey && item.estado === 'completado').length;
+  const weekday = new Date(`${dateKey}T12:00:00`).getDay();
+  const levelArcWeekday = weekday === 0 ? 7 : weekday;
+  const scheduledHabitIds = new Set(
+    db.habits
+      .filter((habit) => !habit.archivado && habit.diasSemana.split(',').map(Number).includes(levelArcWeekday))
+      .map((habit) => habit.id),
+  );
+
+  mission.objetivo = scheduledHabitIds.size;
+  mission.completados = db.progress.filter(
+    (item) => item.fecha === dateKey && item.estado === 'completado' && scheduledHabitIds.has(item.habitId),
+  ).length;
+  mission.xpBonus = getDailyMissionBonus(mission.objetivo);
+  if (mission.objetivo === 0) {
+    mission.reclamada = false;
+  }
 }
 
 function syncPlayer(db: WebDb) {

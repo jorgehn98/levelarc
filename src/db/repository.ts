@@ -2,7 +2,7 @@ import { sqlite } from './client';
 import { migrateDb } from './migrate';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import { getLevelProgress } from '@/core/ranks';
-import { DAILY_MISSION_BONUS_XP, DAILY_MISSION_TARGET } from '@/core/missions';
+import { DAILY_MISSION_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
 import {
   applyAttributeDeltas,
   createEmptyAttributeXp,
@@ -508,17 +508,43 @@ async function ensureDailyMission(dateKey: string) {
 
   await sqlite.runAsync(
     'INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus) VALUES (?, ?, 0, 0, ?)',
-    [dateKey, DAILY_MISSION_TARGET, DAILY_MISSION_BONUS_XP],
+    [dateKey, 0, DAILY_MISSION_BONUS_XP],
   );
 }
 
 async function syncDailyMission(dateKey: string) {
   await ensureDailyMission(dateKey);
-  const completed = await sqlite.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM habit_daily_progress WHERE fecha = ? AND estado = 'completado'",
-    [dateKey],
+  const weekday = getTodayWeekday(new Date(`${dateKey}T12:00:00`));
+  const target = await sqlite.getFirstAsync<{ count: number }>(
+    `
+      SELECT COUNT(*) as count
+      FROM habits
+      WHERE archivado = 0
+        AND (',' || dias_semana || ',') LIKE ?
+    `,
+    [`%,${weekday},%`],
   );
-  await sqlite.runAsync('UPDATE daily_missions SET completados = ? WHERE fecha = ?', [completed?.count ?? 0, dateKey]);
+  const completed = await sqlite.getFirstAsync<{ count: number }>(
+    `
+      SELECT COUNT(*) as count
+      FROM habits h
+      INNER JOIN habit_daily_progress p ON p.habit_id = h.id AND p.fecha = ?
+      WHERE h.archivado = 0
+        AND (',' || h.dias_semana || ',') LIKE ?
+        AND p.estado = 'completado'
+    `,
+    [dateKey, `%,${weekday},%`],
+  );
+  const objective = target?.count ?? 0;
+  const done = completed?.count ?? 0;
+  const bonus = getDailyMissionBonus(objective);
+  const current = await sqlite.getFirstAsync<{ reclamada: number }>('SELECT reclamada FROM daily_missions WHERE fecha = ?', [dateKey]);
+  const claimed = objective > 0 ? current?.reclamada ?? 0 : 0;
+
+  await sqlite.runAsync(
+    'UPDATE daily_missions SET objetivo = ?, completados = ?, xp_bonus = ?, reclamada = ? WHERE fecha = ?',
+    [objective, done, bonus, claimed, dateKey],
+  );
 }
 
 async function setPlayerProgress(xpTotal: number, rachaMisiones?: number, atributosXp?: AttributeXp) {

@@ -23,7 +23,7 @@ export default function TodayScreen() {
   const undoHabit = useAppStore((state) => state.undoHabit);
   const claimMission = useAppStore((state) => state.claimMission);
   const language = useAppStore((state) => state.language);
-  const mission = getDailyMissionProgress(dailyMission?.completados ?? 0, dailyMission?.objetivo ?? 3);
+  const mission = getDailyMissionProgress(dailyMission?.completados ?? 0, dailyMission?.objetivo ?? todayHabits.length);
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
   const pendingHabits = todayHabits.filter((habit) => habit.estado === 'pendiente');
   const completedHabits = todayHabits.filter((habit) => habit.estado === 'completado');
@@ -51,14 +51,16 @@ export default function TodayScreen() {
             </View>
             <View style={styles.missionCopy}>
               <Text style={styles.kicker}>{t(language, 'missionStatus')}</Text>
-              <Text style={styles.systemText}>{t(language, 'completeThree')}</Text>
+              <Text style={styles.systemText}>{mission.isAvailable ? t(language, 'completeTodayHabits') : t(language, 'noDailyMission')}</Text>
             </View>
             <Text style={[styles.missionCount, mission.isComplete && styles.missionComplete]}>{mission.completed} / {mission.target}</Text>
           </View>
 
           <ProgressBar ratio={mission.ratio} color={mission.isComplete ? colors.state.completed : colors.brand.cyanCore} />
 
-          {canClaim ? (
+          {!mission.isAvailable ? (
+            <Text style={styles.metaText}>{t(language, 'noDailyMissionCopy')}</Text>
+          ) : canClaim ? (
             <View style={styles.claim}>
               <Button icon={Gift} label={t(language, 'claimXp', { xp: dailyMission?.xpBonus ?? 10 })} onPress={claimMission} />
             </View>

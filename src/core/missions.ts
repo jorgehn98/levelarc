@@ -1,14 +1,24 @@
-export const DAILY_MISSION_TARGET = 3;
 export const DAILY_MISSION_BONUS_XP = 10;
 
-export function getDailyMissionProgress(completedHabits: number, target = DAILY_MISSION_TARGET) {
+export function getDailyMissionBonus(target: number) {
+  const safeTarget = Math.max(0, Math.floor(target));
+  if (safeTarget === 0) return 0;
+  if (safeTarget === 1) return 5;
+  if (safeTarget <= 3) return 10;
+  if (safeTarget <= 5) return 15;
+  return 20;
+}
+
+export function getDailyMissionProgress(completedHabits: number, target: number) {
   const safeCompleted = Math.max(0, Math.floor(completedHabits));
-  const safeTarget = Math.max(1, Math.floor(target));
+  const safeTarget = Math.max(0, Math.floor(target));
+  const isAvailable = safeTarget > 0;
 
   return {
     completed: safeCompleted,
     target: safeTarget,
-    isComplete: safeCompleted >= safeTarget,
-    ratio: Math.min(1, safeCompleted / safeTarget),
+    isAvailable,
+    isComplete: isAvailable && safeCompleted >= safeTarget,
+    ratio: isAvailable ? Math.min(1, safeCompleted / safeTarget) : 0,
   };
 }

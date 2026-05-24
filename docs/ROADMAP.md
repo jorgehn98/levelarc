@@ -25,7 +25,7 @@ Incluye:
 - Pantalla Hábitos.
 - Pantalla Progreso.
 - Pantalla Ajustes.
-- Misión diaria fija.
+- Misión diaria dinámica: completar todos los hábitos programados para hoy.
 - Recordatorios locales.
 - Exportación JSON.
 - Nombre de jugador persistente, definido en onboarding y editable en Ajustes.
