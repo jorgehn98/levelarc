@@ -348,6 +348,14 @@ Update `preview` respetando días programados en rachas:
 - Commit: `ec2e0b780937dd013a634914b31cb262d5dd41e4`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/d2cc9514-5569-487d-870d-a3b1b23d87ad>
 
+Update `preview` refrescando al cambiar el día local:
+
+- Update group: `2adc1e21-aff1-4c41-8009-4ff97e0bd818`
+- Runtime: `1.0.2`
+- Mensaje: `Refresh app on local day changes`
+- Commit: `a4148c60e8e31e07ff75231e7b60050080ecd79c`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/2adc1e21-aff1-4c41-8009-4ff97e0bd818>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
