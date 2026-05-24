@@ -23,9 +23,10 @@ type HabitFormProps = {
   language: Language;
   onSave: (input: HabitInput) => void;
   onArchive?: () => void;
+  onCancel?: () => void;
 };
 
-export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps) {
+export function HabitForm({ habit, language, onSave, onArchive, onCancel }: HabitFormProps) {
   const [name, setName] = useState(habit?.nombre ?? '');
   const [importance, setImportance] = useState<HabitImportance>(habit?.importancia ?? 3);
   const [type, setType] = useState<HabitType>(habit?.tipo ?? 'binario');
@@ -44,8 +45,32 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
     );
   }
 
+  function handleSave() {
+    onSave({
+      nombre: name,
+      importancia: importance,
+      tipo: type,
+      meta: type === 'binario' ? 1 : normalizedGoal,
+      diasSemana: days.join(','),
+      horaRecordatorio: reminder.trim() || null,
+    });
+  }
+
+  const actions = (
+    <View style={styles.actions}>
+      {onCancel ? <Button label={t(language, 'cancel')} onPress={onCancel} variant="secondary" /> : null}
+      <Button
+        disabled={!canSave}
+        label={habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
+        onPress={handleSave}
+      />
+    </View>
+  );
+
   return (
     <View style={styles.form}>
+      {actions}
+
       <Field label={t(language, 'name')}>
         <TextInput
           autoFocus
@@ -119,20 +144,7 @@ export function HabitForm({ habit, language, onSave, onArchive }: HabitFormProps
         />
       </Field>
 
-      <Button
-        disabled={!canSave}
-        label={habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
-        onPress={() =>
-          onSave({
-            nombre: name,
-            importancia: importance,
-            tipo: type,
-            meta: type === 'binario' ? 1 : normalizedGoal,
-            diasSemana: days.join(','),
-            horaRecordatorio: reminder.trim() || null,
-          })
-        }
-      />
+      {actions}
 
       {onArchive ? <Button label={t(language, 'archiveHabit')} onPress={onArchive} variant="danger" /> : null}
     </View>
@@ -178,6 +190,11 @@ const styles = StyleSheet.create({
   },
   twoCols: {
     flexDirection: 'row',
+    gap: 10,
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
 });

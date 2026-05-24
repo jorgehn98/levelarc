@@ -18,7 +18,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
   const isPrimary = variant === 'primary';
   const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
-  const textColor = isPrimary ? colors.background.void : isSelected ? colors.brand.cyanCore : isDanger ? colors.state.failed : colors.brand.bone;
+  const textColor = isPrimary ? colors.brand.bone : isSelected ? colors.brand.cyanCore : isDanger ? colors.state.failed : colors.brand.bone;
 
   return (
     <Pressable
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   primary: {
-    backgroundColor: colors.brand.cyanCore,
+    backgroundColor: colors.brand.cyanDeep,
     borderColor: colors.brand.cyanCore,
   },
   secondary: {

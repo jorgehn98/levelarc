@@ -41,7 +41,13 @@ export default function HabitDetailScreen() {
       <Text style={styles.title}>{t(language, 'editHabit')}</Text>
       {habit ? (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <HabitForm habit={habit} language={language} onArchive={() => void handleArchive()} onSave={(input) => void handleSave(input)} />
+          <HabitForm
+            habit={habit}
+            language={language}
+            onArchive={() => void handleArchive()}
+            onCancel={() => router.back()}
+            onSave={(input) => void handleSave(input)}
+          />
         </ScrollView>
       ) : (
         <ActivityIndicator color={colors.brand.cyanCore} />

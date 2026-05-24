@@ -22,7 +22,7 @@ export default function NewHabitScreen() {
       <Stack.Screen options={{ title: 'Nuevo hábito' }} />
       <Text style={styles.title}>{t(language, 'newHabit')}</Text>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <HabitForm language={language} onSave={(input) => void handleSave(input)} />
+        <HabitForm language={language} onCancel={() => router.back()} onSave={(input) => void handleSave(input)} />
       </ScrollView>
     </Screen>
   );
