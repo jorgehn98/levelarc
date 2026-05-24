@@ -19,6 +19,8 @@ Incluye:
 - XP positivo/negativo.
 - Suelo de nivel/rango ante penalización.
 - Rangos E-S.
+- Multiplicador de racha por hábito capado a `x1.50`.
+- Rachas por hábito basadas en ocurrencias programadas, no días naturales.
 - Atributos RPG manuales por hábito con reparto de XP.
 - Radar chart inicial de atributos en Progreso.
 - Pantalla Hoy.
@@ -29,13 +31,13 @@ Incluye:
 - Misión extra de racha perfecta de 7 días.
 - Recordatorios locales.
 - Exportación JSON.
+- Importación/restauración JSON.
 - Nombre de jugador persistente, definido en onboarding y editable en Ajustes.
 - ES/EN.
 - Modo oscuro.
 
 No incluye:
 
-- Importación de backup.
 - Estadísticas avanzadas.
 - Balance definitivo de atributos/rangos.
 - Logros complejos.
@@ -56,6 +58,7 @@ Tareas:
 - Validar migraciones desde instalación limpia.
 - Validar recordatorios con permisos reales.
 - Validar exportación JSON en Android.
+- Validar importación/restauración JSON en Android.
 - Validar navegación y formularios en pantallas pequeñas.
 - Validar ES/EN.
 - Revisar `expo-doctor` y duplicado `expo-constants`: validado como no bloqueante para el APK preview actual.
@@ -71,8 +74,6 @@ Objetivo: mejorar confianza de datos y recuperación.
 
 Incluye:
 
-- Importar/restaurar backup JSON.
-- Validación de formato de backup.
 - Confirmaciones antes de restaurar.
 - Recalcular player desde events.
 - Pantalla simple de datos/exportación.
@@ -124,7 +125,7 @@ Incluye:
 - Logros.
 - Más misiones, no generativas.
 - Celebraciones de rango.
-- Mejor sistema de rachas.
+- Evolución del sistema de rachas si los datos reales lo piden.
 - Estadísticas avanzadas.
 - Ajuste de curva XP si los datos reales lo piden.
 

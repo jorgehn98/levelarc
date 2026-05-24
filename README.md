@@ -15,6 +15,7 @@ MVP funcional:
 - Frecuencia por días de la semana.
 - Pantalla Hoy con completar, sumar progreso, fallar y deshacer.
 - XP, niveles, rangos E-S y eventos de historial.
+- Rachas por hábito según ocurrencias programadas, con multiplicador máximo `x1.50`.
 - Misión diaria dinámica: completar todos los hábitos de hoy y reclamar bonus.
 - Misión extra por racha perfecta de 7 días.
 - Recordatorios locales en native.
@@ -70,6 +71,7 @@ pnpm update:production --message "Fix UI copy"
 
 - `events` es la fuente de verdad inmutable del XP.
 - `habit_daily_progress` guarda progreso diario mutable, necesario para hábitos contables.
+- Las rachas por hábito cuentan solo los días en los que ese hábito está programado.
 - Las penalizaciones nunca bajan al usuario de nivel/rango: se clampa al suelo del nivel actual.
 - El cierre del día es manual en el MVP para evitar automatismos frágiles.
 - En web no se usa SQLite porque `expo-sqlite` requiere WASM/SharedArrayBuffer; Android/native sí usa SQLite.
@@ -96,10 +98,10 @@ Proyecto EAS enlazado:
 
 Último APK preview válido:
 
-- Build ID: `f8c42fc9-d766-4e58-8859-d2b0a48e76e1`
-- APK: <https://expo.dev/artifacts/eas/wHFNQL4UtiQ5TjGhaY1c1V.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/f8c42fc9-d766-4e58-8859-d2b0a48e76e1>
-- Versión: `1.0.2`, Android versionCode `3`, runtimeVersion `1.0.2`.
+- Build ID: `6e5e6b06-bb05-481d-bcb0-85808bce2981`
+- APK: <https://expo.dev/artifacts/eas/eCtjS5na8CNGaV6SxaiN2X.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/6e5e6b06-bb05-481d-bcb0-85808bce2981>
+- Versión: `1.0.2`, Android versionCode `4`, runtimeVersion `1.0.2`.
 
 Antes de publicar:
 
@@ -109,7 +111,7 @@ npx expo-doctor
 pnpm build:android:preview
 ```
 
-Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `f8c42fc9-d766-4e58-8859-d2b0a48e76e1` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
+Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `6e5e6b06-bb05-481d-bcb0-85808bce2981` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
 
 `babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
 
