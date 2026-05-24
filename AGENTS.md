@@ -46,6 +46,7 @@ MVP stack:
 
 - Expo SDK 56 + React Native + TypeScript.
 - Expo Router.
+- Expo Updates / EAS Update.
 - Zustand.
 - NativeWind/Tailwind.
 - SQLite + Drizzle on native.
@@ -70,6 +71,8 @@ pnpm db:generate
 pnpm doctor
 pnpm build:android:preview
 pnpm build:android:production
+pnpm update:preview --message "Fix UI copy"
+pnpm update:production --message "Fix UI copy"
 ```
 
 `pnpm check` is the main local gate: TypeScript + tests.
@@ -77,6 +80,8 @@ pnpm build:android:production
 `pnpm doctor` currently may fail one check because Expo SDK 56 + pnpm resolves duplicate `expo-constants` (`56.0.14` through `expo-linking`, `56.0.15` elsewhere). This is documented in `README.md`. Do not hide this with random dependency hacks; the preview native build has passed with this warning.
 
 Keep `babel-preset-expo` as an explicit devDependency. EAS Android release bundling failed without it under pnpm because Metro could not resolve the preset transitively.
+
+EAS Update is configured. Use `preview` for internal APK QA and `production` for future Play Store builds. Only publish updates for JS/assets/UI changes compatible with the current native runtime. If native code/config changes, bump app version/runtime as needed and create a new build.
 
 ## Arquitectura
 
@@ -191,6 +196,11 @@ EAS profiles live in `eas.json`:
 
 - `preview` builds an internal APK.
 - `production` builds an AAB.
+
+Channels:
+
+- `preview` receives internal QA updates.
+- `production` receives future Play Store updates.
 
 Before publishing:
 

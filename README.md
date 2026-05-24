@@ -27,6 +27,7 @@ MVP funcional:
 - Expo + React Native + TypeScript
 - Expo Router
 - Expo Splash Screen
+- Expo Updates / EAS Update
 - Zustand
 - NativeWind/Tailwind
 - SQLite + Drizzle en native
@@ -47,6 +48,8 @@ pnpm db:generate
 npx expo-doctor
 pnpm build:android:preview
 pnpm build:android:production
+pnpm update:preview --message "Fix UI copy"
+pnpm update:production --message "Fix UI copy"
 ```
 
 ## Arquitectura
@@ -108,6 +111,19 @@ pnpm build:android:preview
 Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `a620ba5d-55a7-429c-bdb7-f67bda80bae9` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
 
 `babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
+
+## EAS Update
+
+EAS Update está configurado para parches internos compatibles:
+
+- `preview`: APK interno de QA.
+- `production`: futuro AAB/Play Store.
+
+La app incluye en Ajustes un botón para buscar updates, descargarlos y reiniciar LevelArc. También puede recibir updates al arrancar según el comportamiento por defecto de `expo-updates`.
+
+Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
+
+Crear APK/AAB nuevo cuando cambie algo nativo: librerías nativas, permisos, plugins, icono/splash, `app.json` nativo, SDK Expo o `runtimeVersion`.
 
 Para lanzar EAS desde esta máquina hace falta iniciar sesión:
 

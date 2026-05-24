@@ -18,6 +18,8 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - NativeWind/Tailwind configurado.
 - Fuentes Inter y Orbitron.
 - EAS configurado con `preview` y `production`.
+- EAS Update configurado con canales `preview` y `production`.
+- `expo-updates` integrado con runtime policy `appVersion`.
 - Proyecto EAS enlazado: `@jorgex-tech/levelarc`, projectId `2c6af84a-6180-48ac-ad12-f1b7b61bbf58`.
 - `expo-splash-screen` configurado con el emblema LevelArc.
 - `pnpm check` funcionando: typecheck + tests.
@@ -113,6 +115,14 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Permisos locales.
 - Recordatorios semanales nativos según días del hábito.
 - Web usa stub en `src/lib/notifications.web.ts`.
+
+### Actualizaciones internas
+
+- EAS Update configurado.
+- Canal `preview` para APK interno.
+- Canal `production` para futura Play Store.
+- Ajustes incluye acción para buscar update, descargarlo y reiniciar la app.
+- La APK anterior no puede usar este flujo; hace falta instalar una nueva build que incluya `expo-updates`.
 
 ## Desviaciones conscientes frente a la biblia inicial
 

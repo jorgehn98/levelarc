@@ -1,6 +1,6 @@
 {
   "name": "levelarc",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -17,6 +17,7 @@
     "expo-sqlite": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "expo-system-ui": "~56.0.5",
+    "expo-updates": "~56.0.16",
     "lucide-react-native": "^1.16.0",
     "nativewind": "^4.2.4",
     "react": "19.2.3",
@@ -51,7 +52,9 @@
     "doctor": "npx expo-doctor",
     "db:generate": "drizzle-kit generate",
     "build:android:preview": "npx eas-cli build --platform android --profile preview",
-    "build:android:production": "npx eas-cli build --platform android --profile production"
+    "build:android:production": "npx eas-cli build --platform android --profile production",
+    "update:preview": "npx eas-cli update --channel preview --environment preview",
+    "update:production": "npx eas-cli update --channel production --environment production"
   },
   "private": true,
   "pnpm": {

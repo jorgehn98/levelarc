@@ -55,6 +55,7 @@ Tareas:
 - Validar ES/EN.
 - Revisar `expo-doctor` y duplicado `expo-constants`: validado como no bloqueante para el APK preview actual.
 - Crear build `preview` con EAS: hecho.
+- Validar EAS Update en canal `preview` para parches JS/UI sin reinstalar APK.
 - Corregir crashes o warnings nativos.
 
 ## v1.1 — Offline serio

@@ -1,6 +1,7 @@
-import { Bell, Download, Languages, Moon, Skull, Upload } from 'lucide-react-native';
+import { Bell, Download, Languages, Moon, RefreshCw, Skull, Upload } from 'lucide-react-native';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useState } from 'react';
+import * as Updates from 'expo-updates';
 
 import { Button } from '@/components/Button';
 import { t } from '@/i18n';
@@ -17,12 +18,34 @@ export default function SettingsScreen() {
   const closeToday = useAppStore((state) => state.closeToday);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [backupJson, setBackupJson] = useState('');
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   const handleImportBackup = async () => {
     await importBackup(backupJson);
     setBackupJson('');
     setIsImportOpen(false);
     Alert.alert(t(language, 'backupImported'), t(language, 'backupImportedCopy'));
+  };
+
+  const handleCheckForUpdates = async () => {
+    setIsCheckingUpdate(true);
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        Alert.alert(t(language, 'appUpdated'), t(language, 'appUpdatedCopy'));
+        return;
+      }
+
+      await Updates.fetchUpdateAsync();
+      Alert.alert(t(language, 'updateReady'), t(language, 'updateReadyCopy'), [
+        { text: t(language, 'later'), style: 'cancel' },
+        { text: t(language, 'restart'), onPress: () => void Updates.reloadAsync() },
+      ]);
+    } catch {
+      Alert.alert(t(language, 'updateUnavailable'), t(language, 'updateUnavailableCopy'));
+    } finally {
+      setIsCheckingUpdate(false);
+    }
   };
 
   return (
@@ -56,6 +79,22 @@ export default function SettingsScreen() {
             <Text style={styles.rowValue}>{t(language, 'notificationCopy')}</Text>
             <View style={styles.actions}>
               <Button label={t(language, 'activate')} onPress={() => void requestNotificationPermissions()} variant="secondary" />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <RefreshCw color={colors.brand.cyanCore} size={22} />
+          <View style={styles.copy}>
+            <Text style={styles.rowTitle}>{t(language, 'updates')}</Text>
+            <Text style={styles.rowValue}>{t(language, 'updatesCopy')}</Text>
+            <View style={styles.actions}>
+              <Button
+                disabled={isCheckingUpdate}
+                label={isCheckingUpdate ? t(language, 'checking') : t(language, 'checkUpdates')}
+                onPress={() => void handleCheckForUpdates()}
+                variant="secondary"
+              />
             </View>
           </View>
         </View>

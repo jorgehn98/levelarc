@@ -2,7 +2,7 @@
   "expo": {
     "name": "LevelArc",
     "slug": "levelarc",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "levelarc",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "app.levelarc",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -49,6 +49,12 @@
         "projectId": "2c6af84a-6180-48ac-ad12-f1b7b61bbf58"
       }
     },
-    "owner": "jorgex-tech"
+    "owner": "jorgex-tech",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2c6af84a-6180-48ac-ad12-f1b7b61bbf58"
+    }
   }
 }
