@@ -48,8 +48,6 @@ export default function HabitsScreen() {
           <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} />
         </View>
 
-        <Text style={styles.debugText}>QA HABITS v4 · activos {counts.active} · mostrados {filtered.length} · total {counts.all}</Text>
-
         {filtered.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
@@ -87,38 +85,42 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
   return (
     <View style={[styles.habitCard, isArchived && styles.archivedRow]}>
       <View style={styles.statusRail} />
-      <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.rowContent, pressed && styles.pressedRow]}>
-        <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
-          {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
-        </View>
-        <View style={styles.copy}>
-          <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
-          <View style={styles.metaLine}>
-            <Text style={styles.xpText}>+{xp} XP</Text>
-            <Text style={styles.dotText}>·</Text>
-            <Text numberOfLines={1} style={styles.rowText}>
-              {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })}
-            </Text>
-            <Text style={styles.dotText}>·</Text>
-            <Text style={styles.streakText}>{habit.diasSemana}</Text>
+      <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.pressTarget, pressed && styles.pressedRow]}>
+        <View style={styles.rowLayout}>
+          <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
+            {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
           </View>
-          <View style={styles.importanceLine}>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.importanceDot,
-                  index < habit.importancia ? styles.activeImportanceDot : styles.inactiveImportanceDot,
-                  isArchived && styles.archivedImportanceDot,
-                ]}
-              />
-            ))}
+          <View style={styles.copy}>
+            <Text numberOfLines={1} style={[styles.rowTitle, isArchived && styles.archivedText]}>{habit.nombre}</Text>
+            <View style={styles.metaLine}>
+              <Text style={styles.xpText}>+{xp} XP</Text>
+              <Text style={styles.metaPill}>
+                {habit.tipo === 'binario' ? t(language, 'binary') : t(language, 'goal', { goal: habit.meta })}
+              </Text>
+              <Text numberOfLines={1} style={styles.daysText}>{formatWeekdays(habit.diasSemana)}</Text>
+            </View>
+            <View style={styles.importanceLine}>
+              {Array.from({ length: 5 }).map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.importanceDot,
+                    index < habit.importancia ? styles.activeImportanceDot : styles.inactiveImportanceDot,
+                    isArchived && styles.archivedImportanceDot,
+                  ]}
+                />
+              ))}
+            </View>
           </View>
+          <ChevronRight color={colors.state.pending} size={20} />
         </View>
-        <ChevronRight color={colors.state.pending} size={20} />
       </Pressable>
     </View>
   );
+}
+
+function formatWeekdays(weekdaysCsv: string) {
+  return weekdaysCsv.split(',').filter(Boolean).join(' · ');
 }
 
 const styles = StyleSheet.create({
@@ -150,14 +152,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     width: '100%',
   },
-  debugText: {
-    color: colors.brand.cyanCore,
-    fontFamily: typography.font.displayMedium,
-    fontSize: 9,
-    marginBottom: 10,
-    opacity: 0.78,
-    textTransform: 'uppercase',
-  },
   filterChip: {
     alignItems: 'center',
     backgroundColor: colors.background.card,
@@ -166,7 +160,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
-    gap: 6,
     justifyContent: 'center',
     minHeight: 34,
     paddingHorizontal: 8,
@@ -210,10 +203,13 @@ const styles = StyleSheet.create({
     top: 0,
     width: 3,
   },
-  rowContent: {
+  pressTarget: {
+    minHeight: 72,
+    width: '100%',
+  },
+  rowLayout: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
     minHeight: 72,
     paddingBottom: 12,
     paddingLeft: 16,
@@ -241,6 +237,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 40,
     justifyContent: 'center',
+    marginRight: 12,
     width: 40,
   },
   archivedIcon: {
@@ -249,6 +246,7 @@ const styles = StyleSheet.create({
   copy: {
     flex: 1,
     minWidth: 0,
+    paddingRight: 10,
   },
   empty: {
     alignItems: 'center',
@@ -286,7 +284,6 @@ const styles = StyleSheet.create({
   metaLine: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
     marginTop: 5,
     minWidth: 0,
   },
@@ -294,20 +291,22 @@ const styles = StyleSheet.create({
     color: colors.rank.S,
     fontFamily: typography.font.displayMedium,
     fontSize: 11,
+    marginRight: 8,
   },
-  dotText: {
-    color: colors.state.pending,
+  metaPill: {
+    color: colors.brand.boneMuted,
     fontFamily: typography.font.bodyRegular,
     fontSize: 12,
+    marginRight: 8,
   },
-  streakText: {
+  daysText: {
+    flex: 1,
     color: colors.state.streak,
     fontFamily: typography.font.displayMedium,
     fontSize: 11,
   },
   importanceLine: {
     flexDirection: 'row',
-    gap: 3,
     marginTop: 8,
     maxWidth: 86,
   },
@@ -315,6 +314,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     height: 2,
     flex: 1,
+    marginRight: 3,
   },
   activeImportanceDot: {
     backgroundColor: colors.brand.cyanCore,
