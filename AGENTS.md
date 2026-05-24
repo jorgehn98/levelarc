@@ -81,6 +81,8 @@ pnpm update:production --message "Fix UI copy"
 
 Keep `babel-preset-expo` as an explicit devDependency. EAS Android release bundling failed without it under pnpm because Metro could not resolve the preset transitively.
 
+Keep `@babel/plugin-transform-react-jsx` as an explicit devDependency. After enabling `expo-updates`, EAS Android failed in `:app:createReleaseUpdatesResources` because Metro/Babel could not resolve it transitively under pnpm.
+
 EAS Update is configured. Use `preview` for internal APK QA and `production` for future Play Store builds. Only publish updates for JS/assets/UI changes compatible with the current native runtime. If native code/config changes, bump app version/runtime as needed and create a new build.
 
 ## Arquitectura

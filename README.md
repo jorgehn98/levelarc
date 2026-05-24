@@ -112,6 +112,8 @@ Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants
 
 `babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
 
+`@babel/plugin-transform-react-jsx` también está como devDependency explícita porque `expo-updates` lo necesita al crear recursos de updates en EAS con pnpm.
+
 ## EAS Update
 
 EAS Update está configurado para parches internos compatibles:
