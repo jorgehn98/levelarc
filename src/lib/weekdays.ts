@@ -11,10 +11,15 @@ export const weekDays = [
 const weekdayLabels = new Map<number, string>(weekDays.map((day) => [day.id, day.label]));
 
 export function formatWeekdays(weekdaysCsv: string) {
-  return weekdaysCsv
+  const days = weekdaysCsv
     .split(',')
     .map((value) => Number(value))
-    .filter((value) => Number.isInteger(value) && weekdayLabels.has(value))
+    .filter((value, index, values) => Number.isInteger(value) && weekdayLabels.has(value) && values.indexOf(value) === index)
+    .sort((a, b) => a - b);
+
+  if (days.length === weekDays.length) return 'Diario';
+
+  return days
     .map((value) => weekdayLabels.get(value))
     .join(' · ');
 }
