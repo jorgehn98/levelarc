@@ -8,6 +8,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { getCompletionXp } from '@/core/xp';
 import type { HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { formatWeekdays } from '@/lib/weekdays';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography } from '@/theme/colors';
 
@@ -117,10 +118,6 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
       </Pressable>
     </View>
   );
-}
-
-function formatWeekdays(weekdaysCsv: string) {
-  return weekdaysCsv.split(',').filter(Boolean).join(' · ');
 }
 
 const styles = StyleSheet.create({

@@ -7,17 +7,8 @@ import { Button } from '@/components/Button';
 import type { HabitInput, HabitRecord, HabitType } from '@/db/repository';
 import { getCompletionXp, type HabitImportance } from '@/core/xp';
 import { t, type Language } from '@/i18n';
+import { weekDays } from '@/lib/weekdays';
 import { colors, radii, typography } from '@/theme/colors';
-
-const weekDays = [
-  { id: 1, label: 'L' },
-  { id: 2, label: 'M' },
-  { id: 3, label: 'X' },
-  { id: 4, label: 'J' },
-  { id: 5, label: 'V' },
-  { id: 6, label: 'S' },
-  { id: 7, label: 'D' },
-];
 
 type HabitFormProps = {
   habit?: HabitRecord | null;
@@ -45,6 +36,10 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
     setDays((current) =>
       current.includes(dayId) ? current.filter((day) => day !== dayId) : [...current, dayId].sort((a, b) => a - b),
     );
+  }
+
+  function selectEveryDay() {
+    setDays(weekDays.map((day) => day.id));
   }
 
   function handleSave() {
@@ -150,6 +145,14 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       ) : null}
 
       <Field label={t(language, 'days')}>
+        <View style={styles.daysToolbar}>
+          <Pressable
+            onPress={selectEveryDay}
+            style={[styles.quickDayButton, days.length === weekDays.length && styles.selectedQuickDayButton]}
+          >
+            <Text style={[styles.quickDayText, days.length === weekDays.length && styles.selectedQuickDayText]}>{t(language, 'everyDay')}</Text>
+          </Pressable>
+        </View>
         <View style={styles.daysGrid}>
           {weekDays.map((day) => (
             <Pressable
@@ -312,6 +315,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     justifyContent: 'space-between',
+  },
+  daysToolbar: {
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  quickDayButton: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    minHeight: 34,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  selectedQuickDayButton: {
+    backgroundColor: `${colors.brand.cyanCore}1A`,
+    borderColor: colors.brand.cyanCore,
+  },
+  quickDayText: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  selectedQuickDayText: {
+    color: colors.brand.cyanCore,
   },
   dayButton: {
     alignItems: 'center',
