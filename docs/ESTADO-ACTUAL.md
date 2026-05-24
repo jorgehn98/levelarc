@@ -357,6 +357,14 @@ Update `preview` refrescando al cambiar el día local:
 - Commit: `a4148c60e8e31e07ff75231e7b60050080ecd79c`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/2adc1e21-aff1-4c41-8009-4ff97e0bd818>
 
+Update `preview` con recordatorio configurable de cierre:
+
+- Update group: `7d1ebc24-8f8d-436b-a484-cca0c362a49e`
+- Runtime: `1.0.2`
+- Mensaje: `Add end of day reminder setting`
+- Commit: `79a7ea0da3cf4acf4bac504ed7533473eb999254`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/7d1ebc24-8f8d-436b-a484-cca0c362a49e>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
