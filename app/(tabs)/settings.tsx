@@ -1,5 +1,5 @@
 import * as Updates from 'expo-updates';
-import { Bell, Download, Globe, Info, Moon, RefreshCw, Shield, Skull, Upload } from 'lucide-react-native';
+import { Bell, Download, Globe, Info, Moon, RefreshCw, Shield, Skull, Upload, User } from 'lucide-react-native';
 import type { LucideProps } from 'lucide-react-native';
 import type { ComponentType, ReactNode } from 'react';
 import { useState } from 'react';
@@ -19,11 +19,14 @@ export default function SettingsScreen() {
   const language = useAppStore((state) => state.language);
   const player = useAppStore((state) => state.player);
   const setLanguage = useAppStore((state) => state.setLanguage);
+  const setPlayerName = useAppStore((state) => state.setPlayerName);
   const exportBackup = useAppStore((state) => state.exportBackup);
   const importBackup = useAppStore((state) => state.importBackup);
   const closeToday = useAppStore((state) => state.closeToday);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isNameOpen, setIsNameOpen] = useState(false);
   const [backupJson, setBackupJson] = useState('');
+  const [playerName, setPlayerNameInput] = useState(player?.nombre ?? '');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   const handleImportBackup = async () => {
@@ -31,6 +34,12 @@ export default function SettingsScreen() {
     setBackupJson('');
     setIsImportOpen(false);
     Alert.alert(t(language, 'backupImported'), t(language, 'backupImportedCopy'));
+  };
+
+  const handleSaveName = async () => {
+    await setPlayerName(playerName);
+    setIsNameOpen(false);
+    Alert.alert(t(language, 'nameUpdated'), t(language, 'nameUpdatedCopy'));
   };
 
   const handleCheckForUpdates = async () => {
@@ -65,6 +74,19 @@ export default function SettingsScreen() {
             <View style={styles.actions}>
               <Button label="ES" onPress={() => void setLanguage('es')} variant={language === 'es' ? 'selected' : 'secondary'} />
               <Button label="EN" onPress={() => void setLanguage('en')} variant={language === 'en' ? 'selected' : 'secondary'} />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={User} title={t(language, 'hunterName')} value={player?.nombre ?? t(language, 'unnamedHunter')}>
+            <View style={styles.actions}>
+              <Button
+                label={t(language, 'changeName')}
+                onPress={() => {
+                  setPlayerNameInput(player?.nombre ?? '');
+                  setIsNameOpen(true);
+                }}
+                variant="secondary"
+              />
             </View>
           </SettingRow>
 
@@ -134,6 +156,36 @@ export default function SettingsScreen() {
                 label={t(language, 'restore')}
                 onPress={() => void handleImportBackup()}
                 variant={backupJson.trim() ? 'primary' : 'secondary'}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal animationType="fade" onRequestClose={() => setIsNameOpen(false)} transparent visible={isNameOpen}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalPanel}>
+            <Text style={styles.modalKicker}>◆ SISTEMA</Text>
+            <Text style={styles.modalTitle}>{t(language, 'changeName')}</Text>
+            <Text style={styles.modalCopy}>{t(language, 'nameHelp')}</Text>
+            <TextInput
+              autoCapitalize="words"
+              cursorColor={colors.brand.cyanCore}
+              maxLength={24}
+              onChangeText={(value) => setPlayerNameInput(value.slice(0, 24))}
+              placeholder={t(language, 'hunterNamePlaceholder')}
+              placeholderTextColor={colors.state.pending}
+              selectionColor={colors.brand.cyanShadow}
+              style={styles.nameInput}
+              value={playerName}
+            />
+            <View style={styles.modalActions}>
+              <Button label={t(language, 'cancel')} onPress={() => setIsNameOpen(false)} variant="secondary" />
+              <Button
+                disabled={playerName.trim().length < 2}
+                label={t(language, 'saveName')}
+                onPress={() => void handleSaveName()}
+                variant={playerName.trim().length >= 2 ? 'primary' : 'secondary'}
               />
             </View>
           </View>
@@ -284,6 +336,18 @@ const styles = StyleSheet.create({
     marginTop: 14,
     minHeight: 180,
     padding: 12,
+  },
+  nameInput: {
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 16,
+    height: 48,
+    marginTop: 14,
+    paddingHorizontal: 12,
   },
   modalActions: {
     flexDirection: 'row',

@@ -16,6 +16,9 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Publicar un update JS de prueba en canal `preview`.
 - [ ] Validar botón Ajustes > Actualizaciones en Android.
 - [ ] Probar crear hábito en Android.
+- [ ] Probar onboarding inicial en Android: guardar nombre y entrar con "Iniciar ascensión".
+- [ ] Probar entrada de retorno en Android: resumen de rango/XP y "Continuar ascensión".
+- [ ] Probar cambio de nombre desde Ajustes.
 - [ ] Probar editar hábito en Android.
 - [ ] Probar archivar hábito en Android.
 - [x] Confirmar en Android que Hábitos muestra todos los hábitos activos y que las tarjetas/empty states ocupan ancho completo.
@@ -62,6 +65,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Pulir pantalla Progreso.
 - [x] Pulir pantalla Ajustes.
 - [x] Crear onboarding real.
+- [x] Añadir nombre de cazador persistente y editable.
 - [x] Crear pantalla rank-up real.
 - [x] Pulir formulario crear/editar hábito.
 - [ ] Mejorar estados vacíos.

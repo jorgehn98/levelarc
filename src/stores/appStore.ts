@@ -22,6 +22,7 @@ import {
   markHabitFailed,
   undoTodayHabit,
   updateHabit,
+  updatePlayerName,
   type DailyMissionRecord,
   type EventRecord,
   type HabitInput,
@@ -50,6 +51,7 @@ type AppState = {
   claimMission: () => Promise<void>;
   closeToday: () => Promise<void>;
   setLanguage: (language: Language) => Promise<void>;
+  setPlayerName: (name: string) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (rawBackup: string) => Promise<void>;
 };
@@ -125,6 +127,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLanguage: async (language) => {
     await AsyncStorage.setItem(LANGUAGE_KEY, language);
     set({ language });
+  },
+  setPlayerName: async (name) => {
+    set({ isBusy: true });
+    try {
+      await updatePlayerName(name);
+      await get().refresh();
+    } finally {
+      set({ isBusy: false });
+    }
   },
   exportBackup: async () => {
     const data = await exportAllData();

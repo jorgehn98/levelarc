@@ -39,6 +39,7 @@ export type TodayHabit = HabitRecord & {
 };
 
 export type PlayerRecord = {
+  nombre: string | null;
   xpTotal: number;
   nivel: number;
   rango: Rank;
@@ -220,6 +221,13 @@ export async function getPlayer() {
   return db.player;
 }
 
+export async function updatePlayerName(name: string) {
+  const db = await loadDb();
+  db.player.nombre = normalizePlayerName(name);
+  db.player.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
 export async function getDailyMission(dateKey = toDateKey()) {
   const db = await loadDb();
   const mission = ensureMission(db, dateKey);
@@ -306,7 +314,9 @@ function createEvent(habit: HabitRecord, dateKey: string, tipoEvento: EventType,
 async function loadDb(): Promise<WebDb> {
   const raw = await AsyncStorage.getItem(KEY);
   if (!raw) return createEmptyDb();
-  return { ...createEmptyDb(), ...JSON.parse(raw) };
+  const empty = createEmptyDb();
+  const parsed = JSON.parse(raw) as Partial<WebDb>;
+  return { ...empty, ...parsed, player: { ...empty.player, ...parsed.player } };
 }
 
 async function saveDb(db: WebDb) {
@@ -320,6 +330,7 @@ function createEmptyDb(): WebDb {
     events: [],
     progress: [],
     player: {
+      nombre: null,
       xpTotal: 0,
       nivel: progress.level,
       rango: progress.rank,
@@ -400,12 +411,21 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
   const xpTotal = asNumber(row.xp_total ?? row.xpTotal);
   const progress = getLevelProgress(xpTotal);
   return {
+    nombre: nullableString(row.nombre ?? row.name),
     xpTotal,
     nivel: Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level))),
     rango: isRank(row.rango) ? row.rango : progress.rank,
     rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
   };
+}
+
+function normalizePlayerName(name: string) {
+  const trimmed = name.trim().slice(0, 24);
+  if (trimmed.length < 2) {
+    throw new Error('Invalid player name');
+  }
+  return trimmed;
 }
 
 function normalizeProgressState(value: unknown): ProgressState {

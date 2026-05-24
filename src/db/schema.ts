@@ -41,6 +41,7 @@ export const habitDailyProgress = sqliteTable(
 
 export const player = sqliteTable('player', {
   id: integer('id').primaryKey().default(1),
+  nombre: text('nombre'),
   xpTotal: integer('xp_total').notNull().default(0),
   nivel: integer('nivel').notNull().default(1),
   rango: text('rango', { enum: ['E', 'D', 'C', 'B', 'A', 'S'] }).notNull().default('E'),

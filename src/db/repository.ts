@@ -40,6 +40,7 @@ export type TodayHabit = HabitRecord & {
 };
 
 export type PlayerRecord = {
+  nombre: string | null;
   xpTotal: number;
   nivel: number;
   rango: Rank;
@@ -84,6 +85,7 @@ type TodayHabitRow = HabitRow & {
 };
 
 type PlayerRow = {
+  nombre: string | null;
   xp_total: number;
   nivel: number;
   rango: Rank;
@@ -266,6 +268,12 @@ export async function getPlayer(): Promise<PlayerRecord> {
   return ensurePlayer();
 }
 
+export async function updatePlayerName(name: string) {
+  const trimmed = normalizePlayerName(name);
+  await ensurePlayer();
+  await sqlite.runAsync('UPDATE player SET nombre = ?, actualizado_en = ? WHERE id = 1', [trimmed, toIsoTimestamp()]);
+}
+
 export async function getDailyMission(dateKey = toDateKey()): Promise<DailyMissionRecord> {
   await ensureDailyMission(dateKey);
   await syncDailyMission(dateKey);
@@ -390,8 +398,9 @@ export async function importAllData(data: unknown) {
 
   const player = backup.player ?? getLevelProgress(0);
   await sqlite.runAsync(
-    'INSERT INTO player (id, xp_total, nivel, rango, racha_misiones, actualizado_en) VALUES (1, ?, ?, ?, ?, ?)',
+    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?)',
     [
+      'nombre' in player ? player.nombre : null,
       'xpTotal' in player ? player.xpTotal : 0,
       'nivel' in player ? player.nivel : 1,
       'rango' in player ? player.rango : 'E',
@@ -458,10 +467,10 @@ async function ensurePlayer(): Promise<PlayerRecord> {
 
   const now = toIsoTimestamp();
   await sqlite.runAsync(
-    'INSERT INTO player (id, xp_total, nivel, rango, racha_misiones, actualizado_en) VALUES (1, 0, 1, ?, 0, ?)',
+    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, actualizado_en) VALUES (1, null, 0, 1, ?, 0, ?)',
     ['E', now],
   );
-  return { xpTotal: 0, nivel: 1, rango: 'E', rachaMisiones: 0, actualizadoEn: now };
+  return { nombre: null, xpTotal: 0, nivel: 1, rango: 'E', rachaMisiones: 0, actualizadoEn: now };
 }
 
 async function ensureDailyMission(dateKey: string) {
@@ -551,6 +560,7 @@ function mapHabit(row: HabitRow): HabitRecord {
 
 function mapPlayer(row: PlayerRow): PlayerRecord {
   return {
+    nombre: row.nombre,
     xpTotal: row.xp_total,
     nivel: row.nivel,
     rango: row.rango,
@@ -670,12 +680,21 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
   if (!isRecord(row)) return null;
   const progress = getLevelProgress(asNumber(row.xp_total ?? row.xpTotal));
   return {
+    nombre: nullableString(row.nombre ?? row.name),
     xpTotal: asNumber(row.xp_total ?? row.xpTotal),
     nivel: Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level))),
     rango: isRank(row.rango) ? row.rango : progress.rank,
     rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
   };
+}
+
+function normalizePlayerName(name: string) {
+  const trimmed = name.trim().slice(0, 24);
+  if (trimmed.length < 2) {
+    throw new Error('Invalid player name');
+  }
+  return trimmed;
 }
 
 function normalizeProgressState(value: unknown): ProgressState {

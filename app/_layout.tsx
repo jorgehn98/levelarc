@@ -1,9 +1,9 @@
 import '../global.css';
 
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
@@ -19,12 +19,31 @@ export default function RootLayout() {
   });
   const boot = useAppStore((state) => state.boot);
   const isReady = useAppStore((state) => state.isReady);
+  const player = useAppStore((state) => state.player);
+  const pathname = usePathname();
+  const router = useRouter();
+  const [entryShown, setEntryShown] = useState(false);
 
   useEffect(() => {
     if (fontsLoaded && !isReady) {
       void boot();
     }
   }, [boot, fontsLoaded, isReady]);
+
+  useEffect(() => {
+    if (!fontsLoaded || !isReady || pathname === '/onboarding') return;
+
+    if (!player?.nombre?.trim()) {
+      setEntryShown(true);
+      router.replace('/onboarding');
+      return;
+    }
+
+    if (!entryShown) {
+      setEntryShown(true);
+      router.replace('/onboarding');
+    }
+  }, [entryShown, fontsLoaded, isReady, pathname, player?.nombre, router]);
 
   if (!fontsLoaded || !isReady) {
     return (

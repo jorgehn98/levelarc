@@ -18,13 +18,14 @@ export function PlayerHeader({ player, language }: PlayerHeaderProps) {
   const progress = getLevelProgress(player?.xpTotal ?? 0);
   const accent = getRankAccent(progress.rank);
   const streak = player?.rachaMisiones ?? 0;
+  const name = player?.nombre?.trim() || t(language, 'hunterId');
 
   return (
     <View style={[styles.panel, shadows.primaryGlow]}>
       <View style={styles.topRow}>
         <View>
           <Text style={styles.systemLabel}>{t(language, 'systemOnline')}</Text>
-          <Text style={styles.name}>{t(language, 'hunterId')}</Text>
+          <Text style={styles.name}>{name}</Text>
         </View>
         <View style={styles.streak}>
           <Flame color={colors.state.streak} size={14} />
