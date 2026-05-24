@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-function parseReminderTime(value: string | null) {
+export function parseReminderTime(value: string | null) {
   if (!value) return null;
   const match = value.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
   if (!match) return null;
@@ -61,4 +61,33 @@ export async function scheduleHabitReminder(habitName: string, reminderTime: str
   }
 
   return identifiers.length > 0 ? identifiers.join(',') : null;
+}
+
+export async function cancelEndOfDayReminder(notificationId: string | null) {
+  if (!notificationId) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(notificationId);
+  } catch {
+    // A missing scheduled notification should not block settings changes.
+  }
+}
+
+export async function scheduleEndOfDayReminder(reminderTime: string | null, title: string, body: string) {
+  const time = parseReminderTime(reminderTime);
+  if (!time) return null;
+  const granted = await requestNotificationPermissions();
+  if (!granted) return null;
+
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title,
+      body,
+      sound: 'default',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: time.hour,
+      minute: time.minute,
+    },
+  });
 }

@@ -33,6 +33,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [ ] Probar exportación JSON vía Android share sheet.
 - [ ] Probar importación/restauración JSON en Android.
 - [ ] Probar permisos y scheduling de notificaciones.
+- [ ] Probar recordatorio de cierre del día: configurar hora, recibir notificación y desactivar.
 
 ## Backup
 

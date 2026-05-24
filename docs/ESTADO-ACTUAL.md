@@ -144,6 +144,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 - Permisos locales.
 - Recordatorios semanales nativos según días del hábito.
+- Recordatorio diario configurable de cierre del día, guardado como preferencia local del dispositivo y programado en hora local.
 - Web usa stub en `src/lib/notifications.web.ts`.
 
 ### Actualizaciones internas

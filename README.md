@@ -19,6 +19,7 @@ MVP funcional:
 - Misión diaria dinámica: completar todos los hábitos de hoy y reclamar bonus.
 - Misión extra por racha perfecta de 7 días.
 - Recordatorios locales en native.
+- Recordatorio diario configurable de cierre del día.
 - Backup/exportación JSON e importación/restauración pegando JSON.
 - Idioma ES/EN.
 - Modo oscuro fijo.
