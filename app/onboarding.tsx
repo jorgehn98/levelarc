@@ -3,6 +3,7 @@ import { ChevronRight, Flame, Shield, Swords, Trophy } from 'lucide-react-native
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Pattern, Rect } from 'react-native-svg';
 
 import { BrandMark } from '@/components/BrandMark';
@@ -18,6 +19,7 @@ const RANK_SEQUENCE: Rank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
 
 export default function OnboardingScreen() {
   const language = useAppStore((state) => state.language);
+  const insets = useSafeAreaInsets();
   const player = useAppStore((state) => state.player);
   const habits = useAppStore((state) => state.habits);
   const setPlayerName = useAppStore((state) => state.setPlayerName);
@@ -75,20 +77,16 @@ export default function OnboardingScreen() {
         </AnimatedIntro>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable
-          disabled={isSubmitting || (isFirstRun && !isValid)}
-          onPress={() => void handleContinue()}
-          style={({ pressed }) => [
-            styles.cta,
-            { backgroundColor: accent, borderColor: accent, shadowColor: accent },
-            (isSubmitting || (isFirstRun && !isValid)) && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 12, 26) }]}>
+        <View style={[styles.ctaVisual, { backgroundColor: accent, borderColor: accent, shadowColor: accent }, (isSubmitting || (isFirstRun && !isValid)) && styles.disabled]}>
           <Text style={styles.ctaText}>{isSubmitting ? t(language, 'initializing') : isFirstRun ? t(language, 'beginAscension') : t(language, 'continueAscension')}</Text>
           {isSubmitting ? <ActivityIndicator color={colors.background.void} size="small" /> : <ChevronRight color={colors.background.void} size={18} />}
-        </Pressable>
+          <Pressable
+            disabled={isSubmitting || (isFirstRun && !isValid)}
+            onPress={() => void handleContinue()}
+            style={({ pressed }) => [styles.ctaHitArea, pressed && styles.pressed]}
+          />
+        </View>
 
         <View style={styles.privacy}>
           <Shield color={colors.state.pending} size={12} />
@@ -103,7 +101,6 @@ function BackgroundFx({ accent }: { accent: string }) {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <HexGridBg accent={accent} />
-      <View style={[styles.glow, { backgroundColor: accent }]} />
       <View style={styles.scanlines} />
     </View>
   );
@@ -396,14 +393,6 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  glow: {
-    alignSelf: 'center',
-    borderRadius: 220,
-    height: 300,
-    marginTop: 58,
-    opacity: 0.14,
-    width: 300,
-  },
   scanlines: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255,255,255,0.012)',
@@ -447,11 +436,11 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   firstContent: {
-    paddingBottom: 18,
+    paddingBottom: 132,
     paddingTop: 44,
   },
   returnContent: {
-    paddingBottom: 18,
+    paddingBottom: 132,
     paddingTop: 36,
   },
   intro: {
@@ -656,7 +645,7 @@ const styles = StyleSheet.create({
   },
   rankGlow: {
     height: 140,
-    opacity: 0.06,
+    opacity: 0.12,
     position: 'absolute',
     right: -70,
     top: -50,
@@ -743,15 +732,22 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: 'center',
-    backgroundColor: colors.background.void,
+    backgroundColor: colors.background.voidDeep,
     borderTopColor: colors.background.border,
     borderTopWidth: 1,
-    paddingBottom: 26,
+    bottom: 0,
+    elevation: 24,
+    left: 0,
     paddingHorizontal: 24,
     paddingTop: 12,
-    zIndex: 1,
+    position: 'absolute',
+    right: 0,
+    shadowColor: colors.background.voidDeep,
+    shadowOpacity: 0.9,
+    shadowRadius: 18,
+    zIndex: 50,
   },
-  cta: {
+  ctaVisual: {
     alignItems: 'center',
     borderRadius: radii.md,
     borderWidth: 1,
@@ -762,6 +758,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.36,
     shadowRadius: 18,
     width: '100%',
+  },
+  ctaHitArea: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: radii.md,
   },
   ctaText: {
     color: colors.background.void,
