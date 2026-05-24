@@ -242,6 +242,14 @@ Update `preview` final con filas de Hábitos ordenadas:
 - Commit: `aef11e7f93a50a32e629afcd00594e3f1095419c`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6f9318d9-082b-4cd3-a4a6-c75b5b6e6d5d>
 
+Update `preview` con onboarding y nombre de cazador:
+
+- Update group: `98feb9cf-db9d-45dd-9501-ab7c3126416e`
+- Runtime: `1.0.2`
+- Mensaje: `Add hunter name onboarding flow`
+- Commit: `cc75f8aa55f7c8cca01ce1c50872c46d869736f2`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/98feb9cf-db9d-45dd-9501-ab7c3126416e>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
