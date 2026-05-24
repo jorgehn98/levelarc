@@ -4,6 +4,7 @@ export const habits = sqliteTable('habits', {
   id: text('id').primaryKey(),
   nombre: text('nombre').notNull(),
   icono: text('icono').notNull().default('target'),
+  atributos: text('atributos').notNull().default('voluntad'),
   importancia: integer('importancia').notNull(),
   tipo: text('tipo', { enum: ['binario', 'contable'] }).notNull(),
   meta: integer('meta').notNull().default(1),
@@ -22,6 +23,7 @@ export const events = sqliteTable('events', {
   fecha: text('fecha').notNull(),
   tipoEvento: text('tipo_evento', { enum: ['completado', 'fallado'] }).notNull(),
   xpDelta: integer('xp_delta').notNull(),
+  attributeDelta: text('attribute_delta').notNull().default('{}'),
   registradoEn: text('registrado_en').notNull(),
 });
 
@@ -47,6 +49,7 @@ export const player = sqliteTable('player', {
   nivel: integer('nivel').notNull().default(1),
   rango: text('rango', { enum: ['E', 'D', 'C', 'B', 'A', 'S'] }).notNull().default('E'),
   rachaMisiones: integer('racha_misiones').notNull().default(0),
+  atributosXp: text('atributos_xp').notNull().default('{}'),
   actualizadoEn: text('actualizado_en').notNull(),
 });
 

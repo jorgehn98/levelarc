@@ -3,6 +3,15 @@ import { migrateDb } from './migrate';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import { getLevelProgress } from '@/core/ranks';
 import { DAILY_MISSION_BONUS_XP, DAILY_MISSION_TARGET } from '@/core/missions';
+import {
+  applyAttributeDeltas,
+  createEmptyAttributeXp,
+  getAttributeDeltas,
+  normalizeAttributeXp,
+  serializeAttributeXp,
+  serializeHabitAttributes,
+  type AttributeXp,
+} from '@/core/attributes';
 import { getTodayWeekday, toDateKey, toIsoTimestamp } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
@@ -17,6 +26,7 @@ export type HabitRecord = {
   id: string;
   nombre: string;
   icono: string;
+  atributos: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -30,6 +40,7 @@ export type HabitRecord = {
 export type HabitInput = {
   nombre: string;
   icono: string;
+  atributos: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -48,6 +59,7 @@ export type PlayerRecord = {
   nivel: number;
   rango: Rank;
   rachaMisiones: number;
+  atributosXp: AttributeXp;
   actualizadoEn: string;
 };
 
@@ -65,6 +77,7 @@ export type EventRecord = {
   fecha: string;
   tipoEvento: EventType;
   xpDelta: number;
+  attributeDelta: AttributeXp;
   registradoEn: string;
   habitName?: string;
 };
@@ -73,6 +86,7 @@ type HabitRow = {
   id: string;
   nombre: string;
   icono: string | null;
+  atributos: string | null;
   importancia: number;
   tipo: HabitType;
   meta: number;
@@ -94,6 +108,7 @@ type PlayerRow = {
   nivel: number;
   rango: Rank;
   racha_misiones: number;
+  atributos_xp: string | null;
   actualizado_en: string;
 };
 
@@ -111,6 +126,7 @@ type EventRow = {
   fecha: string;
   tipo_evento: EventType;
   xp_delta: number;
+  attribute_delta: string | null;
   registrado_en: string;
   nombre?: string;
 };
@@ -159,13 +175,14 @@ export async function createHabit(input: HabitInput): Promise<string> {
   const notificationId = await scheduleHabitReminder(input.nombre.trim(), input.horaRecordatorio, input.diasSemana);
   await sqlite.runAsync(
     `
-      INSERT INTO habits (id, nombre, icono, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      INSERT INTO habits (id, nombre, icono, atributos, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
     `,
     [
       id,
       input.nombre.trim(),
       normalizeHabitIcon(input.icono),
+      serializeHabitAttributes(input.atributos),
       input.importancia,
       input.tipo,
       normalizeMeta(input),
@@ -187,12 +204,13 @@ export async function updateHabit(id: string, input: HabitInput) {
   await sqlite.runAsync(
     `
       UPDATE habits
-      SET nombre = ?, icono = ?, importancia = ?, tipo = ?, meta = ?, dias_semana = ?, hora_recordatorio = ?, notification_id = ?
+      SET nombre = ?, icono = ?, atributos = ?, importancia = ?, tipo = ?, meta = ?, dias_semana = ?, hora_recordatorio = ?, notification_id = ?
       WHERE id = ?
     `,
     [
       input.nombre.trim(),
       normalizeHabitIcon(input.icono),
+      serializeHabitAttributes(input.atributos),
       input.importancia,
       input.tipo,
       normalizeMeta(input),
@@ -244,7 +262,7 @@ export async function markHabitFailed(habitId: string, dateKey = toDateKey()) {
     ['fallado', toIsoTimestamp(), progress.id],
   );
   await createEvent(habit.id, dateKey, 'fallado', nextXp - player.xpTotal);
-  await setPlayerXp(nextXp);
+  await setPlayerProgress(nextXp);
 }
 
 export async function closeDay(dateKey = toDateKey()) {
@@ -296,7 +314,7 @@ export async function claimDailyMission(dateKey = toDateKey()) {
   const player = await ensurePlayer();
   const nextXp = applyXpDelta(player.xpTotal, mission.xpBonus);
   await sqlite.runAsync('UPDATE daily_missions SET reclamada = 1 WHERE fecha = ?', [dateKey]);
-  await setPlayerXp(nextXp, player.rachaMisiones + 1);
+  await setPlayerProgress(nextXp, player.rachaMisiones + 1);
 }
 
 export async function getRecentEvents(limit = 25): Promise<EventRecord[]> {
@@ -354,13 +372,14 @@ export async function importAllData(data: unknown) {
       : await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana);
     await sqlite.runAsync(
       `
-        INSERT INTO habits (id, nombre, icono, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO habits (id, nombre, icono, atributos, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         habit.id,
         habit.nombre,
         normalizeHabitIcon(habit.icono),
+        serializeHabitAttributes(habit.atributos),
         habit.importancia,
         habit.tipo,
         habit.meta,
@@ -386,10 +405,10 @@ export async function importAllData(data: unknown) {
   for (const event of backup.events) {
     await sqlite.runAsync(
       `
-        INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, registrado_en)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, registrado_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
-      [event.id, event.habitId, event.fecha, event.tipoEvento, event.xpDelta, event.registradoEn],
+      [event.id, event.habitId, event.fecha, event.tipoEvento, event.xpDelta, serializeAttributeXp(event.attributeDelta), event.registradoEn],
     );
   }
 
@@ -405,13 +424,14 @@ export async function importAllData(data: unknown) {
 
   const player = backup.player ?? getLevelProgress(0);
   await sqlite.runAsync(
-    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?, ?)',
     [
       'nombre' in player ? player.nombre : null,
       'xpTotal' in player ? player.xpTotal : 0,
       'nivel' in player ? player.nivel : 1,
       'rango' in player ? player.rango : 'E',
       'rachaMisiones' in player ? player.rachaMisiones : 0,
+      'atributosXp' in player ? serializeAttributeXp(player.atributosXp) : '{}',
       'actualizadoEn' in player ? player.actualizadoEn : toIsoTimestamp(),
     ],
   );
@@ -427,23 +447,25 @@ async function markHabitComplete(habit: HabitRecord, dateKey: string, amount: nu
   const player = await ensurePlayer();
   const xpDelta = getCompletionXp(habit.importancia, streakDays + 1);
   const nextXp = applyXpDelta(player.xpTotal, xpDelta);
+  const attributeDelta = getAttributeDeltas(xpDelta, habit.atributos);
+  const nextAttributeXp = applyAttributeDeltas(player.atributosXp, attributeDelta);
 
   await sqlite.runAsync(
     'UPDATE habit_daily_progress SET cantidad = ?, estado = ?, actualizado_en = ? WHERE id = ?',
     [amount, 'completado', toIsoTimestamp(), progress.id],
   );
-  await createEvent(habit.id, dateKey, 'completado', nextXp - player.xpTotal);
-  await setPlayerXp(nextXp);
+  await createEvent(habit.id, dateKey, 'completado', nextXp - player.xpTotal, attributeDelta);
+  await setPlayerProgress(nextXp, undefined, nextAttributeXp);
   await syncDailyMission(dateKey);
 }
 
-async function createEvent(habitId: string, dateKey: string, type: EventType, xpDelta: number) {
+async function createEvent(habitId: string, dateKey: string, type: EventType, xpDelta: number, attributeDelta = createEmptyAttributeXp()) {
   await sqlite.runAsync(
     `
-      INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, registrado_en)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, registrado_en)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
-    [createId(), habitId, dateKey, type, xpDelta, toIsoTimestamp()],
+    [createId(), habitId, dateKey, type, xpDelta, serializeAttributeXp(attributeDelta), toIsoTimestamp()],
   );
 }
 
@@ -474,10 +496,10 @@ async function ensurePlayer(): Promise<PlayerRecord> {
 
   const now = toIsoTimestamp();
   await sqlite.runAsync(
-    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, actualizado_en) VALUES (1, null, 0, 1, ?, 0, ?)',
-    ['E', now],
+    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, actualizado_en) VALUES (1, null, 0, 1, ?, 0, ?, ?)',
+    ['E', '{}', now],
   );
-  return { nombre: null, xpTotal: 0, nivel: 1, rango: 'E', rachaMisiones: 0, actualizadoEn: now };
+  return { nombre: null, xpTotal: 0, nivel: 1, rango: 'E', rachaMisiones: 0, atributosXp: createEmptyAttributeXp(), actualizadoEn: now };
 }
 
 async function ensureDailyMission(dateKey: string) {
@@ -499,26 +521,37 @@ async function syncDailyMission(dateKey: string) {
   await sqlite.runAsync('UPDATE daily_missions SET completados = ? WHERE fecha = ?', [completed?.count ?? 0, dateKey]);
 }
 
-async function setPlayerXp(xpTotal: number, rachaMisiones?: number) {
+async function setPlayerProgress(xpTotal: number, rachaMisiones?: number, atributosXp?: AttributeXp) {
   const progress = getLevelProgress(xpTotal);
   const current = await ensurePlayer();
   await sqlite.runAsync(
     `
       UPDATE player
-      SET xp_total = ?, nivel = ?, rango = ?, racha_misiones = ?, actualizado_en = ?
+      SET xp_total = ?, nivel = ?, rango = ?, racha_misiones = ?, atributos_xp = ?, actualizado_en = ?
       WHERE id = 1
     `,
-    [xpTotal, progress.level, progress.rank, rachaMisiones ?? current.rachaMisiones, toIsoTimestamp()],
+    [
+      xpTotal,
+      progress.level,
+      progress.rank,
+      rachaMisiones ?? current.rachaMisiones,
+      serializeAttributeXp(atributosXp ?? current.atributosXp),
+      toIsoTimestamp(),
+    ],
   );
 }
 
 async function recalculatePlayerFromEvents() {
-  const rows = await sqlite.getAllAsync<{ xp_delta: number }>('SELECT xp_delta FROM events ORDER BY registrado_en ASC');
+  const rows = await sqlite.getAllAsync<{ xp_delta: number; attribute_delta: string | null }>(
+    'SELECT xp_delta, attribute_delta FROM events ORDER BY registrado_en ASC',
+  );
   let xpTotal = 0;
+  let atributosXp = createEmptyAttributeXp();
   for (const row of rows) {
     xpTotal = applyXpDelta(xpTotal, row.xp_delta);
+    atributosXp = applyAttributeDeltas(atributosXp, row.attribute_delta);
   }
-  await setPlayerXp(xpTotal);
+  await setPlayerProgress(xpTotal, undefined, atributosXp);
 }
 
 async function getHabitCompletionStreak(habitId: string, dateKey: string) {
@@ -555,6 +588,7 @@ function mapHabit(row: HabitRow): HabitRecord {
     id: row.id,
     nombre: row.nombre,
     icono: normalizeHabitIcon(row.icono),
+    atributos: serializeHabitAttributes(row.atributos),
     importancia: clampImportance(row.importancia),
     tipo: row.tipo,
     meta: row.meta,
@@ -573,6 +607,7 @@ function mapPlayer(row: PlayerRow): PlayerRecord {
     nivel: row.nivel,
     rango: row.rango,
     rachaMisiones: row.racha_misiones,
+    atributosXp: normalizeAttributeXp(row.atributos_xp),
     actualizadoEn: row.actualizado_en,
   };
 }
@@ -594,6 +629,7 @@ function mapEvent(row: EventRow): EventRecord {
     fecha: row.fecha,
     tipoEvento: row.tipo_evento,
     xpDelta: row.xp_delta,
+    attributeDelta: normalizeAttributeXp(row.attribute_delta),
     registradoEn: row.registrado_en,
     habitName: row.nombre,
   };
@@ -639,6 +675,7 @@ function normalizeHabit(row: unknown): HabitRecord {
     id: asString(row.id),
     nombre: asString(row.nombre).trim(),
     icono: normalizeHabitIcon(row.icono ?? row.icon),
+    atributos: serializeHabitAttributes(row.atributos ?? row.attributes),
     importancia: clampImportance(asNumber(row.importancia)),
     tipo,
     meta: tipo === 'binario' ? 1 : Math.max(1, Math.floor(asNumber(row.meta))),
@@ -670,6 +707,7 @@ function normalizeEvent(row: unknown): EventRecord {
     fecha: asString(row.fecha),
     tipoEvento: row.tipo_evento === 'fallado' || row.tipoEvento === 'fallado' ? 'fallado' : 'completado',
     xpDelta: asNumber(row.xp_delta ?? row.xpDelta),
+    attributeDelta: normalizeAttributeXp(row.attribute_delta ?? row.attributeDelta),
     registradoEn: asString((row.registrado_en ?? row.registradoEn) || toIsoTimestamp()),
   };
 }
@@ -694,6 +732,7 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
     nivel: Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level))),
     rango: isRank(row.rango) ? row.rango : progress.rank,
     rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
+    atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
   };
 }

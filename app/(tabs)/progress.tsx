@@ -1,6 +1,7 @@
 import { Check, Clock, Flame, Shield, Sparkles, Target, Trophy, X } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AttributeRadar } from '@/components/AttributeRadar';
 import { ProgressBar } from '@/components/ProgressBar';
 import { RankBadge } from '@/components/RankBadge';
 import { Screen } from '@/components/Screen';
@@ -45,6 +46,8 @@ export default function ProgressScreen() {
             </View>
           </View>
         </View>
+
+        <AttributeRadar attributeXp={player?.atributosXp} />
 
         <View style={styles.panel}>
           <SectionHeader accent={accent} label={t(language, 'ascensionPath')} />

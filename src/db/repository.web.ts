@@ -3,6 +3,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DAILY_MISSION_BONUS_XP, DAILY_MISSION_TARGET } from '@/core/missions';
 import { getLevelProgress } from '@/core/ranks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
+import {
+  applyAttributeDeltas,
+  createEmptyAttributeXp,
+  getAttributeDeltas,
+  normalizeAttributeXp,
+  serializeAttributeXp,
+  serializeHabitAttributes,
+  type AttributeXp,
+} from '@/core/attributes';
 import { toDateKey, toIsoTimestamp } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
@@ -16,6 +25,7 @@ export type HabitRecord = {
   id: string;
   nombre: string;
   icono: string;
+  atributos: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -29,6 +39,7 @@ export type HabitRecord = {
 export type HabitInput = {
   nombre: string;
   icono: string;
+  atributos: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -47,6 +58,7 @@ export type PlayerRecord = {
   nivel: number;
   rango: Rank;
   rachaMisiones: number;
+  atributosXp: AttributeXp;
   actualizadoEn: string;
 };
 
@@ -64,6 +76,7 @@ export type EventRecord = {
   fecha: string;
   tipoEvento: EventType;
   xpDelta: number;
+  attributeDelta: AttributeXp;
   registradoEn: string;
   habitName?: string;
 };
@@ -124,6 +137,7 @@ export async function createHabit(input: HabitInput) {
     id,
     nombre: input.nombre.trim(),
     icono: normalizeHabitIcon(input.icono),
+    atributos: serializeHabitAttributes(input.atributos),
     importancia: input.importancia,
     tipo: input.tipo,
     meta: input.tipo === 'binario' ? 1 : Math.max(1, Math.floor(input.meta)),
@@ -145,6 +159,7 @@ export async function updateHabit(id: string, input: HabitInput) {
           ...habit,
           nombre: input.nombre.trim(),
           icono: normalizeHabitIcon(input.icono),
+          atributos: serializeHabitAttributes(input.atributos),
           importancia: input.importancia,
           tipo: input.tipo,
           meta: input.tipo === 'binario' ? 1 : Math.max(1, Math.floor(input.meta)),
@@ -173,10 +188,12 @@ export async function incrementHabitProgress(habitId: string, dateKey = toDateKe
   progress.actualizadoEn = toIsoTimestamp();
   if (progress.cantidad >= habit.meta) {
     const xpDelta = getCompletionXp(habit.importancia, 1);
+    const attributeDelta = getAttributeDeltas(xpDelta, habit.atributos);
     db.player.xpTotal = applyXpDelta(db.player.xpTotal, xpDelta);
+    db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, attributeDelta);
     syncPlayer(db);
     progress.estado = 'completado';
-    db.events.push(createEvent(habit, dateKey, 'completado', xpDelta));
+    db.events.push(createEvent(habit, dateKey, 'completado', xpDelta, attributeDelta));
     syncMission(db, dateKey);
   }
   await saveDb(db);
@@ -213,8 +230,10 @@ export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
   db.events = db.events.filter((event) => !(event.habitId === habitId && event.fecha === dateKey));
   db.progress = db.progress.filter((progress) => !(progress.habitId === habitId && progress.fecha === dateKey));
   db.player.xpTotal = 0;
+  db.player.atributosXp = createEmptyAttributeXp();
   for (const event of db.events.sort((a, b) => a.registradoEn.localeCompare(b.registradoEn))) {
     db.player.xpTotal = applyXpDelta(db.player.xpTotal, event.xpDelta);
+    db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, event.attributeDelta);
   }
   syncPlayer(db);
   syncMission(db, dateKey);
@@ -304,7 +323,13 @@ function syncPlayer(db: WebDb) {
   db.player.actualizadoEn = toIsoTimestamp();
 }
 
-function createEvent(habit: HabitRecord, dateKey: string, tipoEvento: EventType, xpDelta: number): EventRecord {
+function createEvent(
+  habit: HabitRecord,
+  dateKey: string,
+  tipoEvento: EventType,
+  xpDelta: number,
+  attributeDelta = createEmptyAttributeXp(),
+): EventRecord {
   return {
     id: createId(),
     habitId: habit.id,
@@ -312,6 +337,7 @@ function createEvent(habit: HabitRecord, dateKey: string, tipoEvento: EventType,
     fecha: dateKey,
     tipoEvento,
     xpDelta,
+    attributeDelta,
     registradoEn: toIsoTimestamp(),
   };
 }
@@ -322,7 +348,13 @@ async function loadDb(): Promise<WebDb> {
   const empty = createEmptyDb();
   const parsed = JSON.parse(raw) as Partial<WebDb>;
   const db = { ...empty, ...parsed, player: { ...empty.player, ...parsed.player } };
-  db.habits = db.habits.map((habit) => ({ ...habit, icono: normalizeHabitIcon(habit.icono) }));
+  db.habits = db.habits.map((habit) => ({
+    ...habit,
+    icono: normalizeHabitIcon(habit.icono),
+    atributos: serializeHabitAttributes(habit.atributos),
+  }));
+  db.events = db.events.map((event) => ({ ...event, attributeDelta: normalizeAttributeXp(event.attributeDelta) }));
+  db.player.atributosXp = normalizeAttributeXp(db.player.atributosXp);
   return db;
 }
 
@@ -342,6 +374,7 @@ function createEmptyDb(): WebDb {
       nivel: progress.level,
       rango: progress.rank,
       rachaMisiones: 0,
+      atributosXp: createEmptyAttributeXp(),
       actualizadoEn: toIsoTimestamp(),
     },
     missions: [],
@@ -367,6 +400,7 @@ function normalizeHabit(row: unknown): HabitRecord {
     id: asString(row.id),
     nombre: asString(row.nombre).trim(),
     icono: normalizeHabitIcon(row.icono ?? row.icon),
+    atributos: serializeHabitAttributes(row.atributos ?? row.attributes),
     importancia: clampImportance(asNumber(row.importancia)),
     tipo,
     meta: tipo === 'binario' ? 1 : Math.max(1, Math.floor(asNumber(row.meta))),
@@ -399,6 +433,7 @@ function normalizeEvent(row: unknown): EventRecord {
     fecha: asString(row.fecha),
     tipoEvento: row.tipo_evento === 'fallado' || row.tipoEvento === 'fallado' ? 'fallado' : 'completado',
     xpDelta: asNumber(row.xp_delta ?? row.xpDelta),
+    attributeDelta: normalizeAttributeXp(row.attribute_delta ?? row.attributeDelta),
     registradoEn: asString((row.registrado_en ?? row.registradoEn) || toIsoTimestamp()),
   };
 }
@@ -424,6 +459,7 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
     nivel: Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level))),
     rango: isRank(row.rango) ? row.rango : progress.rank,
     rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
+    atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
   };
 }

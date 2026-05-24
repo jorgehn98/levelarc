@@ -8,6 +8,7 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       id text PRIMARY KEY NOT NULL,
       nombre text NOT NULL,
       icono text DEFAULT 'target' NOT NULL,
+      atributos text DEFAULT 'voluntad' NOT NULL,
       importancia integer NOT NULL,
       tipo text NOT NULL,
       meta integer DEFAULT 1 NOT NULL,
@@ -24,6 +25,7 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       fecha text NOT NULL,
       tipo_evento text NOT NULL,
       xp_delta integer NOT NULL,
+      attribute_delta text DEFAULT '{}' NOT NULL,
       registrado_en text NOT NULL,
       FOREIGN KEY (habit_id) REFERENCES habits(id) ON UPDATE no action ON DELETE no action
     );
@@ -48,6 +50,7 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       nivel integer DEFAULT 1 NOT NULL,
       rango text DEFAULT 'E' NOT NULL,
       racha_misiones integer DEFAULT 0 NOT NULL,
+      atributos_xp text DEFAULT '{}' NOT NULL,
       actualizado_en text NOT NULL
     );
 
@@ -73,7 +76,25 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
   }
 
   try {
+    await sqlite.execAsync("ALTER TABLE habits ADD COLUMN atributos text DEFAULT 'voluntad' NOT NULL;");
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync("ALTER TABLE events ADD COLUMN attribute_delta text DEFAULT '{}' NOT NULL;");
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
     await sqlite.execAsync('ALTER TABLE player ADD COLUMN nombre text;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync("ALTER TABLE player ADD COLUMN atributos_xp text DEFAULT '{}' NOT NULL;");
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }

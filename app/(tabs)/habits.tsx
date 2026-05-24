@@ -5,9 +5,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { normalizeHabitAttributes } from '@/core/attributes';
 import { getCompletionXp } from '@/core/xp';
 import type { HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { getHabitAttribute } from '@/lib/habitAttributes';
 import { getHabitIconComponent } from '@/lib/habitIcons';
 import { formatWeekdays } from '@/lib/weekdays';
 import { useAppStore } from '@/stores/appStore';
@@ -83,6 +85,7 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
   const isArchived = habit.archivado;
   const xp = getCompletionXp(habit.importancia, 0);
   const Icon = getHabitIconComponent(habit.icono);
+  const attributes = normalizeHabitAttributes(habit.atributos);
 
   return (
     <View style={[styles.habitCard, isArchived && styles.archivedRow]}>
@@ -112,6 +115,16 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
                   ]}
                 />
               ))}
+            </View>
+            <View style={styles.attributeChips}>
+              {attributes.map((attributeId) => {
+                const attribute = getHabitAttribute(attributeId);
+                return (
+                  <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
+                    <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
           <ChevronRight color={colors.state.pending} size={20} />
@@ -304,6 +317,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 8,
     maxWidth: 86,
+  },
+  attributeChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 8,
+  },
+  attributeChip: {
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  attributeChipText: {
+    fontFamily: typography.font.displayBold,
+    fontSize: 8,
   },
   importanceDot: {
     borderRadius: 1,

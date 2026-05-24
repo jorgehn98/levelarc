@@ -19,6 +19,8 @@ Incluye:
 - XP positivo/negativo.
 - Suelo de nivel/rango ante penalización.
 - Rangos E-S.
+- Atributos RPG manuales por hábito con reparto de XP.
+- Radar chart inicial de atributos en Progreso.
 - Pantalla Hoy.
 - Pantalla Hábitos.
 - Pantalla Progreso.
@@ -34,6 +36,7 @@ No incluye:
 
 - Importación de backup.
 - Estadísticas avanzadas.
+- Balance definitivo de atributos/rangos.
 - Logros complejos.
 - IA local.
 - Misiones generativas.

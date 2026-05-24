@@ -70,6 +70,8 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Archivar hábitos.
 - Importancia 1-5.
 - Selector manual de icono para cada hábito.
+- Selector manual de atributos para cada hábito.
+- Cada hábito permite 1-3 atributos entre Fuerza, Vitalidad, Intelecto, Voluntad, Carisma y Destreza.
 - Tipo binario.
 - Tipo contable con meta diaria.
 - Días de la semana.
@@ -94,6 +96,10 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - `events` como fuente de verdad inmutable.
 - `player` cacheado.
 - Nombre del jugador guardado en `player.nombre`.
+- XP de atributos guardado en `player.atributos_xp`.
+- Al completar un hábito, el XP de atributo se reparte entre los atributos seleccionados: 1 atributo 100%, 2 atributos 50% cada uno, 3 atributos 33.33% cada uno.
+- Los eventos guardan `attribute_delta` para que deshacer/recalcular no dependa de cambios futuros en el hábito.
+- Pantalla Progreso muestra radar chart y barras por atributo.
 - Niveles según curva `50 * nivel^1.8`.
 - Rangos E/D/C/B/A/S.
 - Penalización con suelo de nivel: nunca baja de nivel/rango.
@@ -112,6 +118,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Migraciones generadas en `src/db/migrations/`.
 - `src/db/migrate.ts` crea/actualiza tablas en runtime.
 - `habits.icono` guarda el icono seleccionado y se conserva en backup/importación.
+- `habits.atributos` guarda los atributos seleccionados y se conserva en backup/importación.
 - Fallback web con AsyncStorage en `src/db/repository.web.ts`.
 
 ### Backup

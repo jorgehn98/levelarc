@@ -29,6 +29,13 @@
       "when": 1779646212459,
       "tag": "0003_safe_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1779656234883,
+      "tag": "0004_striped_punisher",
+      "breakpoints": true
     }
   ]
 }

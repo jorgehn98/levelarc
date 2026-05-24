@@ -3,8 +3,10 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
+import { normalizeHabitAttributes } from '@/core/attributes';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { getHabitAttribute } from '@/lib/habitAttributes';
 import { getHabitIconComponent } from '@/lib/habitIcons';
 import { colors, radii, shadows, typography } from '@/theme/colors';
 
@@ -21,6 +23,7 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
   const isFailed = habit.estado === 'fallado';
   const ratio = habit.meta > 0 ? habit.cantidad / habit.meta : 0;
   const HabitIcon = getHabitIconComponent(habit.icono);
+  const attributes = normalizeHabitAttributes(habit.atributos);
 
   return (
     <View style={[styles.card, isDone && styles.doneCard, isFailed && styles.failedCard]}>
@@ -38,6 +41,16 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
           <Text style={styles.meta}>
             {t(language, 'importance')} {habit.importancia} · {habit.tipo === 'binario' ? t(language, 'binary') : `${habit.cantidad}/${habit.meta}`}
           </Text>
+          <View style={styles.attributeChips}>
+            {attributes.map((attributeId) => {
+              const attribute = getHabitAttribute(attributeId);
+              return (
+                <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
+                  <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
         <Text style={[styles.state, isDone && styles.doneText, isFailed && styles.failedText]}>
           {isDone ? t(language, 'completed') : isFailed ? t(language, 'failed') : t(language, 'pending')}
@@ -132,6 +145,22 @@ const styles = StyleSheet.create({
     fontFamily: typography.font.bodyRegular,
     fontSize: 13,
     marginTop: 4,
+  },
+  attributeChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 8,
+  },
+  attributeChip: {
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  attributeChipText: {
+    fontFamily: typography.font.displayBold,
+    fontSize: 8,
   },
   state: {
     color: colors.state.pending,

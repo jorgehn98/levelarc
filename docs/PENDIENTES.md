@@ -70,6 +70,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Crear pantalla rank-up real.
 - [x] Pulir formulario crear/editar hábito.
 - [x] Añadir selector manual de icono al crear/editar hábito.
+- [x] Añadir selector manual de atributos al crear/editar hábito.
+- [x] Añadir radar chart inicial de atributos en Progreso.
 - [ ] Mejorar estados vacíos.
 - [x] Corregir layout de Hábitos tras QA Android: eliminar lista con ancho manual y usar tarjetas a ancho completo.
 - [ ] Añadir confirmación al archivar hábito.
@@ -84,6 +86,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [ ] Añadir tests para cierre de día.
 - [ ] Añadir tests para misión diaria.
 - [ ] Añadir tests para recalcular player desde events.
+- [x] Añadir tests para normalización, reparto y nivel de atributos.
+- [ ] Revisar balance final de curva de atributos frente a nivel/rango.
 - [ ] Revisar multiplicador de racha real: ahora el MVP usa base simple en web fallback.
 - [ ] Revisar si `racha_misiones` debe resetearse si no se reclama misión.
 

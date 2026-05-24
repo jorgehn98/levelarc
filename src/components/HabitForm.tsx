@@ -5,8 +5,10 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import type { HabitInput, HabitRecord, HabitType } from '@/db/repository';
+import { maxHabitAttributes, normalizeHabitAttributes, type AttributeId } from '@/core/attributes';
 import { getCompletionXp, type HabitImportance } from '@/core/xp';
 import { t, type Language } from '@/i18n';
+import { habitAttributes } from '@/lib/habitAttributes';
 import { defaultHabitIcon, getHabitIconComponent, habitIcons, normalizeHabitIcon, type HabitIconId } from '@/lib/habitIcons';
 import { weekDays } from '@/lib/weekdays';
 import { colors, radii, typography } from '@/theme/colors';
@@ -22,6 +24,7 @@ type HabitFormProps = {
 export function HabitForm({ habit, language, onSave, onArchive, onCancel }: HabitFormProps) {
   const [name, setName] = useState(habit?.nombre ?? '');
   const [icon, setIcon] = useState<HabitIconId>(normalizeHabitIcon(habit?.icono ?? defaultHabitIcon));
+  const [attributes, setAttributes] = useState<AttributeId[]>(normalizeHabitAttributes(habit?.atributos));
   const [importance, setImportance] = useState<HabitImportance>(habit?.importancia ?? 3);
   const [type, setType] = useState<HabitType>(habit?.tipo ?? 'binario');
   const [goal, setGoal] = useState(String(habit?.meta ?? 1));
@@ -30,7 +33,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   );
   const [reminder, setReminder] = useState(habit?.horaRecordatorio ?? '');
 
-  const canSave = name.trim().length > 0 && days.length > 0;
+  const canSave = name.trim().length > 0 && days.length > 0 && attributes.length > 0;
   const normalizedGoal = useMemo(() => Math.max(1, Number.parseInt(goal, 10) || 1), [goal]);
   const xpPreview = getCompletionXp(importance, 0);
 
@@ -44,10 +47,19 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
     setDays(weekDays.map((day) => day.id));
   }
 
+  function toggleAttribute(attributeId: AttributeId) {
+    setAttributes((current) => {
+      if (current.includes(attributeId)) return current.filter((id) => id !== attributeId);
+      if (current.length >= maxHabitAttributes) return current;
+      return [...current, attributeId];
+    });
+  }
+
   function handleSave() {
     onSave({
       nombre: name,
       icono: icon,
+      atributos: attributes.join(','),
       importancia: importance,
       tipo: type,
       meta: type === 'binario' ? 1 : normalizedGoal,
@@ -100,6 +112,44 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
               >
                 <Icon color={isSelected ? colors.background.void : colors.brand.bone} size={20} />
                 <Text numberOfLines={1} style={[styles.iconOptionText, isSelected && styles.selectedIconOptionText]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Field>
+
+      <Field label={t(language, 'attributes')}>
+        <View style={styles.attributeHeader}>
+          <Text style={styles.attributeHelp}>{t(language, 'attributesHelp')}</Text>
+          <Text style={styles.attributeCount}>{attributes.length}/{maxHabitAttributes}</Text>
+        </View>
+        <View style={styles.attributeGrid}>
+          {habitAttributes.map((item) => {
+            const Icon = item.icon;
+            const isSelected = attributes.includes(item.id);
+            const isDisabled = !isSelected && attributes.length >= maxHabitAttributes;
+
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => toggleAttribute(item.id)}
+                style={[
+                  styles.attributeCard,
+                  { borderColor: isSelected ? item.color : colors.background.border },
+                  isSelected && { backgroundColor: `${item.color}1F` },
+                  isDisabled && styles.disabledAttributeCard,
+                ]}
+              >
+                <View style={styles.attributeTitleRow}>
+                  <View style={[styles.attributeIcon, { borderColor: item.color, backgroundColor: `${item.color}1A` }]}>
+                    <Icon color={item.color} size={17} />
+                  </View>
+                  <View style={styles.attributeTitleCopy}>
+                    <Text style={[styles.attributeCode, { color: item.color }]}>{item.code}</Text>
+                    <Text style={styles.attributeName}>{item.label}</Text>
+                  </View>
+                </View>
+                <Text style={styles.attributeDescription}>{item.description}</Text>
               </Pressable>
             );
           })}
@@ -344,6 +394,72 @@ const styles = StyleSheet.create({
   },
   selectedIconOptionText: {
     color: colors.background.void,
+  },
+  attributeHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  attributeHelp: {
+    color: colors.brand.boneMuted,
+    flex: 1,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  attributeCount: {
+    color: colors.rank.S,
+    fontFamily: typography.font.displayBold,
+    fontSize: 11,
+  },
+  attributeGrid: {
+    gap: 8,
+  },
+  attributeCard: {
+    backgroundColor: colors.background.card,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: 8,
+    minHeight: 94,
+    padding: 12,
+  },
+  disabledAttributeCard: {
+    opacity: 0.42,
+  },
+  attributeTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  attributeIcon: {
+    alignItems: 'center',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  attributeTitleCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  attributeCode: {
+    fontFamily: typography.font.displayBold,
+    fontSize: 10,
+  },
+  attributeName: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  attributeDescription: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 12,
+    lineHeight: 16,
   },
   typeCard: {
     backgroundColor: colors.background.card,
