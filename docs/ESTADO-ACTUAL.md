@@ -223,6 +223,14 @@ Update `preview` con pasada visual completa:
 - Commit: `1dc1b4f57da17f410476f051bfda52f9d9ddd823`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/996dc459-2fb5-4b3e-8ba0-1d058783e0a8>
 
+Update `preview` con corrección de renderizado de Hábitos:
+
+- Update group: `709aa195-5cd6-4c98-b05b-b97c1ea5c44f`
+- Runtime: `1.0.2`
+- Mensaje: `Fix habits screen rendering`
+- Commit: `5fbe2af397f337e995ab9457dac41a7b928c8ff9`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/709aa195-5cd6-4c98-b05b-b97c1ea5c44f>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
