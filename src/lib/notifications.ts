@@ -1,14 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-export function parseReminderTime(value: string | null) {
-  if (!value) return null;
-  const match = value.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
-  if (!match) return null;
-  return {
-    hour: Number(match[1]),
-    minute: Number(match[2]),
-  };
-}
+import { parseClockTime } from '@/lib/time';
 
 export async function requestNotificationPermissions() {
   const current = await Notifications.getPermissionsAsync();
@@ -32,7 +24,7 @@ export async function cancelHabitReminder(notificationId: string | null) {
 }
 
 export async function scheduleHabitReminder(habitName: string, reminderTime: string | null, weekdaysCsv: string) {
-  const time = parseReminderTime(reminderTime);
+  const time = parseClockTime(reminderTime);
   if (!time) return null;
   const granted = await requestNotificationPermissions();
   if (!granted) return null;
@@ -73,7 +65,7 @@ export async function cancelEndOfDayReminder(notificationId: string | null) {
 }
 
 export async function scheduleEndOfDayReminder(reminderTime: string | null, title: string, body: string) {
-  const time = parseReminderTime(reminderTime);
+  const time = parseClockTime(reminderTime);
   if (!time) return null;
   const granted = await requestNotificationPermissions();
   if (!granted) return null;

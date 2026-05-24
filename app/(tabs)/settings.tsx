@@ -11,10 +11,10 @@ import { PlayerHeader } from '@/components/PlayerHeader';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
+import { TimePickerField } from '@/components/TimePickerField';
 import { t } from '@/i18n';
 import {
   cancelEndOfDayReminder,
-  parseReminderTime,
   requestNotificationPermissions,
   scheduleEndOfDayReminder,
 } from '@/lib/notifications';
@@ -38,7 +38,7 @@ export default function SettingsScreen() {
   const [backupJson, setBackupJson] = useState('');
   const [playerName, setPlayerNameInput] = useState(player?.nombre ?? '');
   const [endOfDayReminderTime, setEndOfDayReminderTime] = useState<string | null>(null);
-  const [endOfDayReminderDraft, setEndOfDayReminderDraft] = useState('21:30');
+  const [endOfDayReminderDraft, setEndOfDayReminderDraft] = useState<string | null>('21:30');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   useEffect(() => {
@@ -87,9 +87,9 @@ export default function SettingsScreen() {
   };
 
   const handleSaveEndOfDayReminder = async () => {
-    const normalizedTime = endOfDayReminderDraft.trim();
-    if (!parseReminderTime(normalizedTime)) {
-      Alert.alert(t(language, 'invalidTime'), t(language, 'invalidTimeCopy'));
+    const normalizedTime = endOfDayReminderDraft;
+    if (!normalizedTime) {
+      await handleDisableEndOfDayReminder();
       return;
     }
 
@@ -121,7 +121,7 @@ export default function SettingsScreen() {
     await cancelEndOfDayReminder(existingId);
     await AsyncStorage.multiRemove([END_OF_DAY_REMINDER_TIME_KEY, END_OF_DAY_REMINDER_ID_KEY]);
     setEndOfDayReminderTime(null);
-    setEndOfDayReminderDraft('21:30');
+    setEndOfDayReminderDraft(null);
     setIsEndOfDayReminderOpen(false);
     Alert.alert(t(language, 'reminderDisabled'), t(language, 'reminderDisabledCopy'));
   };
@@ -281,18 +281,16 @@ export default function SettingsScreen() {
             <Text style={styles.modalKicker}>◆ SISTEMA</Text>
             <Text style={styles.modalTitle}>{t(language, 'endOfDayReminder')}</Text>
             <Text style={styles.modalCopy}>{t(language, 'endOfDayReminderCopy')}</Text>
-            <TextInput
-              keyboardType="numbers-and-punctuation"
-              cursorColor={colors.brand.cyanCore}
-              maxLength={5}
-              onChangeText={setEndOfDayReminderDraft}
-              placeholder={t(language, 'reminderTimePlaceholder')}
-              placeholderTextColor={colors.state.pending}
-              selectionColor={colors.brand.cyanShadow}
-              style={styles.nameInput}
+            <TimePickerField
+              cancelLabel={t(language, 'cancel')}
+              clearLabel={t(language, 'clearTime')}
+              confirmLabel={t(language, 'useTime')}
+              help={t(language, 'reminderTimeHelp')}
+              onChange={setEndOfDayReminderDraft}
+              placeholder={t(language, 'noReminder')}
+              title={t(language, 'selectTime')}
               value={endOfDayReminderDraft}
             />
-            <Text style={styles.inputHelp}>{t(language, 'reminderTimeHelp')}</Text>
             <View style={styles.modalActions}>
               <Button label={t(language, 'cancel')} onPress={() => setIsEndOfDayReminderOpen(false)} variant="secondary" />
               {endOfDayReminderTime ? (
@@ -460,13 +458,6 @@ const styles = StyleSheet.create({
     height: 48,
     marginTop: 14,
     paddingHorizontal: 12,
-  },
-  inputHelp: {
-    color: colors.state.pending,
-    fontFamily: typography.font.bodyRegular,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 8,
   },
   modalActions: {
     flexDirection: 'row',

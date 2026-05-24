@@ -14,6 +14,7 @@ MVP funcional:
 - Hábitos binarios y contables con meta diaria.
 - Frecuencia por días de la semana.
 - Pantalla Hoy con completar, sumar progreso, fallar y deshacer.
+- Recordatorios de hábito opcionales con selector de hora y acción para limpiar.
 - XP, niveles, rangos E-S y eventos de historial.
 - Rachas por hábito según ocurrencias programadas, con multiplicador máximo `x1.50`.
 - Misión diaria dinámica: completar todos los hábitos de hoy y reclamar bonus.

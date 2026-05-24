@@ -29,8 +29,8 @@ Incluye:
 - Pantalla Ajustes.
 - Misión diaria dinámica: completar todos los hábitos programados para hoy.
 - Misión extra de racha perfecta de 7 días.
-- Recordatorios locales.
-- Recordatorio diario configurable de cierre del día.
+- Recordatorios locales opcionales con selector de hora.
+- Recordatorio diario configurable de cierre del día con selector de hora.
 - Exportación JSON.
 - Importación/restauración JSON.
 - Nombre de jugador persistente, definido en onboarding y editable en Ajustes.

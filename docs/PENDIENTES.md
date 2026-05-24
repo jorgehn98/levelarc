@@ -16,6 +16,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Publicar un update JS de prueba en canal `preview`.
 - [ ] Validar botón Ajustes > Actualizaciones en Android.
 - [ ] Probar crear hábito en Android.
+- [ ] Probar selector de hora en hábitos: seleccionar hora, guardar, editar y limpiar recordatorio.
 - [ ] Probar onboarding inicial en Android: guardar nombre y entrar con "Iniciar juego".
 - [ ] Probar entrada de retorno en Android: resumen de rango/XP y "Continuar jugando".
 - [ ] Probar cambio de nombre desde Ajustes.

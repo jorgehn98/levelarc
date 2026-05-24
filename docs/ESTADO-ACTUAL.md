@@ -77,7 +77,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Tipo binario.
 - Tipo contable con meta diaria.
 - Días de la semana.
-- Hora de recordatorio.
+- Hora de recordatorio opcional mediante selector de hora; se puede limpiar para dejar el hábito sin notificación.
 
 ### Hoy
 
@@ -144,7 +144,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 - Permisos locales.
 - Recordatorios semanales nativos según días del hábito.
-- Recordatorio diario configurable de cierre del día, guardado como preferencia local del dispositivo y programado en hora local.
+- Recordatorio diario configurable de cierre del día con selector de hora, guardado como preferencia local del dispositivo y programado en hora local.
 - Web usa stub en `src/lib/notifications.web.ts`.
 
 ### Actualizaciones internas

@@ -4,6 +4,7 @@ import { BarChart3, Check, ChevronDown, ChevronRight } from 'lucide-react-native
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
+import { TimePickerField } from '@/components/TimePickerField';
 import type { HabitInput, HabitRecord, HabitType } from '@/db/repository';
 import { maxHabitAttributes, normalizeHabitAttributes, type AttributeId } from '@/core/attributes';
 import { getCompletionXp, type HabitImportance } from '@/core/xp';
@@ -33,7 +34,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   const [days, setDays] = useState<number[]>(
     habit?.diasSemana ? habit.diasSemana.split(',').map(Number) : [],
   );
-  const [reminder, setReminder] = useState(habit?.horaRecordatorio ?? '');
+  const [reminder, setReminder] = useState<string | null>(habit?.horaRecordatorio ?? null);
 
   const canSave = name.trim().length > 0 && days.length > 0 && attributes.length > 0;
   const normalizedGoal = useMemo(() => Math.max(1, Number.parseInt(goal, 10) || 1), [goal]);
@@ -81,7 +82,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       tipo: type,
       meta: type === 'binario' ? 1 : normalizedGoal,
       diasSemana: days.join(','),
-      horaRecordatorio: reminder.trim() || null,
+      horaRecordatorio: reminder,
     });
   }
 
@@ -302,14 +303,14 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       </Field>
 
       <Field label={t(language, 'reminder')}>
-        <TextInput
-          cursorColor={colors.brand.cyanCore}
-          onChangeText={setReminder}
-          onFocus={closeAttributePicker}
-          placeholder="08:30"
-          placeholderTextColor={colors.state.pending}
-          selectionColor={colors.brand.cyanShadow}
-          style={styles.input}
+        <TimePickerField
+          cancelLabel={t(language, 'cancel')}
+          clearLabel={t(language, 'clearTime')}
+          confirmLabel={t(language, 'useTime')}
+          help={t(language, 'optionalReminder')}
+          onChange={setReminder}
+          placeholder={t(language, 'noReminder')}
+          title={t(language, 'selectTime')}
           value={reminder}
         />
       </Field>
