@@ -7,7 +7,7 @@
 
 ## 1. Resumen
 
-LevelArc es un tracker de hábitos gamificado para Android, **100% offline** (sin servidor, sin cuentas, sin conexión). Todos los datos viven en el dispositivo de forma privada. La gamificación es el núcleo: el usuario gana XP completando sus propios hábitos, sube de nivel y asciende por rangos de cazador (E → S), con una estética de "Sistema" inspirada en el tono RPG de Solo Leveling (sin usar su IP).
+LevelArc es un tracker de hábitos gamificado para Android, **100% offline** (sin servidor, sin cuentas, sin conexión). Todos los datos viven en el dispositivo de forma privada. La gamificación es el núcleo: el usuario gana XP completando sus propios hábitos, sube de nivel y asciende por rangos de jugador (E → S), con una estética de "Sistema" inspirada en el tono RPG de Solo Leveling (sin usar su IP).
 
 **Mercado:** Play Store global, bilingüe (español + inglés). Producto a monetizar.
 
@@ -29,7 +29,7 @@ Concepto: **portal de medio punto + doble chevron ascendente** ("subir de nivel 
 - NOTA: los SVG actuales son bocetos de concepto. El asset final se vectoriza aparte; la tipografía del lockup no es la definitiva (ver §5).
 
 ### Tono de voz del "Sistema"
-Seco, imperativo, solemne, estilo notificación de videojuego. Ej: "⚠️ Misión diaria: completa 3 hábitos." / "Has fallado, cazador. La racha se ha roto." El sabor Solo Leveling vive en el TONO, no en mecánicas tóxicas.
+Seco, imperativo, solemne, estilo notificación de videojuego. Ej: "⚠️ Misión diaria: completa 3 hábitos." / "Has fallado, jugador. La racha se ha roto." El sabor Solo Leveling vive en el TONO, no en mecánicas tóxicas.
 
 ---
 

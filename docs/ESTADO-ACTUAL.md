@@ -10,7 +10,7 @@ El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de 
 
 La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
 
-La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera activación con nombre de cazador e "Iniciar ascensión"; siguientes aperturas con resumen de rango/XP/racha y "Continuar ascensión". El nombre se guarda en `player.nombre` y se puede modificar desde Ajustes. El CTA queda fijo abajo y el logo usa anillos animados reales; el modo retorno adapta acentos, glow y CTA al rango actual.
+La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera activación con nombre de jugador e "Iniciar ascensión"; siguientes aperturas con resumen de rango/XP/racha y "Continuar ascensión". El nombre se guarda en `player.nombre` y se puede modificar desde Ajustes. El CTA queda fijo abajo y el logo usa anillos animados reales; el modo retorno adapta acentos, glow y CTA al rango actual.
 
 La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo. Las filas de hábito usan `View` como tarjeta real y dejan `Pressable` solo como objetivo táctil interno para evitar problemas de layout en Android.
 
@@ -92,7 +92,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Eventos de XP.
 - `events` como fuente de verdad inmutable.
 - `player` cacheado.
-- Nombre del cazador guardado en `player.nombre`.
+- Nombre del jugador guardado en `player.nombre`.
 - Niveles según curva `50 * nivel^1.8`.
 - Rangos E/D/C/B/A/S.
 - Penalización con suelo de nivel: nunca baja de nivel/rango.
@@ -242,11 +242,11 @@ Update `preview` final con filas de Hábitos ordenadas:
 - Commit: `aef11e7f93a50a32e629afcd00594e3f1095419c`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6f9318d9-082b-4cd3-a4a6-c75b5b6e6d5d>
 
-Update `preview` con onboarding y nombre de cazador:
+Update `preview` con onboarding y nombre de jugador:
 
 - Update group: `98feb9cf-db9d-45dd-9501-ab7c3126416e`
 - Runtime: `1.0.2`
-- Mensaje: `Add hunter name onboarding flow`
+- Mensaje: `Add player name onboarding flow`
 - Commit: `cc75f8aa55f7c8cca01ce1c50872c46d869736f2`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/98feb9cf-db9d-45dd-9501-ab7c3126416e>
 

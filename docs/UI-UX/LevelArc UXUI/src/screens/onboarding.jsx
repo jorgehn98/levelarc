@@ -153,7 +153,7 @@ function FirstTimeFlow({ name, setName, t }) {
       }}>{t.onboardingBody}</p>
 
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <SysLabel color={LA.fgMuted} style={{ fontSize: 10 }}>◇ NOMBRE DEL CAZADOR</SysLabel>
+        <SysLabel color={LA.fgMuted} style={{ fontSize: 10 }}>◇ NOMBRE DEL JUGADOR</SysLabel>
         <div style={{ position: 'relative' }}>
           <input
             value={name}
@@ -207,7 +207,7 @@ function FirstTimeFlow({ name, setName, t }) {
           <div style={{
             fontFamily: "'Orbitron', sans-serif", fontWeight: 700, fontSize: 14, color: LA.fg, marginTop: 2,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>{name.trim() || 'CAZADOR · SIN NOMBRE'}</div>
+          }}>{name.trim() || 'JUGADOR · SIN NOMBRE'}</div>
           <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: LA.fgMuted, marginTop: 2 }}>
             Rango E · Nivel 1 · 0 XP
           </div>
@@ -230,9 +230,9 @@ function ReturnFlow({ player, accent, t }) {
       width: '100%', maxWidth: 320,
       display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 14,
     }}>
-      {/* Hunter name */}
+      {/* Player name */}
       <div style={{ textAlign: 'center' }}>
-        <SysLabel color={LA.fgMuted} style={{ fontSize: 10 }}>◇ BIENVENIDO DE VUELTA, CAZADOR</SysLabel>
+        <SysLabel color={LA.fgMuted} style={{ fontSize: 10 }}>◇ BIENVENIDO DE VUELTA, JUGADOR</SysLabel>
         <div style={{
           marginTop: 6,
           fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: 22, color: LA.fg,

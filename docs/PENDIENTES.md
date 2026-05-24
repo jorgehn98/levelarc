@@ -65,7 +65,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Pulir pantalla Progreso.
 - [x] Pulir pantalla Ajustes.
 - [x] Crear onboarding real.
-- [x] Añadir nombre de cazador persistente y editable.
+- [x] Añadir nombre de jugador persistente y editable.
 - [x] Crear pantalla rank-up real.
 - [x] Pulir formulario crear/editar hábito.
 - [ ] Mejorar estados vacíos.

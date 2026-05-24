@@ -26,7 +26,7 @@ Incluye:
 - Misión diaria fija.
 - Recordatorios locales.
 - Exportación JSON.
-- Nombre de cazador persistente, definido en onboarding y editable en Ajustes.
+- Nombre de jugador persistente, definido en onboarding y editable en Ajustes.
 - ES/EN.
 - Modo oscuro.
 

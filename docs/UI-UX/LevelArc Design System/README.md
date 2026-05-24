@@ -1,6 +1,6 @@
 # LevelArc — Design System
 
-> **LevelArc** is a 100% offline, gamified habit tracker for Android. The user earns XP by completing their own habits, levels up, and ascends through hunter ranks (E → S). The aesthetic is a private RPG "System" interface — dark, quiet, arcane, slightly solemn — inspired by the tone of *Solo Leveling* (without using any of its IP).
+> **LevelArc** is a 100% offline, gamified habit tracker for Android. The user earns XP by completing their own habits, levels up, and ascends through player ranks (E → S). The aesthetic is a private RPG "System" interface — dark, quiet, arcane, slightly solemn — inspired by the tone of *Solo Leveling* (without using any of its IP).
 
 - **Platform:** Android (Play Store, global).
 - **Languages:** Spanish (default) + English.
@@ -36,14 +36,14 @@ This is a **brand-new project**. No existing UI to recreate. The UI kit in this 
 
 LevelArc's copy is bilingual (Spanish default, English secondary) and reads like terse, slightly formal **system messages** — never marketing, never chummy.
 
-- **Persona:** the app is a "Sistema" / "System" addressing **the user as the Hunter** ("Cazador"). It speaks **to you**, never about itself in first person. Use *tú* in Spanish, *you* in English.
+- **Persona:** the app is a "Sistema" / "System" addressing **the user as the Player** ("Jugador"). It speaks **to you**, never about itself in first person. Use *tú* in Spanish, *you* in English.
 - **Tone:** direct, observational, solemn-game. The system reports facts; it does not coach or cheerlead.
 - **Casing:** sentence case for body copy. Display labels in **UPPERCASE** sparingly — used only for "SYSTEM" tags, rank letters, and key callouts.
 - **Length:** prefer 1–3 word labels and one-sentence system messages. No paragraphs in the app.
 - **Numbers / units:** always rendered in Orbitron (display). Levels, XP, ranks, streak counts.
 - **No emoji.** Iconography is line-style SVG.
 - **No exclamation marks in the system voice.** Celebrations are quiet ("Rango ascendido a D." / "Rank ascended to D.").
-- **No Solo Leveling IP.** Never use "Sung Jinwoo", "Monarca", "Arise", "Shadow Monarch", or copied marks/visuals. The vocabulary we *do* use: *Cazador / Hunter, Rango / Rank, Sistema / System, Ascensión / Ascension, Misión / Mission*.
+- **No Solo Leveling IP.** Never use "Sung Jinwoo", "Monarca", "Arise", "Shadow Monarch", or copied marks/visuals. The vocabulary we *do* use: *Jugador / Player, Rango / Rank, Sistema / System, Ascensión / Ascension, Misión / Mission*.
 
 **Copy examples — system messages**
 
@@ -191,6 +191,6 @@ Sample icons in use: `swords` (missions), `flame` (streak), `target` (goal), `ar
 
 1. **Cyan now unified** at `#3FCAE6` (logo identity). The original DESIGN.md spec used `#00D9C0` — that legacy color is no longer referenced. If you change your mind and want to go back to the greener variant, swap one line in `colors_and_type.css`.
 2. **No real codebase or Figma.** Everything in this system is synthesized from `uploads/DESIGN.md`. If you have an existing Android Compose codebase or Figma file, **attach it** via the Import menu and I will rebuild the UI kit against your actual components.
-3. **Icon substitution.** Lucide is acting as a stand-in. If you have a preferred icon family (e.g. a custom hunter/RPG set), **point me at it** and I will swap.
+3. **Icon substitution.** Lucide is acting as a stand-in. If you have a preferred icon family (e.g. a custom player/RPG set), **point me at it** and I will swap.
 4. **Fonts self-hosted ✅.** Inter + Orbitron variable fonts are bundled in `fonts/` (Inter-VariableFont.ttf, Orbitron-VariableFont.ttf) with their OFL licenses. The design system, previews, and UI kit all load from disk — no Google Fonts dependency. For the Android build, copy these `.ttf` files into `app/src/main/res/font/` and reference them via `font-family` resource entries.
 5. **No slide template.** No deck templates were provided, so `slides/` is intentionally omitted.

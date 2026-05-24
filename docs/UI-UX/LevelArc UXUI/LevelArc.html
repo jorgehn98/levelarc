@@ -87,16 +87,16 @@
       const lang = tweaks.lang;
       const t = useT(lang);
 
-      // Persisted hunter identity (saved across reloads in this prototype)
-      const [hunter, setHunter] = React.useState(() => {
+      // Persisted player identity (saved across reloads in this prototype)
+      const [player, setPlayer] = React.useState(() => {
         try {
-          const raw = localStorage.getItem('levelarc.hunter');
+          const raw = localStorage.getItem('levelarc.player');
           return raw ? JSON.parse(raw) : null;
         } catch { return null; }
       });
-      const persistHunter = (h) => {
-        setHunter(h);
-        try { localStorage.setItem('levelarc.hunter', JSON.stringify(h)); } catch {}
+      const persistPlayer = (h) => {
+        setPlayer(h);
+        try { localStorage.setItem('levelarc.player', JSON.stringify(h)); } catch {}
       };
 
       const [state, setState] = React.useState(() => makeInitialState());
@@ -113,18 +113,18 @@
         }));
       }, [tweaks.rank]);
 
-      // Apply saved hunter name on state
+      // Apply saved player name on state
       React.useEffect(() => {
-        if (hunter?.name) {
-          setState(s => ({ ...s, player: { ...s.player, name: hunter.name } }));
+        if (player?.name) {
+          setState(s => ({ ...s, player: { ...s.player, name: player.name } }));
         }
-      }, [hunter?.name]);
+      }, [player?.name]);
 
       const player = state.player;
 
       const handleActivate = ({ name }) => {
         if (name) {
-          persistHunter({ name });
+          persistPlayer({ name });
           setState(s => ({ ...s, player: { ...s.player, name } }));
         }
         setView('tabs');
@@ -243,10 +243,10 @@
       // ── render content
       let content;
       if (view === 'onboarding') {
-        const naturalMode = hunter ? 'return' : 'first';
+        const naturalMode = player ? 'return' : 'first';
         const forced = tweaks.onboardingMode;
         const mode = forced === 'auto' ? naturalMode : forced;
-        // When forcing 'return' without a saved hunter, fall back to player name from state
+        // When forcing 'return' without a saved player, fall back to player name from state
         content = (
           <OnboardingScreen
             mode={mode}
@@ -311,7 +311,7 @@
             player={player} lang={lang}
             onChangeLang={(l) => setTweak('lang', l)}
             onCloseDay={closeDay}
-            onResetDemo={() => { resetDemo(); try { localStorage.removeItem('levelarc.hunter'); } catch {} setHunter(null); setView('onboarding'); }}
+            onResetDemo={() => { resetDemo(); try { localStorage.removeItem('levelarc.player'); } catch {} setPlayer(null); setView('onboarding'); }}
             onDemoRankUp={() => {
               const next = nextRank(player.rank);
               setRankUp({ prev: player.rank, next });
@@ -383,7 +383,7 @@
               options={[
                 { value: 'E', label: 'E · Iniciado' },
                 { value: 'D', label: 'D · Caminante' },
-                { value: 'C', label: 'C · Cazador' },
+                { value: 'C', label: 'C · Jugador' },
                 { value: 'B', label: 'B · Élite' },
                 { value: 'A', label: 'A · Marca' },
                 { value: 'S', label: 'S · Soberano' },

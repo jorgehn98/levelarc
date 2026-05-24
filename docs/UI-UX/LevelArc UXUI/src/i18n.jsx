@@ -9,7 +9,7 @@ const I18N = {
     onboardingBody: 'Completa hábitos. Gana XP. Asciende de rango. Sin nubes, sin cuentas. Solo tú y el Sistema.',
     beginAscension: 'Iniciar ascensión',
     privacyLine: '100% sin conexión · 0 datos en servidor',
-    youAreTheHunter: 'Tú eres el Cazador',
+    youAreThePlayer: 'Tú eres el Jugador',
     initialRank: 'Rango inicial · E',
     // hoy
     systemOnline: 'SISTEMA · EN LÍNEA',
@@ -107,7 +107,7 @@ const I18N = {
     onboardingBody: 'Complete habits. Earn XP. Ascend in rank. No cloud, no accounts. Just you and the System.',
     beginAscension: 'Begin ascension',
     privacyLine: '100% offline · 0 server data',
-    youAreTheHunter: 'You are the Hunter',
+    youAreThePlayer: 'You are the Player',
     initialRank: 'Initial rank · E',
     systemOnline: 'SYSTEM · ONLINE',
     dailyMission: 'Daily mission',

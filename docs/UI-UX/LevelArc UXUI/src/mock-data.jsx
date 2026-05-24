@@ -13,7 +13,7 @@ function makeInitialState() {
   ];
 
   const player = {
-    name: 'Cazador 001',
+    name: 'Jugador 001',
     level: 12, rank: 'D',
     xp: 240, xpMax: 600,
     streak: 7,

@@ -77,7 +77,7 @@ export default function SettingsScreen() {
             </View>
           </SettingRow>
 
-          <SettingRow icon={User} title={t(language, 'hunterName')} value={player?.nombre ?? t(language, 'unnamedHunter')}>
+          <SettingRow icon={User} title={t(language, 'playerName')} value={player?.nombre ?? t(language, 'unnamedPlayer')}>
             <View style={styles.actions}>
               <Button
                 label={t(language, 'changeName')}
@@ -173,7 +173,7 @@ export default function SettingsScreen() {
               cursorColor={colors.brand.cyanCore}
               maxLength={24}
               onChangeText={(value) => setPlayerNameInput(value.slice(0, 24))}
-              placeholder={t(language, 'hunterNamePlaceholder')}
+              placeholder={t(language, 'playerNamePlaceholder')}
               placeholderTextColor={colors.state.pending}
               selectionColor={colors.brand.cyanShadow}
               style={styles.nameInput}

@@ -45,7 +45,7 @@
   --color-danger:    #FF6B6B;
   --color-streak:    #FFA94D;
 
-  /* Hunter ranks (E → S) — accents for XP bar / rank badges only */
+  /* Player ranks (E → S) — accents for XP bar / rank badges only */
   --rank-e: #7A7A8C;
   --rank-d: #4DB8C4;
   --rank-c: #4D8BE0;

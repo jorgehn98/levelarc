@@ -68,7 +68,7 @@ export default function OnboardingScreen() {
               accent={accent}
               activeHabits={activeHabits}
               language={language}
-              name={player?.nombre ?? t(language, 'hunterId')}
+              name={player?.nombre ?? t(language, 'playerId')}
               progress={progress}
               streak={player?.rachaMisiones ?? 0}
               totalXp={player?.xpTotal ?? 0}
@@ -265,14 +265,14 @@ function FirstRunPanel({
       <Text style={styles.bodyCopy}>{t(language, 'onboardingBody')}</Text>
 
       <View style={styles.nameBlock}>
-        <Text style={styles.inputLabel}>◇ {t(language, 'hunterName')}</Text>
+        <Text style={styles.inputLabel}>◇ {t(language, 'playerName')}</Text>
         <View style={styles.inputWrap}>
           <TextInput
             autoCapitalize="words"
             cursorColor={colors.brand.cyanCore}
             maxLength={24}
             onChangeText={(value) => onChangeName(value.slice(0, 24))}
-            placeholder={t(language, 'hunterNamePlaceholder')}
+            placeholder={t(language, 'playerNamePlaceholder')}
             placeholderTextColor={colors.state.pending}
             returnKeyType="done"
             selectionColor={colors.brand.cyanShadow}
@@ -308,7 +308,7 @@ function IdentityPreview({ accent, language, name }: { accent: string; language:
       <RankBadge glow rank="E" size={40} />
       <View style={styles.identityCopy}>
         <Text style={styles.miniLabel}>◇ {t(language, 'initialIdentity')}</Text>
-        <Text numberOfLines={1} style={styles.identityName}>{name || t(language, 'unnamedHunter')}</Text>
+        <Text numberOfLines={1} style={styles.identityName}>{name || t(language, 'unnamedPlayer')}</Text>
         <Text style={styles.identityMeta}>{t(language, 'rank', { rank: 'E' })} · {t(language, 'level', { level: 1 })} · 0 XP</Text>
       </View>
       <View style={[styles.identitySpark, { backgroundColor: accent }]} />
@@ -334,7 +334,7 @@ function ReturnPanel({ accent, activeHabits, language, name, progress, streak, t
   return (
     <View style={styles.returnPanel}>
       <View style={styles.welcome}>
-        <Text style={styles.miniLabel}>◇ {t(language, 'welcomeBackHunter')}</Text>
+        <Text style={styles.miniLabel}>◇ {t(language, 'welcomeBackPlayer')}</Text>
         <Text numberOfLines={1} style={[styles.returnName, { textShadowColor: `${accent}88` }]}>{name.toUpperCase()}</Text>
       </View>
 

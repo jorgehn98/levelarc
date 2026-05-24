@@ -18,7 +18,7 @@ export function PlayerHeader({ player, language }: PlayerHeaderProps) {
   const progress = getLevelProgress(player?.xpTotal ?? 0);
   const accent = getRankAccent(progress.rank);
   const streak = player?.rachaMisiones ?? 0;
-  const name = player?.nombre?.trim() || t(language, 'hunterId');
+  const name = player?.nombre?.trim() || t(language, 'playerId');
 
   return (
     <View style={[styles.panel, shadows.primaryGlow]}>

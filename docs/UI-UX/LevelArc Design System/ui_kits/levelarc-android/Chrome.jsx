@@ -1,6 +1,6 @@
 // LevelArc — header with player identity, level, XP bar, rank.
 
-function PlayerHeader({ name = 'Cazador', level = 12, rank = 'D', xp = 240, xpMax = 600, streak = 7 }) {
+function PlayerHeader({ name = 'Jugador', level = 12, rank = 'D', xp = 240, xpMax = 600, streak = 7 }) {
   const c = RANK_COLORS[rank];
   const pct = (xp / xpMax) * 100;
   return (

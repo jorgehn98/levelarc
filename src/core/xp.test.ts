@@ -27,7 +27,7 @@ describe('xp rules', () => {
 });
 
 describe('progression', () => {
-  it('maps levels to hunter ranks', () => {
+  it('maps levels to player ranks', () => {
     expect(getLevelProgress(getXpForLevel(1)).rank).toBe('E');
     expect(getLevelProgress(getXpForLevel(10)).rank).toBe('D');
     expect(getLevelProgress(getXpForLevel(25)).rank).toBe('C');
