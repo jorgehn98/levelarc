@@ -3,6 +3,7 @@ import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core
 export const habits = sqliteTable('habits', {
   id: text('id').primaryKey(),
   nombre: text('nombre').notNull(),
+  icono: text('icono').notNull().default('target'),
   importancia: integer('importancia').notNull(),
   tipo: text('tipo', { enum: ['binario', 'contable'] }).notNull(),
   meta: integer('meta').notNull().default(1),

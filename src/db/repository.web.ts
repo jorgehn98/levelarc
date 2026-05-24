@@ -4,6 +4,7 @@ import { DAILY_MISSION_BONUS_XP, DAILY_MISSION_TARGET } from '@/core/missions';
 import { getLevelProgress } from '@/core/ranks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import { toDateKey, toIsoTimestamp } from '@/lib/date';
+import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
 import type { Rank } from '@/theme/colors';
 
@@ -14,6 +15,7 @@ export type EventType = 'completado' | 'fallado';
 export type HabitRecord = {
   id: string;
   nombre: string;
+  icono: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -26,6 +28,7 @@ export type HabitRecord = {
 
 export type HabitInput = {
   nombre: string;
+  icono: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -120,6 +123,7 @@ export async function createHabit(input: HabitInput) {
   db.habits.push({
     id,
     nombre: input.nombre.trim(),
+    icono: normalizeHabitIcon(input.icono),
     importancia: input.importancia,
     tipo: input.tipo,
     meta: input.tipo === 'binario' ? 1 : Math.max(1, Math.floor(input.meta)),
@@ -140,6 +144,7 @@ export async function updateHabit(id: string, input: HabitInput) {
       ? {
           ...habit,
           nombre: input.nombre.trim(),
+          icono: normalizeHabitIcon(input.icono),
           importancia: input.importancia,
           tipo: input.tipo,
           meta: input.tipo === 'binario' ? 1 : Math.max(1, Math.floor(input.meta)),
@@ -316,7 +321,9 @@ async function loadDb(): Promise<WebDb> {
   if (!raw) return createEmptyDb();
   const empty = createEmptyDb();
   const parsed = JSON.parse(raw) as Partial<WebDb>;
-  return { ...empty, ...parsed, player: { ...empty.player, ...parsed.player } };
+  const db = { ...empty, ...parsed, player: { ...empty.player, ...parsed.player } };
+  db.habits = db.habits.map((habit) => ({ ...habit, icono: normalizeHabitIcon(habit.icono) }));
+  return db;
 }
 
 async function saveDb(db: WebDb) {
@@ -359,6 +366,7 @@ function normalizeHabit(row: unknown): HabitRecord {
   return {
     id: asString(row.id),
     nombre: asString(row.nombre).trim(),
+    icono: normalizeHabitIcon(row.icono ?? row.icon),
     importancia: clampImportance(asNumber(row.importancia)),
     tipo,
     meta: tipo === 'binario' ? 1 : Math.max(1, Math.floor(asNumber(row.meta))),

@@ -7,6 +7,7 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
     CREATE TABLE IF NOT EXISTS habits (
       id text PRIMARY KEY NOT NULL,
       nombre text NOT NULL,
+      icono text DEFAULT 'target' NOT NULL,
       importancia integer NOT NULL,
       tipo text NOT NULL,
       meta integer DEFAULT 1 NOT NULL,
@@ -61,6 +62,12 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
 
   try {
     await sqlite.execAsync('ALTER TABLE habits ADD COLUMN notification_id text;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync("ALTER TABLE habits ADD COLUMN icono text DEFAULT 'target' NOT NULL;");
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }

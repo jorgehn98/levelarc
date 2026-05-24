@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Archive, BookOpen, ChevronRight, Dumbbell, ListChecks, Plus, Target } from 'lucide-react-native';
+import { Archive, ChevronRight, ListChecks, Plus, Target } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { getCompletionXp } from '@/core/xp';
 import type { HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { getHabitIconComponent } from '@/lib/habitIcons';
 import { formatWeekdays } from '@/lib/weekdays';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography } from '@/theme/colors';
@@ -81,7 +82,7 @@ function FilterChip({ active, count, label, onPress }: { active: boolean; count:
 function HabitRow({ habit, language }: { habit: HabitRecord; language: Language }) {
   const isArchived = habit.archivado;
   const xp = getCompletionXp(habit.importancia, 0);
-  const Icon = habit.tipo === 'contable' ? BookOpen : habit.importancia >= 4 ? Dumbbell : Target;
+  const Icon = getHabitIconComponent(habit.icono);
 
   return (
     <View style={[styles.habitCard, isArchived && styles.archivedRow]}>

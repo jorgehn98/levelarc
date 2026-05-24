@@ -69,6 +69,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Editar hábitos.
 - Archivar hábitos.
 - Importancia 1-5.
+- Selector manual de icono para cada hábito.
 - Tipo binario.
 - Tipo contable con meta diaria.
 - Días de la semana.
@@ -110,6 +111,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Drizzle schema en `src/db/schema.ts`.
 - Migraciones generadas en `src/db/migrations/`.
 - `src/db/migrate.ts` crea/actualiza tablas en runtime.
+- `habits.icono` guarda el icono seleccionado y se conserva en backup/importación.
 - Fallback web con AsyncStorage en `src/db/repository.web.ts`.
 
 ### Backup

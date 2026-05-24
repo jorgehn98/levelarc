@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { BarChart3, Check, Target } from 'lucide-react-native';
+import { BarChart3, Check } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import type { HabitInput, HabitRecord, HabitType } from '@/db/repository';
 import { getCompletionXp, type HabitImportance } from '@/core/xp';
 import { t, type Language } from '@/i18n';
+import { defaultHabitIcon, getHabitIconComponent, habitIcons, normalizeHabitIcon, type HabitIconId } from '@/lib/habitIcons';
 import { weekDays } from '@/lib/weekdays';
 import { colors, radii, typography } from '@/theme/colors';
 
@@ -20,6 +21,7 @@ type HabitFormProps = {
 
 export function HabitForm({ habit, language, onSave, onArchive, onCancel }: HabitFormProps) {
   const [name, setName] = useState(habit?.nombre ?? '');
+  const [icon, setIcon] = useState<HabitIconId>(normalizeHabitIcon(habit?.icono ?? defaultHabitIcon));
   const [importance, setImportance] = useState<HabitImportance>(habit?.importancia ?? 3);
   const [type, setType] = useState<HabitType>(habit?.tipo ?? 'binario');
   const [goal, setGoal] = useState(String(habit?.meta ?? 1));
@@ -45,6 +47,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   function handleSave() {
     onSave({
       nombre: name,
+      icono: icon,
       importancia: importance,
       tipo: type,
       meta: type === 'binario' ? 1 : normalizedGoal,
@@ -64,12 +67,13 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       />
     </View>
   );
+  const PreviewIcon = getHabitIconComponent(icon);
 
   return (
     <View style={styles.form}>
       <View style={styles.preview}>
         <View style={styles.previewIcon}>
-          <Target color={colors.brand.cyanCore} size={22} />
+          <PreviewIcon color={colors.brand.cyanCore} size={22} />
         </View>
         <View style={styles.previewCopy}>
           <Text style={styles.previewKicker}>{t(language, 'habitPreview')}</Text>
@@ -81,6 +85,26 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
           </Text>
         </View>
       </View>
+
+      <Field label={t(language, 'pickIcon')}>
+        <View style={styles.iconGrid}>
+          {habitIcons.map((item) => {
+            const Icon = item.icon;
+            const isSelected = icon === item.id;
+
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => setIcon(item.id)}
+                style={[styles.iconOption, isSelected && styles.selectedIconOption]}
+              >
+                <Icon color={isSelected ? colors.background.void : colors.brand.bone} size={20} />
+                <Text numberOfLines={1} style={[styles.iconOptionText, isSelected && styles.selectedIconOptionText]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Field>
 
       <Field label={t(language, 'name')}>
         <TextInput
@@ -288,6 +312,38 @@ const styles = StyleSheet.create({
   typeGrid: {
     flexDirection: 'row',
     gap: 10,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  iconOption: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexBasis: '30%',
+    flexGrow: 1,
+    gap: 5,
+    minHeight: 64,
+    minWidth: 78,
+    justifyContent: 'center',
+    padding: 8,
+  },
+  selectedIconOption: {
+    backgroundColor: colors.brand.cyanCore,
+    borderColor: colors.brand.cyanCore,
+  },
+  iconOptionText: {
+    color: colors.brand.boneMuted,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+    textTransform: 'uppercase',
+  },
+  selectedIconOptionText: {
+    color: colors.background.void,
   },
   typeCard: {
     backgroundColor: colors.background.card,

@@ -69,6 +69,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Añadir nombre de jugador persistente y editable.
 - [x] Crear pantalla rank-up real.
 - [x] Pulir formulario crear/editar hábito.
+- [x] Añadir selector manual de icono al crear/editar hábito.
 - [ ] Mejorar estados vacíos.
 - [x] Corregir layout de Hábitos tras QA Android: eliminar lista con ancho manual y usar tarjetas a ancho completo.
 - [ ] Añadir confirmación al archivar hábito.

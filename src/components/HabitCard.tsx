@@ -1,10 +1,11 @@
-import { Check, Plus, RotateCcw, Skull, Target } from 'lucide-react-native';
+import { Check, Plus, RotateCcw, Skull } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { getHabitIconComponent } from '@/lib/habitIcons';
 import { colors, radii, shadows, typography } from '@/theme/colors';
 
 type HabitCardProps = {
@@ -19,6 +20,7 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
   const isDone = habit.estado === 'completado';
   const isFailed = habit.estado === 'fallado';
   const ratio = habit.meta > 0 ? habit.cantidad / habit.meta : 0;
+  const HabitIcon = getHabitIconComponent(habit.icono);
 
   return (
     <View style={[styles.card, isDone && styles.doneCard, isFailed && styles.failedCard]}>
@@ -28,7 +30,7 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
           {isDone ? (
             <Check color={colors.state.completed} size={20} />
           ) : (
-            <Target color={isFailed ? colors.state.pending : colors.brand.cyanCore} size={20} />
+            <HabitIcon color={isFailed ? colors.state.pending : colors.brand.cyanCore} size={20} />
           )}
         </View>
         <View style={styles.copy}>

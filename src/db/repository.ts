@@ -4,6 +4,7 @@ import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } fro
 import { getLevelProgress } from '@/core/ranks';
 import { DAILY_MISSION_BONUS_XP, DAILY_MISSION_TARGET } from '@/core/missions';
 import { getTodayWeekday, toDateKey, toIsoTimestamp } from '@/lib/date';
+import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
 import { cancelHabitReminder, scheduleHabitReminder } from '@/lib/notifications';
 import type { Rank } from '@/theme/colors';
@@ -15,6 +16,7 @@ export type EventType = 'completado' | 'fallado';
 export type HabitRecord = {
   id: string;
   nombre: string;
+  icono: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -27,6 +29,7 @@ export type HabitRecord = {
 
 export type HabitInput = {
   nombre: string;
+  icono: string;
   importancia: HabitImportance;
   tipo: HabitType;
   meta: number;
@@ -69,6 +72,7 @@ export type EventRecord = {
 type HabitRow = {
   id: string;
   nombre: string;
+  icono: string | null;
   importancia: number;
   tipo: HabitType;
   meta: number;
@@ -155,12 +159,13 @@ export async function createHabit(input: HabitInput): Promise<string> {
   const notificationId = await scheduleHabitReminder(input.nombre.trim(), input.horaRecordatorio, input.diasSemana);
   await sqlite.runAsync(
     `
-      INSERT INTO habits (id, nombre, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      INSERT INTO habits (id, nombre, icono, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
     `,
     [
       id,
       input.nombre.trim(),
+      normalizeHabitIcon(input.icono),
       input.importancia,
       input.tipo,
       normalizeMeta(input),
@@ -182,11 +187,12 @@ export async function updateHabit(id: string, input: HabitInput) {
   await sqlite.runAsync(
     `
       UPDATE habits
-      SET nombre = ?, importancia = ?, tipo = ?, meta = ?, dias_semana = ?, hora_recordatorio = ?, notification_id = ?
+      SET nombre = ?, icono = ?, importancia = ?, tipo = ?, meta = ?, dias_semana = ?, hora_recordatorio = ?, notification_id = ?
       WHERE id = ?
     `,
     [
       input.nombre.trim(),
+      normalizeHabitIcon(input.icono),
       input.importancia,
       input.tipo,
       normalizeMeta(input),
@@ -348,12 +354,13 @@ export async function importAllData(data: unknown) {
       : await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana);
     await sqlite.runAsync(
       `
-        INSERT INTO habits (id, nombre, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO habits (id, nombre, icono, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         habit.id,
         habit.nombre,
+        normalizeHabitIcon(habit.icono),
         habit.importancia,
         habit.tipo,
         habit.meta,
@@ -547,6 +554,7 @@ function mapHabit(row: HabitRow): HabitRecord {
   return {
     id: row.id,
     nombre: row.nombre,
+    icono: normalizeHabitIcon(row.icono),
     importancia: clampImportance(row.importancia),
     tipo: row.tipo,
     meta: row.meta,
@@ -630,6 +638,7 @@ function normalizeHabit(row: unknown): HabitRecord {
   return {
     id: asString(row.id),
     nombre: asString(row.nombre).trim(),
+    icono: normalizeHabitIcon(row.icono ?? row.icon),
     importancia: clampImportance(asNumber(row.importancia)),
     tipo,
     meta: tipo === 'binario' ? 1 : Math.max(1, Math.floor(asNumber(row.meta))),
