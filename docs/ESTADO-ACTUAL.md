@@ -274,6 +274,14 @@ Update `preview` cambiando el rol de usuario a Jugador:
 - Commit: `7b4dab63adb7338eb5c062a0d9306aa7d0837e8b`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/e4b7f8ed-70a2-4333-bcff-fd64f76f4b39>
 
+Update `preview` corrigiendo entrada desde onboarding:
+
+- Update group: `58cdb2ed-16e6-46c0-90d5-4b2bdeca1c69`
+- Runtime: `1.0.2`
+- Mensaje: evita el bucle de redirección al continuar desde onboarding
+- Commit: `ae54d748bbecc084a79d51e4d5748fea2e0f074b`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/58cdb2ed-16e6-46c0-90d5-4b2bdeca1c69>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
