@@ -752,7 +752,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radii.md,
     borderWidth: 1,
-    flexDirection: 'row',
     height: 52,
     justifyContent: 'center',
     shadowOpacity: 0.36,
@@ -767,7 +766,10 @@ const styles = StyleSheet.create({
     color: colors.background.void,
     fontFamily: typography.font.bodyMedium,
     fontSize: 14,
+    left: 0,
     paddingHorizontal: 42,
+    position: 'absolute',
+    right: 0,
     textAlign: 'center',
   },
   disabled: {
