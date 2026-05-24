@@ -4,12 +4,13 @@ import * as Updates from 'expo-updates';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, AppState, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
+import { toDateKey } from '@/lib/date';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -20,6 +21,7 @@ export default function RootLayout() {
     Orbitron_700Bold: require('../assets/fonts/Orbitron-VariableFont.ttf'),
   });
   const boot = useAppStore((state) => state.boot);
+  const refresh = useAppStore((state) => state.refresh);
   const isReady = useAppStore((state) => state.isReady);
   const language = useAppStore((state) => state.language);
   const player = useAppStore((state) => state.player);
@@ -27,6 +29,7 @@ export default function RootLayout() {
   const router = useRouter();
   const [entryShown, setEntryShown] = useState(false);
   const [startupUpdateChecked, setStartupUpdateChecked] = useState(false);
+  const activeDateKeyRef = useRef(toDateKey());
 
   useEffect(() => {
     if (fontsLoaded && !isReady) {
@@ -58,6 +61,31 @@ export default function RootLayout() {
 
     void checkStartupUpdate();
   }, [fontsLoaded, isReady, language, startupUpdateChecked]);
+
+  useEffect(() => {
+    if (!fontsLoaded || !isReady) return;
+
+    function refreshIfLocalDayChanged() {
+      const currentDateKey = toDateKey();
+      if (currentDateKey === activeDateKeyRef.current) return;
+
+      activeDateKeyRef.current = currentDateKey;
+      void refresh();
+    }
+
+    refreshIfLocalDayChanged();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshIfLocalDayChanged();
+      }
+    });
+    const interval = setInterval(refreshIfLocalDayChanged, 60_000);
+
+    return () => {
+      subscription.remove();
+      clearInterval(interval);
+    };
+  }, [fontsLoaded, isReady, refresh]);
 
   useEffect(() => {
     if (!fontsLoaded || !isReady) return;

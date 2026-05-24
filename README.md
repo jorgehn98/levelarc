@@ -71,6 +71,8 @@ pnpm update:production --message "Fix UI copy"
 
 - `events` es la fuente de verdad inmutable del XP.
 - `habit_daily_progress` guarda progreso diario mutable, necesario para hábitos contables.
+- La fecha, hora y zona horaria salen del dispositivo; la app no consulta Internet para calcular el día actual.
+- Si la app cruza medianoche abierta o en segundo plano, refresca Hoy al detectar el nuevo día local.
 - Las rachas por hábito cuentan solo los días en los que ese hábito está programado.
 - Las penalizaciones nunca bajan al usuario de nivel/rango: se clampa al suelo del nivel actual.
 - El cierre del día es manual en el MVP para evitar automatismos frágiles.

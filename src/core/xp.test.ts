@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { applyXpDelta, getCompletionXp, getFailureXp } from './xp';
 import { getLevelFromXp, getLevelProgress, getXpForLevel } from './ranks';
 import { getDailyMissionBonus, getDailyMissionProgress, getPerfectWeekMissionProgress } from './missions';
-import { getTodayWeekday } from '../lib/date';
+import { getTodayWeekday, toDateKey } from '../lib/date';
 
 describe('xp rules', () => {
   it('caps the habit streak multiplier at x1.50', () => {
@@ -63,5 +63,9 @@ describe('weekday rules', () => {
   it('uses LevelArc weekdays from Monday=1 to Sunday=7', () => {
     expect(getTodayWeekday(new Date('2026-05-24T12:00:00'))).toBe(7);
     expect(getTodayWeekday(new Date('2026-05-25T12:00:00'))).toBe(1);
+  });
+
+  it('uses the device local calendar date for date keys', () => {
+    expect(toDateKey(new Date(2026, 4, 25, 0, 11))).toBe('2026-05-25');
   });
 });

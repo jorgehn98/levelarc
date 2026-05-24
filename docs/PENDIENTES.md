@@ -24,6 +24,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Confirmar en Android que Hábitos muestra todos los hábitos activos y que las tarjetas/empty states ocupan ancho completo.
 - [ ] Probar hábito contable hasta completar meta.
 - [ ] Confirmar que un hábito lunes/miércoles/viernes/sábado no aparece en domingo.
+- [ ] Probar cambio de día local en Android: dejar la app abierta hasta medianoche y confirmar que Hoy pasa al día nuevo.
+- [ ] Probar cambio de zona horaria del teléfono sin Internet y confirmar que Hoy usa la fecha local nueva.
 - [ ] Probar fallar hábito y confirmar que no baja de nivel.
 - [ ] Probar deshacer acción del día.
 - [ ] Probar misión diaria y reclamar bonus.

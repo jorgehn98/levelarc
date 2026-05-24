@@ -23,6 +23,8 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Expo SDK 56 con Expo Router.
 - TypeScript estricto.
 - Zustand para estado global.
+- Fecha, hora y zona horaria salen siempre del dispositivo: no se consulta Internet para decidir qué hábitos tocan hoy.
+- La app detecta cambio de día local al volver del background y con app abierta mediante una comprobación periódica.
 - NativeWind/Tailwind configurado.
 - Fuentes Inter y Orbitron autocontenidas en `assets/fonts/` para mantener el enfoque offline-first.
 - EAS configurado con `preview` y `production`.
