@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Habit cards · states</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; }
+  .name { font-family: var(--font-body); font-weight: 500; font-size: 15px; color: var(--color-fg); }
+  .meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-fg-muted); }
+  .actions { display: flex; gap: 8px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 22px; padding: 0 8px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-display); font-weight: 500; font-size: 10px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    border: 1px solid currentColor;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .act {
+    width: 34px; height: 34px; display: grid; place-items: center;
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    background: var(--color-surface); color: var(--color-fg);
+  }
+  .completed { color: #3DD68C; }
+  .completed .name { color: #3DD68C; }
+  .failed { color: #FF6B6B; opacity: 0.85; }
+  .failed .name { text-decoration: line-through; color: var(--color-fg-muted); }
+  .pending { color: var(--color-fg-muted); }
+</style></head>
+<body>
+  <div class="grid">
+    <div class="card pending">
+      <div class="top"><div class="name">Meditar 10 min</div><span class="pill"><span class="dot"></span>Pending</span></div>
+      <div class="meta">Importance · high · daily</div>
+      <div class="actions">
+        <button class="act" title="complete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+        <button class="act" title="fail"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>
+    <div class="card completed">
+      <div class="top"><div class="name">Leer 20 páginas</div><span class="pill"><span class="dot"></span>Complete</span></div>
+      <div class="meta" style="color:#3DD68C">+25 XP · racha 7</div>
+      <div class="actions">
+        <button class="act" style="border-color:#3DD68C;color:#3DD68C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+      </div>
+    </div>
+  </div>
+</body></html>

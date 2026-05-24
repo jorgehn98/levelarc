@@ -7,7 +7,7 @@ import { Screen } from '@/components/Screen';
 import type { HabitInput, HabitRecord } from '@/db/repository';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors } from '@/theme/colors';
+import { colors, typography } from '@/theme/colors';
 
 export default function HabitDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -59,7 +59,7 @@ export default function HabitDetailScreen() {
 const styles = StyleSheet.create({
   title: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 28,
     letterSpacing: 0,
     marginBottom: 18,

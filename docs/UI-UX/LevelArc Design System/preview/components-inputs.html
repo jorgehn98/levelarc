@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Input fields</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .lbl { font-family: var(--font-display); font-weight: 500; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-fg-muted); }
+  .input {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    height: 44px;
+    padding: 0 14px;
+    font-family: var(--font-body); font-size: 15px;
+    color: var(--color-fg);
+    outline: none;
+  }
+  .input.focused { border-color: var(--color-primary); box-shadow: var(--glow-primary); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .check { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+  .box {
+    width: 20px; height: 20px; border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    display: grid; place-items: center; color: var(--color-bg);
+  }
+  .check.on .box { background: var(--color-primary); border-color: var(--color-primary); }
+  .check.on .lbl-row { color: var(--color-fg); }
+  .lbl-row { font-family: var(--font-body); font-size: 14px; color: var(--color-fg-muted); }
+</style></head>
+<body>
+  <div class="stack">
+    <div class="field">
+      <span class="lbl">Nombre del hábito</span>
+      <input class="input focused" value="Meditar 10 min" />
+    </div>
+    <div class="row">
+      <div class="check on"><span class="box"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="lbl-row">Diario</span></div>
+      <div class="check"><span class="box"></span><span class="lbl-row">Semanal</span></div>
+    </div>
+  </div>
+</body></html>

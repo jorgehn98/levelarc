@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Surfaces & text</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .sw {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .chip { height: 56px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); }
+  .name { font-size: 12px; color: var(--color-fg); font-weight: 500; }
+  .hex { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-fg-muted); }
+</style></head>
+<body>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background:#0A0A0F"></div><div class="name">background</div><div class="hex">#0A0A0F</div></div>
+    <div class="sw"><div class="chip" style="background:#13131C"></div><div class="name">surface</div><div class="hex">#13131C</div></div>
+    <div class="sw"><div class="chip" style="background:#1C1C28"></div><div class="name">card</div><div class="hex">#1C1C28</div></div>
+    <div class="sw"><div class="chip" style="background:#2A2A3A"></div><div class="name">border</div><div class="hex">#2A2A3A</div></div>
+    <div class="sw"><div class="chip" style="background:#E8E0C9"></div><div class="name">fg (neutral)</div><div class="hex">#E8E0C9</div></div>
+    <div class="sw"><div class="chip" style="background:#5A5A6E"></div><div class="name">fg-muted</div><div class="hex">#5A5A6E</div></div>
+  </div>
+</body></html>

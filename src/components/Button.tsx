@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import type { LucideProps } from 'lucide-react-native';
 
-import { colors } from '@/theme/colors';
+import { colors, radii, shadows, typography } from '@/theme/colors';
 
 type ButtonVariant = 'primary' | 'secondary' | 'selected' | 'danger' | 'ghost';
 
@@ -18,7 +18,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
   const isPrimary = variant === 'primary';
   const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
-  const textColor = isPrimary ? colors.brand.bone : isSelected ? colors.brand.cyanCore : isDanger ? colors.state.failed : colors.brand.bone;
+  const textColor = isPrimary ? colors.background.void : isSelected ? colors.brand.cyanCore : isDanger ? colors.state.failed : colors.brand.bone;
 
   return (
     <Pressable
@@ -40,16 +40,17 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
     minHeight: 44,
-    paddingHorizontal: 14,
+    paddingHorizontal: 18,
   },
   primary: {
-    backgroundColor: colors.brand.cyanDeep,
+    ...shadows.primaryGlow,
+    backgroundColor: colors.brand.cyanCore,
     borderColor: colors.brand.cyanCore,
   },
   secondary: {
@@ -59,6 +60,7 @@ const styles = StyleSheet.create({
   selected: {
     backgroundColor: colors.background.card,
     borderColor: colors.brand.cyanCore,
+    ...shadows.primaryGlow,
   },
   danger: {
     backgroundColor: colors.background.card,
@@ -72,10 +74,11 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   pressed: {
-    opacity: 0.78,
+    opacity: 0.88,
+    transform: [{ scale: 0.97 }],
   },
   label: {
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.font.bodyMedium,
     fontSize: 14,
   },
 });

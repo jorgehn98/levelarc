@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Brand cyan</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .sw {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--color-card);
+  }
+  .chip { height: 56px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); }
+  .name { font-size: 12px; color: var(--color-fg); font-weight: 500; }
+  .hex { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-fg-muted); }
+  .glow { box-shadow: var(--glow-primary); }
+</style></head>
+<body>
+  <div class="swatches">
+    <div class="sw">
+      <div class="chip glow" style="background:#3FCAE6"></div>
+      <div class="name">primary</div><div class="hex">#3FCAE6</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:#7EE0F2"></div>
+      <div class="name">primary-glow</div><div class="hex">#7EE0F2</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:#27A5C2"></div>
+      <div class="name">primary-pressed</div><div class="hex">#27A5C2</div>
+    </div>
+    <div class="sw">
+      <div class="chip" style="background:#0A4357"></div>
+      <div class="name">primary-shadow</div><div class="hex">#0A4357</div>
+    </div>
+  </div>
+</body></html>

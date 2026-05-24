@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>System message</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-primary);
+    box-shadow: var(--glow-primary);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .bracket { color: var(--color-primary); font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1; margin-top: 2px; }
+  .body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .head { font-family: var(--font-display); font-weight: 500; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-primary); }
+  .msg { font-family: var(--font-body); font-size: 14px; line-height: 20px; color: var(--color-fg); }
+  .meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-fg-muted); margin-top: 4px; }
+  .panel.warn { border-color: #FF6B6B; box-shadow: 0 0 0 1px #FF6B6B, 0 0 20px rgba(255,107,107,0.18); }
+  .panel.warn .head, .panel.warn .bracket { color: #FF6B6B; }
+</style></head>
+<body>
+  <div class="stack">
+    <div class="panel">
+      <div class="bracket">[ ]</div>
+      <div class="body">
+        <div class="head">SYSTEM · NOTIFICACIÓN</div>
+        <div class="msg">Misión diaria registrada. +25 XP otorgados.</div>
+      </div>
+    </div>
+    <div class="panel warn">
+      <div class="bracket">[ ! ]</div>
+      <div class="body">
+        <div class="head">SYSTEM · ALERTA</div>
+        <div class="msg">Racha en riesgo. Quedan 2 hábitos por completar hoy.</div>
+      </div>
+    </div>
+  </div>
+</body></html>

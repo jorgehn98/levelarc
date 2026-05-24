@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Display type — Orbitron</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .stack { display: flex; flex-direction: column; gap: 18px; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 14px; }
+  .row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-fg-muted); white-space: nowrap; }
+  .o { font-family: var(--font-display); font-weight: 700; color: var(--color-fg); letter-spacing: 0; }
+  .l { font-family: var(--font-display); font-weight: 500; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-primary); }
+</style></head>
+<body>
+  <div class="stack">
+    <div class="row"><div class="o" style="font-size:34px;line-height:42px">LEVEL 12 · RANK D</div><div class="meta">display-xl · 34 / 42</div></div>
+    <div class="row"><div class="o" style="font-size:28px;line-height:36px">Rango ascendido</div><div class="meta">display-lg · 28 / 36</div></div>
+    <div class="row"><div class="l">SYSTEM · MISIÓN COMPLETADA</div><div class="meta">system-label · 12 / 16</div></div>
+  </div>
+</body></html>

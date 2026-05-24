@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Logo · sizes & clearspace</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: end; }
+  .cell {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .cell img { display: block; }
+  .name { font-family: var(--font-display); font-weight: 500; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-fg); }
+  .meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--color-fg-muted); }
+</style></head>
+<body>
+  <div class="grid">
+    <div class="cell"><img src="../assets/logo-detailed.svg" width="24" height="24"><div class="name">24 · favicon</div><div class="meta">min size</div></div>
+    <div class="cell"><img src="../assets/logo-detailed.svg" width="48" height="48"><div class="name">48 · app icon</div><div class="meta">launcher</div></div>
+    <div class="cell"><img src="../assets/logo-detailed.svg" width="80" height="80"><div class="name">80 · in-app</div><div class="meta">headers</div></div>
+    <div class="cell"><img src="../assets/logo-detailed.svg" width="120" height="120"><div class="name">120 · onboarding</div><div class="meta">hero</div></div>
+  </div>
+</body></html>

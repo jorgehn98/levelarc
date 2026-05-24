@@ -1,11 +1,11 @@
-import { Check, RotateCcw, Skull, Plus } from 'lucide-react-native';
+import { Check, Plus, RotateCcw, Skull, Target } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
-import { colors } from '@/theme/colors';
+import { colors, radii, shadows, typography } from '@/theme/colors';
 
 type HabitCardProps = {
   habit: TodayHabit;
@@ -22,7 +22,15 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
 
   return (
     <View style={[styles.card, isDone && styles.doneCard, isFailed && styles.failedCard]}>
+      <View style={[styles.statusRail, isDone && styles.doneRail, isFailed && styles.failedRail]} />
       <View style={styles.topRow}>
+        <View style={[styles.iconTile, isDone && styles.doneIconTile, isFailed && styles.failedIconTile]}>
+          {isDone ? (
+            <Check color={colors.state.completed} size={20} />
+          ) : (
+            <Target color={isFailed ? colors.state.pending : colors.brand.cyanCore} size={20} />
+          )}
+        </View>
         <View style={styles.copy}>
           <Text style={styles.title}>{habit.nombre}</Text>
           <Text style={styles.meta}>
@@ -54,18 +62,38 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.card,
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     gap: 14,
+    overflow: 'hidden',
     padding: 16,
+    paddingLeft: 18,
+    position: 'relative',
   },
   doneCard: {
     borderColor: colors.state.completed,
+    ...shadows.rankGlow(colors.state.completed),
   },
   failedCard: {
     borderColor: colors.state.failed,
+    opacity: 0.78,
+  },
+  statusRail: {
+    backgroundColor: colors.brand.cyanCore,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 3,
+  },
+  doneRail: {
+    backgroundColor: colors.state.completed,
+  },
+  failedRail: {
+    backgroundColor: colors.state.failed,
+    opacity: 0.56,
   },
   topRow: {
     alignItems: 'flex-start',
@@ -73,30 +101,53 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
   },
+  iconTile: {
+    alignItems: 'center',
+    backgroundColor: colors.background.surface,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  doneIconTile: {
+    borderColor: colors.state.completed,
+  },
+  failedIconTile: {
+    borderColor: colors.background.border,
+  },
   copy: {
     flex: 1,
   },
   title: {
     color: colors.brand.bone,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.font.bodyMedium,
     fontSize: 17,
   },
   meta: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 13,
     marginTop: 4,
   },
   state: {
     color: colors.state.pending,
-    fontFamily: 'Orbitron_500Medium',
+    borderColor: colors.state.pending,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    fontFamily: typography.font.displayMedium,
     fontSize: 10,
     letterSpacing: 0,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
   doneText: {
+    borderColor: colors.state.completed,
     color: colors.state.completed,
   },
   failedText: {
+    borderColor: colors.state.failed,
     color: colors.state.failed,
   },
   actions: {

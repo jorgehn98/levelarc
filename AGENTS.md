@@ -16,6 +16,7 @@ Read these before making product, design, architecture, or UX changes:
 - `docs/ESTADO-ACTUAL.md` — current built state and known implementation deviations.
 - `docs/ROADMAP.md` — MVP/v1/v2 roadmap and release sequence.
 - `docs/PENDIENTES.md` — prioritized pending work checklist.
+- `docs/UI-UX/` — design system, screenshots, prototypes, and UI kit references for the visual direction.
 - `DESIGN.md` — design tokens and UI rules.
 - `README.md` — current implementation status, commands, architecture, build notes.
 
@@ -101,7 +102,7 @@ EAS Update is configured. Use `preview` for internal APK QA and `production` for
 - `src/stores/appStore.ts` — Zustand state and app actions.
 - `src/components/` — shared UI.
 - `src/i18n/index.ts` — typed ES/EN dictionary.
-- `src/theme/` — color and rank tokens.
+- `src/theme/` — color, type, spacing, radius, shadow, and rank tokens.
 
 Do not create backend code, auth, remote sync, or cloud dependencies unless the user explicitly changes the product direction.
 
@@ -124,7 +125,7 @@ Important invariants:
 
 ## Diseño
 
-Follow `DESIGN.md`.
+Follow `DESIGN.md` and `docs/UI-UX/`.
 
 Key points:
 

@@ -6,7 +6,7 @@ import { Screen } from '@/components/Screen';
 import { getLevelProgress } from '@/core/ranks';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors } from '@/theme/colors';
+import { colors, radii, shadows, typography } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
 
 export default function ProgressScreen() {
@@ -55,7 +55,7 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   kicker: {
     color: colors.brand.cyanCore,
-    fontFamily: 'Orbitron_500Medium',
+    fontFamily: typography.font.displayMedium,
     fontSize: 12,
     letterSpacing: 0,
     marginBottom: 12,
@@ -63,37 +63,38 @@ const styles = StyleSheet.create({
   rankBadge: {
     alignItems: 'center',
     backgroundColor: colors.background.surface,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: 'center',
     overflow: 'hidden',
     paddingVertical: 30,
+    ...shadows.primaryGlow,
   },
   rankWatermark: {
     opacity: 0.16,
     position: 'absolute',
   },
   rank: {
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 76,
     letterSpacing: 0,
   },
   level: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_500Medium',
+    fontFamily: typography.font.displayMedium,
     fontSize: 18,
     letterSpacing: 0,
     marginTop: 4,
   },
   meta: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 14,
     marginTop: 10,
   },
   sectionTitle: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 18,
     letterSpacing: 0,
     marginTop: 28,
@@ -105,13 +106,13 @@ const styles = StyleSheet.create({
   },
   empty: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
   },
   eventRow: {
     alignItems: 'center',
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.card,
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -119,17 +120,17 @@ const styles = StyleSheet.create({
   },
   eventName: {
     color: colors.brand.bone,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.font.bodyMedium,
     fontSize: 15,
   },
   eventMeta: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 12,
     marginTop: 3,
   },
   eventXp: {
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 13,
     letterSpacing: 0,
   },

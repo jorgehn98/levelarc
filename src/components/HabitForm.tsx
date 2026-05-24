@@ -6,7 +6,7 @@ import { Button } from '@/components/Button';
 import type { HabitInput, HabitRecord, HabitType } from '@/db/repository';
 import type { HabitImportance } from '@/core/xp';
 import { t, type Language } from '@/i18n';
-import { colors } from '@/theme/colors';
+import { colors, radii, typography } from '@/theme/colors';
 
 const weekDays = [
   { id: 1, label: 'L' },
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.brand.cyanCore,
-    fontFamily: 'Orbitron_500Medium',
+    fontFamily: typography.font.displayMedium,
     fontSize: 12,
     letterSpacing: 0,
     marginBottom: 8,
@@ -175,10 +175,10 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.background.surface,
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     color: colors.brand.bone,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 16,
     minHeight: 48,
     paddingHorizontal: 14,

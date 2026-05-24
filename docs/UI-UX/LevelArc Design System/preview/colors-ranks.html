@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Rank colors E → S</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .ranks { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .rank {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    background: var(--color-card);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .badge {
+    width: 56px; height: 56px;
+    border-radius: var(--radius-md);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 28px;
+    color: var(--color-bg);
+    border: 1px solid currentColor;
+  }
+  .label { font-family: var(--font-display); font-weight: 500; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-fg-muted); }
+  .hex { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--color-fg-muted); }
+</style></head>
+<body>
+  <div class="ranks">
+    <div class="rank" style="color:#7A7A8C"><div class="badge" style="background:#7A7A8C">E</div><div class="label">Rank E</div><div class="hex">#7A7A8C</div></div>
+    <div class="rank" style="color:#4DB8C4"><div class="badge" style="background:#4DB8C4">D</div><div class="label">Rank D</div><div class="hex">#4DB8C4</div></div>
+    <div class="rank" style="color:#4D8BE0"><div class="badge" style="background:#4D8BE0">C</div><div class="label">Rank C</div><div class="hex">#4D8BE0</div></div>
+    <div class="rank" style="color:#9B6BE0"><div class="badge" style="background:#9B6BE0">B</div><div class="label">Rank B</div><div class="hex">#9B6BE0</div></div>
+    <div class="rank" style="color:#E84855"><div class="badge" style="background:#E84855">A</div><div class="label">Rank A</div><div class="hex">#E84855</div></div>
+    <div class="rank" style="color:#F5C542"><div class="badge" style="background:#F5C542">S</div><div class="label">Rank S</div><div class="hex">#F5C542</div></div>
+  </div>
+</body></html>

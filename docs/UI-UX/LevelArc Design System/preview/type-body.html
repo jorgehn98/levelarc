@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Body type — Inter</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; }
+  .row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-fg-muted); white-space: nowrap; }
+  .body { font-family: var(--font-body); font-size: 16px; line-height: 22px; color: var(--color-fg); }
+  .body-strong { font-family: var(--font-body); font-weight: 500; font-size: 16px; line-height: 22px; color: var(--color-fg); }
+  .caption { font-family: var(--font-body); font-size: 13px; line-height: 18px; color: var(--color-fg-muted); }
+</style></head>
+<body>
+  <div class="stack">
+    <div class="row"><div class="body-strong">Meditar 10 minutos</div><div class="meta">body-strong · 16 / 22 · 500</div></div>
+    <div class="row"><div class="body">Has completado 4 de 6 hábitos hoy.</div><div class="meta">body · 16 / 22 · 400</div></div>
+    <div class="row"><div class="caption">Última actualización · hace 2 min</div><div class="meta">caption · 13 / 18 · 400</div></div>
+  </div>
+</body></html>

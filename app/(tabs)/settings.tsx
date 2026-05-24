@@ -8,7 +8,7 @@ import { t } from '@/i18n';
 import { Screen } from '@/components/Screen';
 import { requestNotificationPermissions } from '@/lib/notifications';
 import { useAppStore } from '@/stores/appStore';
-import { colors } from '@/theme/colors';
+import { colors, radii, typography } from '@/theme/colors';
 
 export default function SettingsScreen() {
   const language = useAppStore((state) => state.language);
@@ -158,7 +158,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   title: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 30,
     letterSpacing: 0,
     marginBottom: 22,
@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'flex-start',
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.card,
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 68,
@@ -183,12 +183,12 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     color: colors.brand.bone,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.font.bodyMedium,
     fontSize: 16,
   },
   rowValue: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 13,
     marginTop: 3,
   },
@@ -208,30 +208,30 @@ const styles = StyleSheet.create({
   modalPanel: {
     backgroundColor: colors.background.surface,
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     padding: 16,
     width: '100%',
   },
   modalTitle: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 20,
     letterSpacing: 0,
   },
   modalCopy: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 13,
     marginTop: 8,
   },
   backupInput: {
     backgroundColor: colors.background.card,
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     color: colors.brand.bone,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 13,
     marginTop: 14,
     minHeight: 180,

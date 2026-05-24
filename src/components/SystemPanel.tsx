@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
+import { colors, radii, typography } from '@/theme/colors';
 
 type SystemPanelProps = PropsWithChildren<{
   title: string;
@@ -21,13 +21,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.background.border,
     backgroundColor: colors.background.surface,
-    borderRadius: 8,
+    borderRadius: radii.md,
     padding: 16,
   },
   title: {
     color: colors.brand.cyanCore,
-    fontFamily: 'Orbitron_700Bold',
-    fontSize: 13,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 12,
     letterSpacing: 0,
     textTransform: 'uppercase',
   },

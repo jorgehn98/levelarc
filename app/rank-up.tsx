@@ -1,7 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 
 import { Screen } from '@/components/Screen';
-import { colors } from '@/theme/colors';
+import { colors, typography } from '@/theme/colors';
 
 export default function RankUpScreen() {
   return (
@@ -15,14 +15,14 @@ export default function RankUpScreen() {
 const styles = StyleSheet.create({
   kicker: {
     color: colors.brand.cyanCore,
-    fontFamily: 'Orbitron_500Medium',
+    fontFamily: typography.font.displayMedium,
     fontSize: 13,
     letterSpacing: 0,
     marginBottom: 10,
   },
   title: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 36,
     letterSpacing: 0,
   },

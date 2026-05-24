@@ -1,0 +1,30 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Logo · hero render</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 0; }
+  .stage {
+    height: 360px;
+    background: #000;
+    background-image: url('../assets/logo-hero-circuit.png');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+  .scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 40%, rgba(10,10,15,0.85) 100%);
+  }
+  .caption {
+    position: absolute; left: 20px; bottom: 16px;
+    font-family: var(--font-display); font-weight: 500; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--color-fg-muted);
+  }
+</style></head>
+<body>
+  <div class="stage">
+    <div class="scrim"></div>
+    <div class="caption">Hero render · for splash &amp; marketing only</div>
+  </div>
+</body></html>

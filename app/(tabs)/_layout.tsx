@@ -3,7 +3,7 @@ import { ChartNoAxesColumnIncreasing, ListChecks, Settings, Target } from 'lucid
 
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors } from '@/theme/colors';
+import { colors, typography } from '@/theme/colors';
 
 const iconSize = 22;
 
@@ -19,9 +19,13 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.background.border,
+          borderTopWidth: 1,
+          minHeight: 62,
+          paddingBottom: 8,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
-          fontFamily: 'Inter_500Medium',
+          fontFamily: typography.font.bodyMedium,
           fontSize: 12,
         },
       }}

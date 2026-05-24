@@ -52,7 +52,11 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 
 ## UX / UI
 
-- [ ] Pulir pantalla Hoy.
+- [x] Portar fundamentos de `docs/UI-UX` al design system runtime.
+- [x] Cargar Inter/Orbitron desde `assets/fonts/`.
+- [x] Unificar cian de marca en `#3FCAE6`.
+- [x] Crear cabecera de jugador con rango, nivel, XP y racha.
+- [ ] Pulir pantalla Hoy completa contra `docs/UI-UX`.
 - [ ] Pulir pantalla Hábitos.
 - [ ] Pulir pantalla Progreso.
 - [ ] Pulir pantalla Ajustes.

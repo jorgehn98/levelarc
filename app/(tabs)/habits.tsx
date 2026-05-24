@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors } from '@/theme/colors';
+import { colors, radii, shadows, typography } from '@/theme/colors';
 
 export default function HabitsScreen() {
   const habits = useAppStore((state) => state.habits);
@@ -59,17 +59,18 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 30,
     letterSpacing: 0,
   },
   iconButton: {
     alignItems: 'center',
     backgroundColor: colors.brand.cyanCore,
-    borderRadius: 8,
+    borderRadius: radii.md,
     height: 44,
     justifyContent: 'center',
     width: 44,
+    ...shadows.primaryGlow,
   },
   list: {
     gap: 12,
@@ -77,9 +78,9 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'center',
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.card,
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -92,19 +93,19 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderStyle: 'dashed',
     borderWidth: 1,
     padding: 24,
   },
   rowTitle: {
     color: colors.brand.bone,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.font.bodyMedium,
     fontSize: 16,
   },
   rowText: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 14,
     marginTop: 6,
   },

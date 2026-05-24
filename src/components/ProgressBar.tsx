@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
+import { colors, radii } from '@/theme/colors';
 
 type ProgressBarProps = {
   ratio: number;
@@ -18,11 +18,14 @@ export function ProgressBar({ ratio, color = colors.brand.cyanCore }: ProgressBa
 const styles = StyleSheet.create({
   track: {
     backgroundColor: colors.background.card,
-    borderRadius: 4,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
     height: 8,
     overflow: 'hidden',
   },
   fill: {
-    height: 8,
+    borderRadius: 3,
+    height: '100%',
   },
 });

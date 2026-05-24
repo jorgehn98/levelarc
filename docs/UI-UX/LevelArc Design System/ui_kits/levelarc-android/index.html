@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>LevelArc · Android UI Kit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../../assets/logo-detailed.svg">
+  <style>
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../fonts/Inter-VariableFont.ttf') format('truetype-variations'),
+           url('../../fonts/Inter-VariableFont.ttf') format('truetype');
+      font-weight: 100 900; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: 'Orbitron';
+      src: url('../../fonts/Orbitron-VariableFont.ttf') format('truetype-variations'),
+           url('../../fonts/Orbitron-VariableFont.ttf') format('truetype');
+      font-weight: 400 900; font-style: normal; font-display: swap;
+    }
+  </style>
+  <link rel="stylesheet" href="../../colors_and_type.css">
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(0,217,192,0.06), transparent 50%),
+        #050509;
+      color: #E8E0C9;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      padding: 28px 16px; box-sizing: border-box;
+    }
+    .stage { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .caption {
+      font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px;
+      letter-spacing: 0.08em; text-transform: uppercase; color: #5A5A6E;
+    }
+    .device-shell {
+      /* host for the AndroidDevice */
+      position: relative;
+    }
+    /* Hide AndroidAppBar's title (we use custom dark header instead) — we just don't pass `title` */
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="android-frame.jsx"></script>
+  <script type="text/babel" src="Primitives.jsx"></script>
+  <script type="text/babel" src="Chrome.jsx"></script>
+  <script type="text/babel" src="HabitCard.jsx"></script>
+  <script type="text/babel" src="Screens.jsx"></script>
+  <script type="text/babel" src="RankUpOverlay.jsx"></script>
+
+  <script type="text/babel">
+    const INITIAL_HABITS = [
+      { id: 1, name: 'Meditar 10 minutos',  importance: 2, type: 'Diario',  state: 'completed', xp: 25, streak: 12, icon: 'moon' },
+      { id: 2, name: 'Leer 20 páginas',     importance: 3, type: 'Diario',  state: 'completed', xp: 45, streak: 7,  icon: 'book' },
+      { id: 3, name: 'Entrenar fuerza',     importance: 3, type: 'Diario',  state: 'pending',   xp: 45, streak: 4,  icon: 'dumbbell' },
+      { id: 4, name: 'Hidratarse · 2 L',    importance: 1, type: 'Diario',  state: 'pending',   xp: 15, streak: 21, icon: 'droplet' },
+      { id: 5, name: 'Caminar 30 min',      importance: 2, type: 'Diario',  state: 'failed',    xp: 30, streak: 0,  icon: 'target' },
+    ];
+
+    function App() {
+      const [tab, setTab] = React.useState('home');
+      const [habits, setHabits] = React.useState(INITIAL_HABITS);
+      const [addOpen, setAddOpen] = React.useState(false);
+      const [rankUp, setRankUp] = React.useState(null);
+      const [player, setPlayer] = React.useState({
+        name: 'Cazador 001', level: 12, rank: 'D', xp: 240, xpMax: 600, streak: 7,
+      });
+
+      const complete = (id) => {
+        setHabits(hs => hs.map(h => h.id === id ? { ...h, state: 'completed', streak: h.streak + 1 } : h));
+        const h = habits.find(x => x.id === id);
+        if (h) {
+          setPlayer(p => {
+            const newXp = p.xp + h.xp;
+            if (newXp >= p.xpMax) {
+              const nextRank = nextRankAfter(p.rank);
+              setTimeout(() => setRankUp(nextRank), 280);
+              return { ...p, xp: newXp - p.xpMax, xpMax: p.xpMax + 200, rank: nextRank, level: p.level + 1 };
+            }
+            return { ...p, xp: newXp };
+          });
+        }
+      };
+
+      const fail = (id) => setHabits(hs => hs.map(h => h.id === id ? { ...h, state: 'failed', streak: 0 } : h));
+
+      const createHabit = ({ name, type, importance, icon }) => {
+        const id = Math.max(0, ...habits.map(h => h.id)) + 1;
+        setHabits(hs => [...hs, { id, name, type, importance, icon, xp: importance * 15, streak: 0, state: 'pending' }]);
+        setAddOpen(false);
+        setTab('home');
+      };
+
+      const triggerRankUpDemo = () => setRankUp(nextRankAfter(player.rank));
+
+      let screen;
+      if (addOpen) {
+        screen = <AddHabitScreen onClose={() => setAddOpen(false)} onCreate={createHabit}/>;
+      } else if (tab === 'home') {
+        screen = <HomeScreen player={player} habits={habits} onComplete={complete} onFail={fail} onOpenAdd={() => setAddOpen(true)}/>;
+      } else if (tab === 'habits') {
+        screen = <HabitsScreen habits={habits} onOpenAdd={() => setAddOpen(true)}/>;
+      } else if (tab === 'stats') {
+        screen = <StatsScreen player={player} habits={habits}/>;
+      } else if (tab === 'system') {
+        screen = <SystemScreen player={player} onRankUpDemo={triggerRankUpDemo}/>;
+      }
+
+      return (
+        <div className="stage">
+          <div className="device-shell">
+            <AndroidDevice dark width={412} height={892}>
+              <div data-screen-label={addOpen ? 'Add habit' : tab} style={{
+                background: LA_COLORS.bg, color: LA_COLORS.fg,
+                fontFamily: "'Inter', sans-serif",
+                position: 'relative', height: '100%', display: 'flex', flexDirection: 'column',
+              }}>
+                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {screen}
+                </div>
+                {!addOpen && <TabBar active={tab} onChange={setTab}/>}
+                {rankUp && <RankUpOverlay newRank={rankUp} onClose={() => setRankUp(null)}/>}
+              </div>
+            </AndroidDevice>
+          </div>
+          <div className="caption">LevelArc · Android · Pixel 7 (412×892)</div>
+        </div>
+      );
+    }
+
+    function nextRankAfter(r) {
+      const seq = ['E', 'D', 'C', 'B', 'A', 'S'];
+      const i = seq.indexOf(r);
+      return seq[Math.min(seq.length - 1, i + 1)];
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>

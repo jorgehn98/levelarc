@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tab bar</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  .bar {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    overflow: hidden;
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 0;
+    color: var(--color-fg-muted);
+    font-family: var(--font-display); font-weight: 500; font-size: 10px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .tab.active { color: var(--color-primary); }
+  .tab .ind { position: absolute; }
+  .wrap { position: relative; }
+  .underline {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--color-primary);
+    box-shadow: 0 0 12px rgba(0,217,192,0.7);
+    pointer-events: none;
+  }
+  .ic { width: 22px; height: 22px; }
+  .cellwrap { position: relative; }
+  .meta { margin-top: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-fg-muted); }
+</style></head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <div class="cellwrap"><div class="tab active">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Hoy
+      </div><div class="underline"></div></div>
+      <div class="cellwrap"><div class="tab">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>
+        Misiones
+      </div></div>
+      <div class="cellwrap"><div class="tab">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+        Stats
+      </div></div>
+      <div class="cellwrap"><div class="tab">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        Sistema
+      </div></div>
+    </div>
+  </div>
+  <div class="meta">tab-active uses cyan + 2px underline glow · tab-inactive uses text-muted</div>
+</body></html>

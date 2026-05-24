@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { BrandMark } from '@/components/BrandMark';
 import { Screen } from '@/components/Screen';
-import { colors } from '@/theme/colors';
+import { colors, typography } from '@/theme/colors';
 
 export default function OnboardingScreen() {
   return (
@@ -26,14 +26,14 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: colors.brand.cyanCore,
-    fontFamily: 'Orbitron_500Medium',
+    fontFamily: typography.font.displayMedium,
     fontSize: 12,
     letterSpacing: 0,
     marginTop: 16,
   },
   title: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 28,
     letterSpacing: 0,
     marginBottom: 10,
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: colors.brand.bone,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 16,
     maxWidth: 280,
     textAlign: 'center',

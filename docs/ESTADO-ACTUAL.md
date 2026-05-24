@@ -6,6 +6,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Ese documento
 
 El MVP funcional está implementado en Expo + React Native + TypeScript. La app ya permite crear hábitos, marcarlos en el día, ganar/perder XP, ver progreso, cambiar idioma, exportar/importar backup y usar la primera identidad visual real de LevelArc.
 
+El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de marca `#3FCAE6`, tipografía local Inter/Orbitron, componentes base con radios/bordes/glow disciplinados y cabecera de jugador en Hoy.
+
 Todavía no está lista para Play Store: faltan QA real en Android, validar assets en tamaños reales, pulido visual y seguir monitorizando el aviso de `expo-doctor`.
 
 ## Implementado
@@ -16,7 +18,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - TypeScript estricto.
 - Zustand para estado global.
 - NativeWind/Tailwind configurado.
-- Fuentes Inter y Orbitron.
+- Fuentes Inter y Orbitron autocontenidas en `assets/fonts/` para mantener el enfoque offline-first.
 - EAS configurado con `preview` y `production`.
 - EAS Update configurado con canales `preview` y `production`.
 - `expo-updates` integrado con runtime policy `appVersion`.
@@ -40,6 +42,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - SVG detallado y SVG simplificado preservados como fuentes editables.
 - `app.json` ya apunta a icono, splash, favicon y adaptive icon derivados del set de marca.
 - Onboarding y Progreso ya usan el emblema dentro de la UI.
+- `docs/UI-UX/` contiene el design system y prototipos de referencia añadidos para la pasada visual.
 
 ### Navegación
 
@@ -67,6 +70,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 ### Hoy
 
+- Cabecera de jugador con rango, nivel, XP y racha.
 - Lista de hábitos que aplican al día actual.
 - Completar hábito binario.
 - Sumar progreso `+1` en hábito contable.

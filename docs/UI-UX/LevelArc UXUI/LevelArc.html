@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>LevelArc · UX/UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="assets/logo-detailed.svg">
+
+  <style>
+    @font-face {
+      font-family: 'Inter';
+      src: url('fonts/Inter-VariableFont.ttf') format('truetype-variations'),
+           url('fonts/Inter-VariableFont.ttf') format('truetype');
+      font-weight: 100 900; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: 'Orbitron';
+      src: url('fonts/Orbitron-VariableFont.ttf') format('truetype-variations'),
+           url('fonts/Orbitron-VariableFont.ttf') format('truetype');
+      font-weight: 400 900; font-style: normal; font-display: swap;
+    }
+  </style>
+  <link rel="stylesheet" href="colors_and_type.css">
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(63,202,230,0.06), transparent 55%),
+        #050509;
+      color: #E8E0C9;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      padding: 28px 16px; box-sizing: border-box;
+    }
+    .stage { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .caption {
+      font-family: 'Orbitron', sans-serif; font-weight: 500; font-size: 11px;
+      letter-spacing: 0.12em; text-transform: uppercase; color: #5A5A6E;
+    }
+    button { font-family: inherit; }
+    input, textarea { font-family: inherit; }
+    /* hide scrollbars but allow scroll */
+    .la-scroll::-webkit-scrollbar { width: 0; height: 0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="src/android-frame.jsx"></script>
+  <script type="text/babel" src="src/tweaks-panel.jsx"></script>
+  <script type="text/babel" src="src/i18n.jsx"></script>
+  <script type="text/babel" src="src/primitives.jsx"></script>
+  <script type="text/babel" src="src/chrome.jsx"></script>
+  <script type="text/babel" src="src/habit-card.jsx"></script>
+  <script type="text/babel" src="src/rank-up.jsx"></script>
+  <script type="text/babel" src="src/mock-data.jsx"></script>
+  <script type="text/babel" src="src/screens/onboarding.jsx"></script>
+  <script type="text/babel" src="src/screens/hoy.jsx"></script>
+  <script type="text/babel" src="src/screens/habits.jsx"></script>
+  <script type="text/babel" src="src/screens/new-habit.jsx"></script>
+  <script type="text/babel" src="src/screens/progress.jsx"></script>
+  <script type="text/babel" src="src/screens/settings.jsx"></script>
+
+  <script type="text/babel">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "lang": "es",
+      "rank": "S",
+      "onboardingMode": "return"
+    }/*EDITMODE-END*/;
+
+    function nextRank(r) {
+      const i = RANK_SEQ.indexOf(r);
+      return RANK_SEQ[Math.min(RANK_SEQ.length - 1, i + 1)];
+    }
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const lang = tweaks.lang;
+      const t = useT(lang);
+
+      // Persisted hunter identity (saved across reloads in this prototype)
+      const [hunter, setHunter] = React.useState(() => {
+        try {
+          const raw = localStorage.getItem('levelarc.hunter');
+          return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+      });
+      const persistHunter = (h) => {
+        setHunter(h);
+        try { localStorage.setItem('levelarc.hunter', JSON.stringify(h)); } catch {}
+      };
+
+      const [state, setState] = React.useState(() => makeInitialState());
+      const [view, setView] = React.useState('onboarding'); // onboarding | tabs
+      const [tab, setTab] = React.useState('home');
+      const [stack, setStack] = React.useState([]); // overlay screens: {kind: 'new'|'edit', id?}
+      const [rankUp, setRankUp] = React.useState(null); // {prev, next}
+
+      // Apply tweak-driven rank
+      React.useEffect(() => {
+        setState(s => ({
+          ...s,
+          player: { ...s.player, rank: tweaks.rank }
+        }));
+      }, [tweaks.rank]);
+
+      // Apply saved hunter name on state
+      React.useEffect(() => {
+        if (hunter?.name) {
+          setState(s => ({ ...s, player: { ...s.player, name: hunter.name } }));
+        }
+      }, [hunter?.name]);
+
+      const player = state.player;
+
+      const handleActivate = ({ name }) => {
+        if (name) {
+          persistHunter({ name });
+          setState(s => ({ ...s, player: { ...s.player, name } }));
+        }
+        setView('tabs');
+        setTab('home');
+      };
+
+      const goToOnboarding = () => { setView('onboarding'); setStack([]); };
+
+      // ── actions
+      const completeHabit = (id) => {
+        setState(s => {
+          const habits = s.habits.map(h => {
+            if (h.id !== id) return h;
+            return { ...h, state: 'completed', streak: h.streak + 1, progress: h.kind === 'goal' ? h.goal : h.progress };
+          });
+          const habit = s.habits.find(x => x.id === id);
+          if (!habit || habit.state === 'completed') return { ...s, habits };
+          // mission counter
+          const dailyMission = { ...s.dailyMission, completed: Math.min(s.dailyMission.target, s.dailyMission.completed + 1) };
+          // XP
+          const xpGained = habit.xp;
+          const newXp = player.xp + xpGained;
+          let newPlayer = { ...s.player, xp: newXp, totalXp: s.player.totalXp + xpGained };
+          if (newXp >= s.player.xpMax) {
+            const nr = nextRank(s.player.rank);
+            newPlayer = { ...newPlayer, xp: newXp - s.player.xpMax, xpMax: s.player.xpMax + 200, rank: nr, level: s.player.level + 1 };
+            setTimeout(() => {
+              setRankUp({ prev: s.player.rank, next: nr });
+              setTweak('rank', nr);
+            }, 400);
+          }
+          // event log
+          const events = [
+            { id: `e${Date.now()}`, habitName: habit.name, date: 'hoy · ahora', type: 'completar', xpDelta: xpGained },
+            ...s.events,
+          ];
+          return { ...s, habits, dailyMission, player: newPlayer, events };
+        });
+      };
+
+      const failHabit = (id) => {
+        setState(s => {
+          const habit = s.habits.find(x => x.id === id);
+          if (!habit || habit.state === 'failed') return s;
+          const habits = s.habits.map(h => h.id === id ? { ...h, state: 'failed', streak: 0 } : h);
+          const events = [{ id: `e${Date.now()}`, habitName: habit.name, date: 'hoy · ahora', type: 'fallar', xpDelta: -10 }, ...s.events];
+          return { ...s, habits, events };
+        });
+      };
+
+      const undoHabit = (id) => {
+        setState(s => {
+          const habit = s.habits.find(x => x.id === id);
+          if (!habit) return s;
+          const wasCompleted = habit.state === 'completed';
+          const habits = s.habits.map(h => h.id === id ? { ...h, state: 'pending', streak: wasCompleted ? Math.max(0, h.streak - 1) : h.streak } : h);
+          let dailyMission = s.dailyMission;
+          let newPlayer = s.player;
+          if (wasCompleted) {
+            dailyMission = { ...s.dailyMission, completed: Math.max(0, s.dailyMission.completed - 1) };
+            newPlayer = { ...newPlayer, xp: Math.max(0, newPlayer.xp - habit.xp), totalXp: Math.max(0, newPlayer.totalXp - habit.xp) };
+          }
+          return { ...s, habits, dailyMission, player: newPlayer };
+        });
+      };
+
+      const claimMission = () => {
+        setState(s => {
+          if (s.dailyMission.claimed) return s;
+          const xp = s.dailyMission.xpBonus;
+          const newXp = s.player.xp + xp;
+          let newPlayer = { ...s.player, xp: newXp, totalXp: s.player.totalXp + xp };
+          if (newXp >= s.player.xpMax) {
+            const nr = nextRank(s.player.rank);
+            newPlayer = { ...newPlayer, xp: newXp - s.player.xpMax, xpMax: s.player.xpMax + 200, rank: nr, level: s.player.level + 1 };
+            setTimeout(() => { setRankUp({ prev: s.player.rank, next: nr }); setTweak('rank', nr); }, 400);
+          }
+          return { ...s, dailyMission: { ...s.dailyMission, claimed: true }, player: newPlayer };
+        });
+      };
+
+      const saveHabit = (input, id) => {
+        setState(s => {
+          if (id) {
+            return { ...s, habits: s.habits.map(h => h.id === id ? { ...h, ...input, xp: input.importance * 15 } : h) };
+          }
+          const newId = `h${Date.now()}`;
+          const newHabit = { id: newId, ...input, xp: input.importance * 15, streak: 0, state: 'pending', progress: 0, archived: false };
+          return {
+            ...s,
+            habits: [...s.habits, newHabit],
+            player: { ...s.player, habitCount: s.player.habitCount + 1 },
+          };
+        });
+        setStack(st => st.slice(0, -1));
+      };
+
+      const archiveHabit = (id) => {
+        setState(s => ({
+          ...s,
+          habits: s.habits.map(h => h.id === id ? { ...h, archived: true } : h),
+          player: { ...s.player, habitCount: s.habits.filter(h => !h.archived && h.id !== id).length },
+        }));
+        setStack(st => st.slice(0, -1));
+      };
+
+      const closeDay = () => {
+        setState(s => ({
+          ...s,
+          habits: s.habits.map(h => h.state === 'pending' && !h.archived ? { ...h, state: 'failed', streak: 0 } : h),
+        }));
+      };
+
+      const resetDemo = () => { setState(makeInitialState()); setTweak('rank', 'D'); };
+
+      // ── render content
+      let content;
+      if (view === 'onboarding') {
+        const naturalMode = hunter ? 'return' : 'first';
+        const forced = tweaks.onboardingMode;
+        const mode = forced === 'auto' ? naturalMode : forced;
+        // When forcing 'return' without a saved hunter, fall back to player name from state
+        content = (
+          <OnboardingScreen
+            mode={mode}
+            player={player}
+            onActivate={handleActivate}
+            t={t}
+          />
+        );
+      } else if (stack.length > 0) {
+        const top = stack[stack.length - 1];
+        if (top.kind === 'new') {
+          content = (
+            <NewHabitScreen
+              onClose={() => setStack(st => st.slice(0, -1))}
+              onSave={(input) => saveHabit(input)}
+              t={t}
+            />
+          );
+        } else if (top.kind === 'edit') {
+          const h = state.habits.find(x => x.id === top.id);
+          content = (
+            <NewHabitScreen
+              habit={h}
+              onClose={() => setStack(st => st.slice(0, -1))}
+              onSave={(input) => saveHabit(input, top.id)}
+              onArchive={() => archiveHabit(top.id)}
+              t={t}
+            />
+          );
+        }
+      } else if (tab === 'home') {
+        content = (
+          <HoyScreen
+            player={player} habits={state.habits.filter(h => !h.archived)}
+            dailyMission={state.dailyMission}
+            onComplete={completeHabit} onFail={failHabit} onUndo={undoHabit}
+            onClaim={claimMission}
+            onTap={(id) => setStack([{ kind: 'edit', id }])}
+            t={t}
+          />
+        );
+      } else if (tab === 'habits') {
+        content = (
+          <HabitsScreen
+            habits={state.habits}
+            onTap={(id) => setStack([{ kind: 'edit', id }])}
+            onAdd={() => setStack([{ kind: 'new' }])}
+            t={t}
+          />
+        );
+      } else if (tab === 'progress') {
+        content = (
+          <ProgressScreen
+            player={player} events={state.events}
+            weekData={state.weekData} heatmapData={state.heatmapData}
+            t={t}
+          />
+        );
+      } else if (tab === 'settings') {
+        content = (
+          <SettingsScreen
+            player={player} lang={lang}
+            onChangeLang={(l) => setTweak('lang', l)}
+            onCloseDay={closeDay}
+            onResetDemo={() => { resetDemo(); try { localStorage.removeItem('levelarc.hunter'); } catch {} setHunter(null); setView('onboarding'); }}
+            onDemoRankUp={() => {
+              const next = nextRank(player.rank);
+              setRankUp({ prev: player.rank, next });
+              setTweak('rank', next);
+            }}
+            onGoOnboarding={goToOnboarding}
+            t={t}
+          />
+        );
+      }
+
+      const showTabs = view === 'tabs' && stack.length === 0;
+
+      return (
+        <div className="stage">
+          <AndroidDevice dark width={412} height={892}>
+            <div
+              data-screen-label={view === 'onboarding' ? '01 Onboarding' : stack.length > 0 ? (stack[stack.length-1].kind === 'edit' ? '04 Editar hábito' : '03 Nuevo hábito') : ({ home: '02 Hoy', habits: '02 Hábitos', progress: '05 Progreso', settings: '06 Ajustes' })[tab]}
+              style={{
+                background: LA.bg, color: LA.fg,
+                fontFamily: "'Inter', sans-serif",
+                position: 'relative', height: '100%',
+                display: 'flex', flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
+              <div className="la-scroll" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {content}
+              </div>
+              {showTabs && (
+                <TabBar
+                  active={tab} onChange={setTab}
+                  t={t}
+                />
+              )}
+              {rankUp && (
+                <RankUpOverlay
+                  newRank={rankUp.next} prevRank={rankUp.prev}
+                  onClose={() => setRankUp(null)} t={t}
+                />
+              )}
+            </div>
+          </AndroidDevice>
+
+          <div className="caption">LevelArc · Android · Pixel 7 (412×892)</div>
+        </div>
+      );
+    }
+
+    // ── Tweaks panel
+    function TweaksUI() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      return (
+        <TweaksPanel title="LevelArc">
+          <TweakSection label="Personalización">
+            <TweakRadio
+              label="Idioma"
+              value={tweaks.lang}
+              onChange={v => setTweak('lang', v)}
+              options={[
+                { value: 'es', label: 'ES' },
+                { value: 'en', label: 'EN' },
+              ]}
+            />
+            <TweakSelect
+              label="Rango del jugador"
+              value={tweaks.rank}
+              onChange={v => setTweak('rank', v)}
+              options={[
+                { value: 'E', label: 'E · Iniciado' },
+                { value: 'D', label: 'D · Caminante' },
+                { value: 'C', label: 'C · Cazador' },
+                { value: 'B', label: 'B · Élite' },
+                { value: 'A', label: 'A · Marca' },
+                { value: 'S', label: 'S · Soberano' },
+              ]}
+            />
+          </TweakSection>
+          <TweakSection label="Pantalla de inicio">
+            <TweakSelect
+              label="Modo"
+              value={tweaks.onboardingMode}
+              onChange={v => setTweak('onboardingMode', v)}
+              options={[
+                { value: 'auto', label: 'Auto (según el estado)' },
+                { value: 'first', label: 'Primera vez (input de nombre)' },
+                { value: 'return', label: 'Regreso (identidad + rango)' },
+              ]}
+            />
+          </TweakSection>
+        </TweaksPanel>
+      );
+    }
+
+    function Root() {
+      return (
+        <>
+          <App/>
+          <TweaksUI/>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
+  </script>
+</body>
+</html>

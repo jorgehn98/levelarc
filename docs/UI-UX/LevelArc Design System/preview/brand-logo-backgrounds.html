@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Logo · backgrounds</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); height: 280px; }
+  .cell { display: grid; place-items: center; position: relative; }
+  .dark { background: var(--color-bg); }
+  .surface { background: var(--color-surface); }
+  .hero {
+    background:
+      radial-gradient(circle at 50% 50%, rgba(63,202,230,0.18), transparent 60%),
+      var(--color-bg);
+  }
+  .cell img { width: 100px; height: 100px; }
+  .tag {
+    position: absolute; bottom: 10px; left: 10px;
+    font-family: var(--font-display); font-weight: 500; font-size: 9px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--color-fg-muted);
+  }
+</style></head>
+<body>
+  <div class="grid">
+    <div class="cell dark"><img src="../assets/logo-detailed.svg"><div class="tag">on background</div></div>
+    <div class="cell surface"><img src="../assets/logo-detailed.svg"><div class="tag">on surface</div></div>
+    <div class="cell hero"><img src="../assets/logo-detailed.svg"><div class="tag">hero · with glow</div></div>
+  </div>
+</body></html>

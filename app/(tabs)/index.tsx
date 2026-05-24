@@ -4,17 +4,19 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { HabitCard } from '@/components/HabitCard';
+import { PlayerHeader } from '@/components/PlayerHeader';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { SystemPanel } from '@/components/SystemPanel';
 import { getDailyMissionProgress } from '@/core/missions';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors } from '@/theme/colors';
+import { colors, radii, shadows, typography } from '@/theme/colors';
 
 export default function TodayScreen() {
   const todayHabits = useAppStore((state) => state.todayHabits);
   const dailyMission = useAppStore((state) => state.dailyMission);
+  const player = useAppStore((state) => state.player);
   const incrementHabit = useAppStore((state) => state.incrementHabit);
   const failHabit = useAppStore((state) => state.failHabit);
   const undoHabit = useAppStore((state) => state.undoHabit);
@@ -35,6 +37,10 @@ export default function TodayScreen() {
             <Plus color={colors.background.void} size={22} />
           </Pressable>
         </Link>
+      </View>
+
+      <View style={styles.playerHeader}>
+        <PlayerHeader language={language} player={player} />
       </View>
 
       <SystemPanel title={t(language, 'dailyMission')}>
@@ -83,13 +89,13 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: colors.brand.cyanCore,
-    fontFamily: 'Orbitron_500Medium',
+    fontFamily: typography.font.displayMedium,
     fontSize: 12,
     letterSpacing: 0,
   },
   title: {
     color: colors.brand.bone,
-    fontFamily: 'Orbitron_700Bold',
+    fontFamily: typography.font.displayBold,
     fontSize: 34,
     letterSpacing: 0,
     marginTop: 4,
@@ -97,19 +103,23 @@ const styles = StyleSheet.create({
   iconButton: {
     alignItems: 'center',
     backgroundColor: colors.brand.cyanCore,
-    borderRadius: 8,
+    borderRadius: radii.md,
     height: 44,
     justifyContent: 'center',
     width: 44,
+    ...shadows.primaryGlow,
+  },
+  playerHeader: {
+    marginBottom: 16,
   },
   systemText: {
     color: colors.brand.bone,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.font.bodyMedium,
     fontSize: 16,
   },
   metaText: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 13,
     marginTop: 8,
   },
@@ -124,7 +134,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     borderColor: colors.background.border,
-    borderRadius: 8,
+    borderRadius: radii.md,
     borderStyle: 'dashed',
     borderWidth: 1,
     marginTop: 18,
@@ -132,12 +142,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: colors.brand.bone,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.font.bodyMedium,
     fontSize: 17,
   },
   emptyText: {
     color: colors.state.pending,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.font.bodyRegular,
     fontSize: 14,
     marginTop: 6,
     textAlign: 'center',
