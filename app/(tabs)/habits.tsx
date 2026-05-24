@@ -58,8 +58,8 @@ export default function HabitsScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {filtered.map((habit, index) => (
-              <HabitRow key={`${habit.id}-${index}`} habit={habit} language={language} />
+            {filtered.map((habit) => (
+              <HabitRow key={habit.id} habit={habit} language={language} />
             ))}
           </View>
         )}
@@ -87,7 +87,7 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
       <View style={styles.statusRail} />
       <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.pressTarget, pressed && styles.pressedRow]}>
         <View style={styles.rowLayout}>
-          <View style={[styles.rowIcon, isArchived && styles.archivedIcon]}>
+          <View style={styles.rowIcon}>
             {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
           </View>
           <View style={styles.copy}>
@@ -239,9 +239,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
     width: 40,
-  },
-  archivedIcon: {
-    borderColor: colors.background.border,
   },
   copy: {
     flex: 1,

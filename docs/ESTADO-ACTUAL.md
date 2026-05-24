@@ -10,7 +10,7 @@ El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de 
 
 La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
 
-La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo.
+La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo. Las filas de hábito usan `View` como tarjeta real y dejan `Pressable` solo como objetivo táctil interno para evitar problemas de layout en Android.
 
 Todavía no está lista para Play Store: faltan QA real en Android, validar assets en tamaños reales, pulido visual y seguir monitorizando el aviso de `expo-doctor`.
 
@@ -161,7 +161,7 @@ pnpm db:generate
 pnpm exec expo export --platform web --output-dir .expo-export-check --clear
 ```
 
-`react-doctor` quedó en 96/100 cuando se ejecutó. Los avisos restantes eran menores o falsos positivos por Expo Router/aliases.
+`react-doctor` quedó en 96/100 en una pasada anterior, pero actualmente falla con un error interno (`Cannot read properties of undefined (reading 'length')`). No usarlo como bloqueo hasta que la herramienta vuelva a ejecutar correctamente.
 
 `expo-doctor` queda 20/21 por duplicado `expo-constants` bajo pnpm. El build preview nativo ya se ha validado correctamente, así que no bloquea el APK interno actual.
 
@@ -230,6 +230,14 @@ Update `preview` con corrección de renderizado de Hábitos:
 - Mensaje: `Fix habits screen rendering`
 - Commit: `5fbe2af397f337e995ab9457dac41a7b928c8ff9`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/709aa195-5cd6-4c98-b05b-b97c1ea5c44f>
+
+Update `preview` final con filas de Hábitos ordenadas:
+
+- Update group: `6f9318d9-082b-4cd3-a4a6-c75b5b6e6d5d`
+- Runtime: `1.0.2`
+- Mensaje: `Stabilize habit row layout`
+- Commit: `aef11e7f93a50a32e629afcd00594e3f1095419c`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6f9318d9-082b-4cd3-a4a6-c75b5b6e6d5d>
 
 Build preview fallido durante la configuración de EAS Update:
 

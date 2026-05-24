@@ -18,7 +18,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [ ] Probar crear hábito en Android.
 - [ ] Probar editar hábito en Android.
 - [ ] Probar archivar hábito en Android.
-- [ ] Confirmar en Android que Hábitos muestra todos los hábitos activos y que las tarjetas/empty states ocupan ancho completo.
+- [x] Confirmar en Android que Hábitos muestra todos los hábitos activos y que las tarjetas/empty states ocupan ancho completo.
 - [ ] Probar hábito contable hasta completar meta.
 - [ ] Confirmar que un hábito lunes/miércoles/viernes/sábado no aparece en domingo.
 - [ ] Probar fallar hábito y confirmar que no baja de nivel.
