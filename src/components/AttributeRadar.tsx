@@ -13,6 +13,7 @@ const size = 230;
 const center = size / 2;
 const radius = 72;
 const rings = [0.33, 0.66, 1];
+const radarLevelScale = 20;
 
 export function AttributeRadar({ attributeXp }: AttributeRadarProps) {
   const xp = normalizeAttributeXp(attributeXp);
@@ -20,7 +21,7 @@ export function AttributeRadar({ attributeXp }: AttributeRadarProps) {
     const attribute = getHabitAttribute(id);
     const progress = getAttributeLevelProgress(xp[id]);
     const angle = getAngle(index);
-    const ratio = Math.min(1, (progress.level - 1 + progress.ratio) / 10);
+    const ratio = Math.min(1, (progress.level - 1 + progress.ratio) / radarLevelScale);
     return {
       ...attribute,
       progress,

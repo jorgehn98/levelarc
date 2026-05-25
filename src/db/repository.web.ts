@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { DAILY_MISSION_BONUS_XP, PERFECT_WEEK_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
+import {
+  DAILY_MISSION_BONUS_XP,
+  PERFECT_WEEK_BONUS_XP,
+  getClaimedDailyMissionStreak,
+  getDailyMissionBonus,
+} from '@/core/missions';
 import { getLevelProgress } from '@/core/ranks';
 import { getScheduledCompletionStreak } from '@/core/streaks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
@@ -269,6 +274,7 @@ function recalculatePlayerFromLedger(db: WebDb) {
     db.player.xpTotal = applyXpDelta(db.player.xpTotal, entry.xpDelta);
     db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, entry.attributeDelta);
   }
+  db.player.rachaMisiones = getLatestClaimedMissionStreak(db);
   syncPlayer(db);
 }
 
@@ -287,7 +293,9 @@ export async function updatePlayerName(name: string) {
 export async function getDailyMission(dateKey = toDateKey()) {
   const db = await loadDb();
   const mission = ensureMission(db, dateKey);
-  syncMission(db, dateKey);
+  if (syncMission(db, dateKey)) {
+    recalculatePlayerFromLedger(db);
+  }
   await saveDb(db);
   return mission;
 }
@@ -295,11 +303,13 @@ export async function getDailyMission(dateKey = toDateKey()) {
 export async function claimDailyMission(dateKey = toDateKey()) {
   const db = await loadDb();
   const mission = ensureMission(db, dateKey);
-  syncMission(db, dateKey);
+  if (syncMission(db, dateKey)) {
+    recalculatePlayerFromLedger(db);
+  }
   if (mission.reclamada || mission.completados < mission.objetivo) return;
   mission.reclamada = true;
   db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.xpBonus);
-  db.player.rachaMisiones += 1;
+  db.player.rachaMisiones = getPreviousClaimedMissionStreak(db, dateKey) + 1;
   syncPlayer(db);
   await saveDb(db);
 }
@@ -307,7 +317,9 @@ export async function claimDailyMission(dateKey = toDateKey()) {
 export async function claimPerfectWeekMission(dateKey = toDateKey()) {
   const db = await loadDb();
   const mission = ensureMission(db, dateKey);
-  syncMission(db, dateKey);
+  if (syncMission(db, dateKey)) {
+    recalculatePlayerFromLedger(db);
+  }
   if (mission.streakBonusClaimed || mission.perfectStreakDays < 7 || mission.completados < mission.objetivo) return;
   mission.streakBonusClaimed = true;
   db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.streakBonusXp);
@@ -365,6 +377,8 @@ function ensureMission(db: WebDb, dateKey: string) {
 
 function syncMission(db: WebDb, dateKey: string) {
   const mission = ensureMission(db, dateKey);
+  const wasClaimed = mission.reclamada;
+  const wasStreakBonusClaimed = mission.streakBonusClaimed;
   const weekday = new Date(`${dateKey}T12:00:00`).getDay();
   const levelArcWeekday = weekday === 0 ? 7 : weekday;
   const scheduledHabitIds = new Set(
@@ -383,11 +397,14 @@ function syncMission(db: WebDb, dateKey: string) {
   mission.perfectStreakDays = isPerfectToday ? previousPerfectStreak + 1 : previousPerfectStreak;
   mission.streakBonusXp = PERFECT_WEEK_BONUS_XP;
   if (!isPerfectToday) {
+    mission.reclamada = false;
     mission.streakBonusClaimed = false;
   }
   if (mission.objetivo === 0) {
     mission.reclamada = false;
   }
+
+  return (wasClaimed && !mission.reclamada) || (wasStreakBonusClaimed && !mission.streakBonusClaimed);
 }
 
 function getPreviousPerfectDayStreak(db: WebDb, dateKey: string) {
@@ -403,6 +420,19 @@ function getPreviousPerfectDayStreak(db: WebDb, dateKey: string) {
   }
 
   return streak;
+}
+
+function getPreviousClaimedMissionStreak(db: WebDb, dateKey: string) {
+  const previousDate = new Date(`${dateKey}T12:00:00`);
+  previousDate.setDate(previousDate.getDate() - 1);
+  return getClaimedDailyMissionStreak(db.missions, toDateKey(previousDate));
+}
+
+function getLatestClaimedMissionStreak(db: WebDb) {
+  const latest = db.missions
+    .filter((mission) => mission.objetivo > 0 && mission.reclamada)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+  return latest ? getClaimedDailyMissionStreak(db.missions, latest.fecha) : 0;
 }
 
 function syncPlayer(db: WebDb) {

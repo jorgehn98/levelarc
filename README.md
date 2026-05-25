@@ -15,10 +15,12 @@ MVP funcional:
 - Frecuencia por días de la semana.
 - Pantalla Hoy con completar, sumar progreso, fallar y deshacer.
 - Recordatorios de hábito opcionales con selector de hora y acción para limpiar.
-- XP, niveles, rangos E-S y eventos de historial.
+- XP escalado por importancia, niveles con curva `30 * (nivel - 1)^1.6`, rangos E-S y eventos de historial.
+- Atributos RPG con la misma curva de niveles que el jugador y potenciador x1.5 sobre el XP repartido entre 1-3 atributos por hábito.
 - Rachas por hábito según ocurrencias programadas, con multiplicador máximo `x1.50`.
 - Misión diaria dinámica: completar todos los hábitos de hoy y reclamar bonus.
 - Misión extra por racha perfecta de 7 días.
+- Racha de misión basada en reclamaciones consecutivas, no en total acumulado de reclamaciones.
 - Recordatorios locales en native.
 - Recordatorio diario configurable de cierre del día.
 - Backup/exportación JSON e importación/restauración pegando JSON.

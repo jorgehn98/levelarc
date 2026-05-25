@@ -102,15 +102,19 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - `events` como fuente de verdad inmutable.
 - `player` cacheado.
 - El recalculo de `player` conserva los bonus de misiones ya reclamadas al combinar eventos de hábitos con `daily_missions`.
+- Si una misión diaria reclamada deja de estar completa al deshacer o cambiar el estado del día, se revoca la reclamación y el recálculo elimina ese bonus del `player`.
 - Nombre del jugador guardado en `player.nombre`.
 - XP de atributos guardado en `player.atributos_xp`.
-- Al completar un hábito, el XP de atributo se reparte entre los atributos seleccionados: 1 atributo 100%, 2 atributos 50% cada uno, 3 atributos 33.33% cada uno.
+- Al completar un hábito, el XP base es importancia x5 antes del multiplicador de racha: importancia 1 = 5 XP, 2 = 10 XP, 3 = 15 XP, 4 = 20 XP, 5 = 25 XP.
+- Al fallar un hábito, la penalización base es la misma escala sin multiplicador: importancia 1 = -5 XP, 2 = -10 XP, 3 = -15 XP, 4 = -20 XP, 5 = -25 XP, siempre con suelo de nivel.
+- Al completar un hábito, el XP de atributo aplica un potenciador fijo x1.5 sobre el XP positivo del hábito y luego se reparte entre los atributos seleccionados: 1 atributo 100%, 2 atributos 50% cada uno, 3 atributos 33.33% cada uno.
+- Los niveles de atributo usan la misma curva que el nivel de jugador: `30 * (nivel - 1)^1.6`.
 - Los eventos guardan `attribute_delta` para que deshacer/recalcular no dependa de cambios futuros en el hábito.
-- Pantalla Progreso muestra radar chart y barras por atributo.
+- Pantalla Progreso muestra radar chart y barras por atributo; el radar visual escala hasta nivel 20 para no saturarse demasiado pronto.
 - Pantalla Progreso incluye actividad de los últimos 7 días y mapa de calor de 12 semanas basado en eventos completados.
 - Multiplicador de racha por hábito capado a `x1.50`: 4+ días `x1.10`, 8+ `x1.20`, 15+ `x1.35`, 31+ `x1.50`.
 - La racha por hábito cuenta ocurrencias programadas consecutivas, no días naturales: un hábito lunes/miércoles no se rompe por el martes, y uno solo de domingo avanza una vez por semana.
-- Niveles según curva `50 * nivel^1.8`.
+- Niveles según curva `30 * (nivel - 1)^1.6`, con nivel 1 en 0 XP.
 - Rangos E/D/C/B/A/S.
 - Penalización con suelo de nivel: nunca baja de nivel/rango.
 - Pantalla Progreso con rank hero, actividad semanal, mapa de calor, ruta E/D/C/B/A/S, estadísticas y eventos de historial.
@@ -122,7 +126,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Progreso diario basado en `completados / hábitos de hoy`.
 - Reclamar bonus de XP escalado por carga diaria: 1 hábito +5 XP, 2-3 +10 XP, 4-5 +15 XP, 6+ +20 XP.
 - Misión extra de racha perfecta: si los 6 días anteriores fueron perfectos, en el día 7 aparece una misión de racha. Al completar todos los hábitos del día 7 se puede reclamar un bonus extra de +30 XP.
-- La racha de misión (`player.racha_misiones`) sube al reclamar la misión diaria normal; la racha perfecta se calcula desde `daily_missions`.
+- La racha de misión (`player.racha_misiones`) cuenta misiones diarias reclamadas en días consecutivos; si hay un día con misión no reclamada, la siguiente reclamación reinicia la racha. La racha perfecta se calcula desde `daily_missions`.
 - Al arrancar la app o cambiar de día, se ejecuta cierre automático hasta ayer usando `levelarc.lastActiveDate` en almacenamiento local. La primera ejecución inicializa el marcador sin penalizar historial antiguo.
 
 ### Persistencia

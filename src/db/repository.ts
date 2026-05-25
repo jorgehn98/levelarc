@@ -2,7 +2,12 @@ import { sqlite } from './client';
 import { migrateDb } from './migrate';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import { getLevelProgress } from '@/core/ranks';
-import { DAILY_MISSION_BONUS_XP, PERFECT_WEEK_BONUS_XP, getDailyMissionBonus } from '@/core/missions';
+import {
+  DAILY_MISSION_BONUS_XP,
+  PERFECT_WEEK_BONUS_XP,
+  getClaimedDailyMissionStreak,
+  getDailyMissionBonus,
+} from '@/core/missions';
 import { getScheduledCompletionStreak } from '@/core/streaks';
 import {
   applyAttributeDeltas,
@@ -334,8 +339,9 @@ export async function claimDailyMission(dateKey = toDateKey()) {
   if (mission.reclamada || mission.completados < mission.objetivo) return;
   const player = await ensurePlayer();
   const nextXp = applyXpDelta(player.xpTotal, mission.xpBonus);
+  const nextMissionStreak = await getPreviousClaimedMissionStreak(dateKey) + 1;
   await sqlite.runAsync('UPDATE daily_missions SET reclamada = 1 WHERE fecha = ?', [dateKey]);
-  await setPlayerProgress(nextXp, player.rachaMisiones + 1);
+  await setPlayerProgress(nextXp, nextMissionStreak);
 }
 
 export async function claimPerfectWeekMission(dateKey = toDateKey()) {
@@ -596,7 +602,9 @@ async function syncDailyMission(dateKey: string) {
   const previousPerfectStreak = await getPreviousPerfectDayStreak(dateKey);
   const isPerfectToday = objective > 0 && done >= objective;
   const perfectStreakDays = isPerfectToday ? previousPerfectStreak + 1 : previousPerfectStreak;
+  const missionClaimed = isPerfectToday ? claimed : 0;
   const streakBonusClaimed = isPerfectToday ? current?.streak_bonus_claimed ?? 0 : 0;
+  const shouldRecalculate = Boolean((claimed && !missionClaimed) || (current?.streak_bonus_claimed && !streakBonusClaimed));
 
   await sqlite.runAsync(
     `
@@ -604,8 +612,12 @@ async function syncDailyMission(dateKey: string) {
       SET objetivo = ?, completados = ?, xp_bonus = ?, reclamada = ?, perfect_streak_days = ?, streak_bonus_claimed = ?, streak_bonus_xp = ?
       WHERE fecha = ?
     `,
-    [objective, done, bonus, claimed, perfectStreakDays, streakBonusClaimed, PERFECT_WEEK_BONUS_XP, dateKey],
+    [objective, done, bonus, missionClaimed, perfectStreakDays, streakBonusClaimed, PERFECT_WEEK_BONUS_XP, dateKey],
   );
+
+  if (shouldRecalculate) {
+    await recalculatePlayerFromEvents();
+  }
 }
 
 async function getPreviousPerfectDayStreak(dateKey: string) {
@@ -632,6 +644,25 @@ async function getPreviousPerfectDayStreak(dateKey: string) {
   }
 
   return streak;
+}
+
+async function getPreviousClaimedMissionStreak(dateKey: string) {
+  const rows = await sqlite.getAllAsync<DailyMissionRow>(
+    `
+      SELECT *
+      FROM daily_missions
+      WHERE fecha < ?
+      ORDER BY fecha DESC
+      LIMIT 30
+    `,
+    [dateKey],
+  );
+  const previousDate = new Date(`${dateKey}T12:00:00`);
+  previousDate.setDate(previousDate.getDate() - 1);
+  return getClaimedDailyMissionStreak(
+    rows.map(mapDailyMission),
+    toDateKey(previousDate),
+  );
 }
 
 async function setPlayerProgress(xpTotal: number, rachaMisiones?: number, atributosXp?: AttributeXp) {
@@ -684,7 +715,32 @@ async function recalculatePlayerFromEvents() {
     xpTotal = applyXpDelta(xpTotal, row.xp_delta);
     atributosXp = applyAttributeDeltas(atributosXp, row.attribute_delta);
   }
-  await setPlayerProgress(xpTotal, undefined, atributosXp);
+  await setPlayerProgress(xpTotal, await getLatestClaimedMissionStreak(), atributosXp);
+}
+
+async function getLatestClaimedMissionStreak() {
+  const latest = await sqlite.getFirstAsync<{ fecha: string }>(
+    `
+      SELECT fecha
+      FROM daily_missions
+      WHERE objetivo > 0 AND reclamada = 1
+      ORDER BY fecha DESC
+      LIMIT 1
+    `,
+  );
+  if (!latest) return 0;
+
+  const rows = await sqlite.getAllAsync<DailyMissionRow>(
+    `
+      SELECT *
+      FROM daily_missions
+      WHERE fecha <= ?
+      ORDER BY fecha DESC
+      LIMIT 30
+    `,
+    [latest.fecha],
+  );
+  return getClaimedDailyMissionStreak(rows.map(mapDailyMission), latest.fecha);
 }
 
 async function getHabitCompletionStreak(habitId: string, dateKey: string, weekdaysCsv: string) {

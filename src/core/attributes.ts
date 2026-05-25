@@ -1,9 +1,12 @@
+import { getLevelProgress } from './ranks';
+
 export const attributeIds = ['fuerza', 'vitalidad', 'intelecto', 'voluntad', 'carisma', 'destreza'] as const;
 
 export type AttributeId = (typeof attributeIds)[number];
 export type AttributeXp = Record<AttributeId, number>;
 
 const defaultHabitAttributes: AttributeId[] = ['voluntad'];
+const attributeXpMultiplier = 1.5;
 export const maxHabitAttributes = 3;
 
 const attributeSet = new Set<string>(attributeIds);
@@ -68,7 +71,7 @@ export function serializeAttributeXp(value: unknown): string {
 
 export function getAttributeDeltas(xpDelta: number, attributes: unknown): AttributeXp {
   const ids = normalizeHabitAttributes(attributes);
-  const delta = roundAttributeXp(Math.max(0, xpDelta) / ids.length);
+  const delta = roundAttributeXp((Math.max(0, xpDelta) * attributeXpMultiplier) / ids.length);
   const result = createEmptyAttributeXp();
 
   for (const id of ids) {
@@ -89,28 +92,15 @@ export function applyAttributeDeltas(current: unknown, deltas: unknown): Attribu
 
 export function getAttributeLevelProgress(totalXp: number) {
   const xp = Math.max(0, roundAttributeXp(totalXp));
-  let level = 1;
-  let levelFloor = 0;
-  let nextCost = getAttributeLevelCost(level);
+  const progress = getLevelProgress(xp);
 
-  while (xp >= levelFloor + nextCost) {
-    levelFloor += nextCost;
-    level += 1;
-    nextCost = getAttributeLevelCost(level);
-  }
-
-  const gainedInLevel = roundAttributeXp(xp - levelFloor);
   return {
-    level,
+    level: progress.level,
     totalXp: xp,
-    gainedInLevel,
-    neededForLevel: nextCost,
-    ratio: nextCost === 0 ? 1 : Math.min(1, gainedInLevel / nextCost),
+    gainedInLevel: roundAttributeXp(progress.gainedInLevel),
+    neededForLevel: progress.neededForLevel,
+    ratio: progress.ratio,
   };
-}
-
-function getAttributeLevelCost(level: number) {
-  return Math.floor(120 * Math.max(1, level) ** 1.35);
 }
 
 function roundAttributeXp(value: number) {

@@ -90,10 +90,11 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [ ] Añadir tests para cierre de día.
 - [x] Añadir tests para misión diaria.
 - [ ] Añadir tests para recalcular player desde events y misiones reclamadas.
+- [x] Revisar y ajustar balance de XP/niveles/rangos.
 - [x] Añadir tests para normalización, reparto y nivel de atributos.
-- [ ] Revisar balance final de curva de atributos frente a nivel/rango.
+- [x] Revisar balance final de curva de atributos frente a nivel/rango.
 - [x] Igualar multiplicador de racha por hábito en web fallback.
-- [ ] Revisar si `racha_misiones` debe resetearse si no se reclama misión.
+- [x] Revisar si `racha_misiones` debe resetearse si no se reclama misión.
 
 ## i18n
 

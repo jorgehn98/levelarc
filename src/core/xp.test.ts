@@ -2,21 +2,28 @@ import { describe, expect, it } from 'vitest';
 
 import { applyXpDelta, getCompletionXp, getFailureXp } from './xp';
 import { getLevelFromXp, getLevelProgress, getXpForLevel } from './ranks';
-import { getDailyMissionBonus, getDailyMissionProgress, getPerfectWeekMissionProgress } from './missions';
+import {
+  getClaimedDailyMissionStreak,
+  getDailyMissionBonus,
+  getDailyMissionProgress,
+  getPerfectWeekMissionProgress,
+} from './missions';
 import { getDateKeysBetween, getTodayWeekday, getYesterdayDateKey, toDateKey } from '../lib/date';
 
 describe('xp rules', () => {
   it('caps the habit streak multiplier at x1.50', () => {
-    expect(getCompletionXp(4, 1)).toBe(4);
-    expect(getCompletionXp(4, 4)).toBe(4);
-    expect(getCompletionXp(4, 8)).toBe(5);
-    expect(getCompletionXp(4, 15)).toBe(5);
-    expect(getCompletionXp(4, 31)).toBe(6);
+    expect(getCompletionXp(4, 1)).toBe(20);
+    expect(getCompletionXp(4, 4)).toBe(22);
+    expect(getCompletionXp(4, 8)).toBe(24);
+    expect(getCompletionXp(4, 15)).toBe(27);
+    expect(getCompletionXp(4, 31)).toBe(30);
   });
 
   it('calculates completion and failure deltas from importance', () => {
-    expect(getCompletionXp(4, 8)).toBe(5);
-    expect(getFailureXp(4)).toBe(-4);
+    expect(getCompletionXp(1, 1)).toBe(5);
+    expect(getCompletionXp(5, 1)).toBe(25);
+    expect(getCompletionXp(4, 8)).toBe(24);
+    expect(getFailureXp(4)).toBe(-20);
   });
 
   it('never drops below the current level floor when applying penalties', () => {
@@ -56,6 +63,19 @@ describe('daily mission', () => {
     expect(getPerfectWeekMissionProgress(6)).toMatchObject({ completed: 6, target: 7, isComplete: false });
     expect(getPerfectWeekMissionProgress(7)).toMatchObject({ completed: 7, target: 7, isComplete: true });
     expect(getPerfectWeekMissionProgress(10).completed).toBe(7);
+  });
+
+  it('counts only consecutive claimed daily missions', () => {
+    const missions = [
+      { fecha: '2026-05-21', objetivo: 2, reclamada: true },
+      { fecha: '2026-05-22', objetivo: 2, reclamada: false },
+      { fecha: '2026-05-23', objetivo: 2, reclamada: true },
+      { fecha: '2026-05-24', objetivo: 2, reclamada: true },
+    ];
+
+    expect(getClaimedDailyMissionStreak(missions, '2026-05-24')).toBe(2);
+    expect(getClaimedDailyMissionStreak(missions, '2026-05-23')).toBe(1);
+    expect(getClaimedDailyMissionStreak(missions, '2026-05-22')).toBe(0);
   });
 });
 

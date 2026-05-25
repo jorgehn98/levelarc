@@ -3,6 +3,12 @@ export const PERFECT_WEEK_BONUS_XP = 30;
 
 const PERFECT_WEEK_STREAK_DAYS = 7;
 
+type MissionStreakEntry = {
+  fecha: string;
+  objetivo: number;
+  reclamada: boolean | number;
+};
+
 export function getDailyMissionBonus(target: number) {
   const safeTarget = Math.max(0, Math.floor(target));
   if (safeTarget === 0) return 0;
@@ -34,4 +40,27 @@ export function getPerfectWeekMissionProgress(perfectStreakDays: number) {
     isComplete: safeStreak >= PERFECT_WEEK_STREAK_DAYS,
     ratio: Math.min(1, safeStreak / PERFECT_WEEK_STREAK_DAYS),
   };
+}
+
+export function getClaimedDailyMissionStreak(missions: MissionStreakEntry[], dateKey: string) {
+  const missionsByDate = new Map(missions.map((mission) => [mission.fecha, mission]));
+  const cursor = new Date(`${dateKey}T12:00:00`);
+  let streak = 0;
+
+  while (true) {
+    const key = toDateKey(cursor);
+    const mission = missionsByDate.get(key);
+    if (!mission || mission.objetivo <= 0 || !Boolean(mission.reclamada)) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

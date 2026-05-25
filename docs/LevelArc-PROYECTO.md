@@ -112,8 +112,8 @@ Ambas en Google Fonts (gratis, licencia OFL apta para monetizar) con soporte lat
 ## 6. Gamificación (reglas cerradas)
 
 ### Fórmula de XP
-- **Completar:** `XP = importancia (1-5) × multiplicador_de_racha`
-- **Fallar:** `XP = − importancia base` (sin multiplicador). Recuperarse siempre es más barato que caer.
+- **Completar:** `XP = importancia (1-5) × 5 × multiplicador_de_racha`
+- **Fallar:** `XP = − importancia × 5` (sin multiplicador). Recuperarse siempre es más barato que caer cuando se sostiene la racha.
 
 ### Suelo de seguridad (crítico)
 La penalización **nunca** baja de rango ni de nivel. Se pierde XP del nivel actual, pero el rango conquistado no se devuelve jamás. Evita la espiral de abandono.
@@ -122,23 +122,24 @@ La penalización **nunca** baja de rango ni de nivel. Se pierde XP del nivel act
 | Días consecutivos | Multiplicador |
 |---|---|
 | 1-3 | ×1.0 |
-| 4-7 | ×1.25 |
-| 8-14 | ×1.5 |
-| 15-30 | ×1.75 |
-| 31+ | ×2.0 |
+| 4-7 | ×1.10 |
+| 8-14 | ×1.20 |
+| 15-30 | ×1.35 |
+| 31+ | ×1.50 |
 
 ### Curva de niveles — mixta
-Fórmula de partida: `XP_acumulada(nivel) = 50 × nivel^1.8`. Rápida al inicio (engancha), dura arriba (rango S = proeza de meses). El exponente es tuneable.
+Fórmula vigente: `XP_acumulada(nivel) = 30 × (nivel - 1)^1.6`. Rápida al inicio (engancha), dura arriba sin volver invisible el progreso. El exponente es tuneable.
 
 ### Modelo de datos: híbrido
 - **Eventos** (qué hábito se completó/falló y cuándo) = fuente de verdad inmutable.
 - **Totales cacheados** (XP, nivel, rango) para lectura rápida.
 - Como el XP se deriva de eventos, se puede **recalcular** todo si se cambia la fórmula. Esto permite tunear sin romper datos.
+- **Atributos RPG** usan la misma curva de niveles que el jugador. El XP positivo de hábito recibe un potenciador fijo x1.5 para atributos, se reparte entre los atributos seleccionados y queda guardado en cada evento para que recalcular no dependa de cambios futuros del hábito.
 
 ### Tipos de hábito (MVP)
 - **Binario:** hecho / no hecho. Cubre la mayoría (meditar, leer, no fumar).
 - **Contable con meta:** llega a N/N (ej: agua 4/4). Un binario es matemáticamente un contable de meta 1.
-- **Reparto de XP en contables:** todo o nada. Se gana `importancia × multiplicador` SOLO al alcanzar la meta completa. Progreso parcial (3/4) llena la barra visualmente pero NO da XP hasta cerrar la meta. Mantiene una sola lógica de XP coherente con el binario, sin fracciones.
+- **Reparto de XP en contables:** todo o nada. Se gana `importancia × 5 × multiplicador` SOLO al alcanzar la meta completa. Progreso parcial (3/4) llena la barra visualmente pero NO da XP hasta cerrar la meta. Mantiene una sola lógica de XP coherente con el binario, sin fracciones.
 - **No se puede completar más veces que la meta** (4/4 es el tope; no hay 5/4).
 
 ### Frecuencia

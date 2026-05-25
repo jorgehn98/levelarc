@@ -2,6 +2,8 @@ import { getLevelFromXp, getXpForLevel } from './ranks';
 
 export type HabitImportance = 1 | 2 | 3 | 4 | 5;
 
+const XP_PER_IMPORTANCE = 5;
+
 function getStreakMultiplier(streakDays: number): number {
   if (streakDays >= 31) return 1.5;
   if (streakDays >= 15) return 1.35;
@@ -11,11 +13,11 @@ function getStreakMultiplier(streakDays: number): number {
 }
 
 export function getCompletionXp(importance: HabitImportance, streakDays: number): number {
-  return Math.round(importance * getStreakMultiplier(streakDays));
+  return Math.round(importance * XP_PER_IMPORTANCE * getStreakMultiplier(streakDays));
 }
 
 export function getFailureXp(importance: HabitImportance): number {
-  return -importance;
+  return -(importance * XP_PER_IMPORTANCE);
 }
 
 export function applyXpDelta(currentTotalXp: number, xpDelta: number): number {

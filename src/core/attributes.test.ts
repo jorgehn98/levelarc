@@ -14,21 +14,22 @@ describe('attribute rules', () => {
     expect(normalizeHabitAttributes('unknown')).toEqual(['voluntad']);
   });
 
-  it('splits completion xp evenly across selected attributes', () => {
-    expect(getAttributeDeltas(30, 'fuerza')).toMatchObject({ fuerza: 30 });
-    expect(getAttributeDeltas(30, 'fuerza,vitalidad')).toMatchObject({ fuerza: 15, vitalidad: 15 });
-    expect(getAttributeDeltas(30, 'fuerza,vitalidad,voluntad')).toMatchObject({ fuerza: 10, vitalidad: 10, voluntad: 10 });
+  it('boosts and splits completion xp evenly across selected attributes', () => {
+    expect(getAttributeDeltas(30, 'fuerza')).toMatchObject({ fuerza: 45 });
+    expect(getAttributeDeltas(30, 'fuerza,vitalidad')).toMatchObject({ fuerza: 22.5, vitalidad: 22.5 });
+    expect(getAttributeDeltas(30, 'fuerza,vitalidad,voluntad')).toMatchObject({ fuerza: 15, vitalidad: 15, voluntad: 15 });
   });
 
   it('accumulates attribute xp without touching unrelated attributes', () => {
     const current = createEmptyAttributeXp();
     const next = applyAttributeDeltas(current, getAttributeDeltas(9, 'fuerza,vitalidad,voluntad'));
-    expect(next).toMatchObject({ fuerza: 3, vitalidad: 3, voluntad: 3, intelecto: 0 });
+    expect(next).toMatchObject({ fuerza: 4.5, vitalidad: 4.5, voluntad: 4.5, intelecto: 0 });
   });
 
   it('levels attributes slower than one completion', () => {
     expect(getAttributeLevelProgress(0).level).toBe(1);
-    expect(getAttributeLevelProgress(119).level).toBe(1);
-    expect(getAttributeLevelProgress(120).level).toBe(2);
+    expect(getAttributeLevelProgress(29).level).toBe(1);
+    expect(getAttributeLevelProgress(30).level).toBe(2);
+    expect(getAttributeLevelProgress(91).level).toBe(3);
   });
 });
