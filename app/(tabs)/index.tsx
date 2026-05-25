@@ -68,9 +68,7 @@ export default function TodayScreen() {
             </View>
           ) : mission.isComplete ? (
             <Text style={styles.claimed}>{t(language, 'missionClaimed')} · +{dailyMission?.xpBonus ?? 10} XP</Text>
-          ) : (
-            <Text style={styles.metaText}>{t(language, 'completedCount', { done: mission.completed, target: mission.target })}</Text>
-          )}
+          ) : null}
         </View>
 
         {showPerfectWeekMission ? (
