@@ -187,6 +187,7 @@ const styles = StyleSheet.create({
     color: colors.state.pending,
     fontFamily: typography.font.displayMedium,
     fontSize: 10,
+    marginLeft: 6,
   },
   activeFilterText: {
     color: colors.background.void,
