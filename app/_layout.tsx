@@ -21,6 +21,7 @@ export default function RootLayout() {
     Orbitron_700Bold: require('../assets/fonts/Orbitron-VariableFont.ttf'),
   });
   const boot = useAppStore((state) => state.boot);
+  const closeMissedDays = useAppStore((state) => state.closeMissedDays);
   const refresh = useAppStore((state) => state.refresh);
   const isReady = useAppStore((state) => state.isReady);
   const language = useAppStore((state) => state.language);
@@ -70,7 +71,10 @@ export default function RootLayout() {
       if (currentDateKey === activeDateKeyRef.current) return;
 
       activeDateKeyRef.current = currentDateKey;
-      void refresh();
+      void (async () => {
+        await closeMissedDays();
+        await refresh();
+      })();
     }
 
     refreshIfLocalDayChanged();
@@ -85,7 +89,7 @@ export default function RootLayout() {
       subscription.remove();
       clearInterval(interval);
     };
-  }, [fontsLoaded, isReady, refresh]);
+  }, [closeMissedDays, fontsLoaded, isReady, refresh]);
 
   useEffect(() => {
     if (!fontsLoaded || !isReady) return;

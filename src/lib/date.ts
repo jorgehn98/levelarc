@@ -5,6 +5,27 @@ export function toDateKey(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function getYesterdayDateKey(date = new Date()): string {
+  const yesterday = new Date(date);
+  yesterday.setDate(yesterday.getDate() - 1);
+  return toDateKey(yesterday);
+}
+
+export function getDateKeysBetween(startDateKey: string, endDateKey: string): string[] {
+  if (startDateKey > endDateKey) return [];
+
+  const keys: string[] = [];
+  const cursor = new Date(`${startDateKey}T12:00:00`);
+  const end = new Date(`${endDateKey}T12:00:00`);
+
+  while (cursor <= end) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return keys;
+}
+
 export function toIsoTimestamp(date = new Date()): string {
   return date.toISOString();
 }

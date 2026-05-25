@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { applyXpDelta, getCompletionXp, getFailureXp } from './xp';
 import { getLevelFromXp, getLevelProgress, getXpForLevel } from './ranks';
 import { getDailyMissionBonus, getDailyMissionProgress, getPerfectWeekMissionProgress } from './missions';
-import { getTodayWeekday, toDateKey } from '../lib/date';
+import { getDateKeysBetween, getTodayWeekday, getYesterdayDateKey, toDateKey } from '../lib/date';
 
 describe('xp rules', () => {
   it('caps the habit streak multiplier at x1.50', () => {
@@ -67,5 +67,15 @@ describe('weekday rules', () => {
 
   it('uses the device local calendar date for date keys', () => {
     expect(toDateKey(new Date(2026, 4, 25, 0, 11))).toBe('2026-05-25');
+  });
+
+  it('builds local date ranges for missed day closure', () => {
+    expect(getYesterdayDateKey(new Date(2026, 4, 25, 0, 11))).toBe('2026-05-24');
+    expect(getDateKeysBetween('2026-05-23', '2026-05-25')).toEqual([
+      '2026-05-23',
+      '2026-05-24',
+      '2026-05-25',
+    ]);
+    expect(getDateKeysBetween('2026-05-26', '2026-05-25')).toEqual([]);
   });
 });

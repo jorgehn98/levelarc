@@ -4,6 +4,7 @@ import { create } from 'zustand';
 
 import { createBackupPayload, parseBackupPayload } from '@/lib/backup';
 import type { Language } from '@/i18n';
+import { getDateKeysBetween, getYesterdayDateKey, toDateKey } from '@/lib/date';
 import {
   archiveHabit,
   claimDailyMission,
@@ -52,6 +53,7 @@ type AppState = {
   undoHabit: (id: string) => Promise<void>;
   claimMission: () => Promise<void>;
   claimPerfectWeekMission: () => Promise<void>;
+  closeMissedDays: () => Promise<void>;
   closeToday: () => Promise<void>;
   setLanguage: (language: Language) => Promise<void>;
   setPlayerName: (name: string) => Promise<void>;
@@ -61,6 +63,7 @@ type AppState = {
 };
 
 const LANGUAGE_KEY = 'levelarc.language';
+const LAST_ACTIVE_DATE_KEY = 'levelarc.lastActiveDate';
 
 export const useAppStore = create<AppState>((set, get) => ({
   isReady: false,
@@ -78,6 +81,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (storedLanguage === 'es' || storedLanguage === 'en') {
       set({ language: storedLanguage });
     }
+    await get().closeMissedDays();
     await get().refresh();
     set({ isReady: true, isBusy: false });
   },
@@ -127,6 +131,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   claimPerfectWeekMission: async () => {
     await claimPerfectWeekMissionRepo();
     await get().refresh();
+  },
+  closeMissedDays: async () => {
+    const today = toDateKey();
+    const yesterday = getYesterdayDateKey();
+    const lastActiveDate = await AsyncStorage.getItem(LAST_ACTIVE_DATE_KEY);
+
+    if (lastActiveDate && lastActiveDate <= yesterday) {
+      for (const dateKey of getDateKeysBetween(lastActiveDate, yesterday)) {
+        await closeDay(dateKey);
+      }
+    }
+
+    await AsyncStorage.setItem(LAST_ACTIVE_DATE_KEY, today);
   },
   closeToday: async () => {
     await closeDay();
