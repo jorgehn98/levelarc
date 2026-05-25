@@ -383,6 +383,14 @@ Update `preview` con pulido visual de Hoy:
 - Commit: `096ea469e048a0f1a9e4d2fd0e04984b3a61125a`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/b82db624-fa8b-422a-a546-d4395542338e>
 
+Update `preview` con widgets de actividad en Progreso:
+
+- Update group: `9e86fe1b-9162-49d3-8ee6-fb464a422340`
+- Runtime: `1.0.2`
+- Mensaje: `Add progress activity widgets`
+- Commit: `73520cd542ddd7c099270dbe6def3e41ace462a9`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/9e86fe1b-9162-49d3-8ee6-fb464a422340>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
