@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { BarChart3, Check, ChevronDown, ChevronRight, Plus, X } from 'lucide-react-native';
+import { Archive, BarChart3, Check, ChevronDown, ChevronRight, Plus, X } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -97,6 +97,15 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
         onPress={handleSave}
         style={styles.primaryAction}
       />
+      {onArchive ? (
+        <Button
+          icon={Archive}
+          label={t(language, 'archiveHabit')}
+          onPress={onArchive}
+          style={styles.archiveAction}
+          variant="danger"
+        />
+      ) : null}
     </View>
   );
   const PreviewIcon = getHabitIconComponent(icon);
@@ -318,8 +327,6 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       </Field>
 
       {actions}
-
-      {onArchive ? <Button label={t(language, 'archiveHabit')} onPress={onArchive} variant="danger" /> : null}
     </View>
   );
 }
@@ -714,6 +721,10 @@ const styles = StyleSheet.create({
     flex: 1.6,
     minHeight: 50,
     minWidth: 178,
+  },
+  archiveAction: {
+    flexBasis: '100%',
+    minHeight: 46,
   },
   preview: {
     alignItems: 'center',
