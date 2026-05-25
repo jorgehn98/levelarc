@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Check, Flame, Gift, Plus, Target } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -109,8 +109,13 @@ export default function TodayScreen() {
             <View style={styles.emptyIcon}>
               <Target color={colors.state.pending} size={24} />
             </View>
+            <Text style={styles.emptyKicker}>◆ {t(language, 'systemOnlineShort')}</Text>
             <Text style={styles.emptyTitle}>{t(language, 'noHabitsToday')}</Text>
             <Text style={styles.emptyText}>{t(language, 'createFirstHabit')}</Text>
+            <Pressable onPress={() => router.push('/habit/new')} style={styles.emptyAction}>
+              <Plus color={colors.background.void} size={18} />
+              <Text style={styles.emptyActionText}>{t(language, 'createHabit')}</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.groups}>
@@ -319,11 +324,12 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
+    backgroundColor: colors.background.surface,
     borderColor: colors.background.border,
     borderRadius: radii.md,
     borderStyle: 'dashed',
     borderWidth: 1,
-    padding: 24,
+    padding: 22,
   },
   emptyIcon: {
     alignItems: 'center',
@@ -340,12 +346,39 @@ const styles = StyleSheet.create({
     color: colors.brand.bone,
     fontFamily: typography.font.bodyMedium,
     fontSize: 17,
+    marginTop: 4,
+    textAlign: 'center',
   },
   emptyText: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
     fontSize: 14,
+    lineHeight: 20,
     marginTop: 6,
     textAlign: 'center',
+  },
+  emptyKicker: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  emptyAction: {
+    alignItems: 'center',
+    backgroundColor: colors.brand.cyanCore,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 18,
+  },
+  emptyActionText: {
+    color: colors.background.void,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 14,
   },
 });

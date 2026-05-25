@@ -14,7 +14,7 @@ La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera acti
 
 La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo. Las filas de hábito usan `View` como tarjeta real y dejan `Pressable` solo como objetivo táctil interno para evitar problemas de layout en Android.
 
-Todavía no está lista para Play Store: faltan QA real en Android, validar assets en tamaños reales, pulido visual y seguir monitorizando el aviso de `expo-doctor`.
+La QA inicial en Android real ya está validada por el usuario: la app funciona bien en el móvil y el icono de marca se ve correctamente. Aun así, la app no se quiere publicar todavía: Play Store/App Store quedan como paso final, cuando el producto esté más completo y no solo como MVP funcional.
 
 ## Implementado
 
@@ -71,6 +71,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Crear hábitos.
 - Editar hábitos.
 - Archivar hábitos.
+- Archivar hábitos pide confirmación antes de retirar la misión activa y conserva el historial.
 - Importancia 1-5.
 - Selector manual de icono para cada hábito.
 - Selector manual de atributos para cada hábito.
@@ -92,6 +93,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Deshacer acción del día.
 - Progreso visual para contables.
 - Estado pendiente/completado/fallado.
+- Estado vacío pulido con mensaje del Sistema y CTA directo para crear el primer hábito.
 
 ### XP y progreso
 
@@ -99,6 +101,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Eventos de XP.
 - `events` como fuente de verdad inmutable.
 - `player` cacheado.
+- El recalculo de `player` conserva los bonus de misiones ya reclamadas al combinar eventos de hábitos con `daily_missions`.
 - Nombre del jugador guardado en `player.nombre`.
 - XP de atributos guardado en `player.atributos_xp`.
 - Al completar un hábito, el XP de atributo se reparte entre los atributos seleccionados: 1 atributo 100%, 2 atributos 50% cada uno, 3 atributos 33.33% cada uno.
@@ -136,6 +139,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 - Exportación JSON vía share sheet.
 - Importación/restauración pegando el JSON exportado desde Ajustes.
+- La restauración pide confirmación antes de sobrescribir datos locales y en native se aplica dentro de una transacción exclusiva para evitar estados parciales si falla.
 - La restauración reemplaza los datos locales y reprograma recordatorios nativos para hábitos activos.
 
 ### Idiomas
@@ -143,6 +147,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - ES/EN con diccionario tipado en `src/i18n/index.ts`.
 - Español por defecto.
 - JSONs legacy de idioma eliminados; `src/i18n/index.ts` es la única fuente activa.
+- El copy visible del Sistema está centralizado en i18n para ES/EN en onboarding, modales, formularios y rank-up.
 
 ### Ajustes
 
@@ -150,6 +155,12 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Preferencias incluye idioma, nombre de jugador, tema fijo, recordatorio diario con toggle, vibración y sonido.
 - Demo incluye acceso a la cinemática de ascenso de rango y a la pantalla de inicio.
 - Zona peligrosa incluye cerrar día y resetear todo con confirmación.
+
+### Pulido UX
+
+- Hábitos y Hoy tienen estados vacíos más claros, con tono de Sistema y acción directa cuando procede.
+- Textos del Sistema revisados para sonar más secos, consistentes y centrados en misiones/registro local.
+- Rangos E/C/B/A ajustados para mejorar contraste como texto/acento sobre fondos oscuros; D y S ya tenían contraste suficiente.
 
 ### Notificaciones
 
@@ -190,9 +201,10 @@ Comandos verdes:
 pnpm check
 pnpm db:generate
 pnpm exec expo export --platform web --output-dir .expo-export-check --clear
+npx -y react-doctor@latest . --verbose --diff
 ```
 
-`react-doctor` quedó en 96/100 en una pasada anterior, pero actualmente falla con un error interno (`Cannot read properties of undefined (reading 'length')`). No usarlo como bloqueo hasta que la herramienta vuelva a ejecutar correctamente.
+`react-doctor` queda 100/100 sobre los cambios sin warnings.
 
 `expo-doctor` queda 20/21 por duplicado `expo-constants` bajo pnpm. El build preview nativo ya se ha validado correctamente, así que no bloquea el APK interno actual.
 
@@ -450,6 +462,8 @@ Build preview fallido durante la configuración de EAS Update:
 
 MVP funcional: sí.
 
-MVP listo para publicar: no.
+QA Android inicial: validada en móvil real por el usuario.
 
-Siguiente paso recomendado: instalar el APK preview en Android real/emulador y pasar QA manual.
+MVP listo para publicar: no por decisión de producto, no por bloqueo técnico principal.
+
+Siguiente paso recomendado: seguir construyendo producto completo antes de pensar en tiendas: pulido, más profundidad de producto, estadísticas/logros y, más adelante, IA local opcional.

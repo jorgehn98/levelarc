@@ -53,13 +53,7 @@ export default function HabitsScreen() {
         </View>
 
         {filtered.length === 0 ? (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Target color={colors.state.pending} size={22} />
-            </View>
-            <Text style={styles.rowTitle}>{t(language, 'noHabits')}</Text>
-            <Text style={styles.rowText}>{t(language, 'feedSystem')}</Text>
-          </View>
+          <EmptyHabitsState filter={filter} language={language} />
         ) : (
           <View style={styles.list}>
             {filtered.map((habit) => (
@@ -69,6 +63,30 @@ export default function HabitsScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function EmptyHabitsState({ filter, language }: { filter: HabitFilter; language: Language }) {
+  const titleKey = filter === 'archived' ? 'noArchivedHabits' : filter === 'all' ? 'noHabits' : 'noActiveHabits';
+  const copyKey = filter === 'archived' ? 'noArchivedHabitsCopy' : filter === 'all' ? 'feedSystem' : 'noActiveHabitsCopy';
+  const Icon = filter === 'archived' ? Archive : Target;
+
+  return (
+    <View style={styles.empty}>
+      <View style={styles.emptyRail} />
+      <View style={styles.emptyIcon}>
+        <Icon color={filter === 'archived' ? colors.state.pending : colors.brand.cyanCore} size={22} />
+      </View>
+      <Text style={styles.emptyKicker}>◆ {t(language, 'systemOnlineShort')}</Text>
+      <Text style={styles.emptyTitle}>{t(language, titleKey)}</Text>
+      <Text style={styles.emptyText}>{t(language, copyKey)}</Text>
+      {filter === 'archived' ? null : (
+        <Pressable onPress={() => router.push('/habit/new')} style={styles.emptyAction}>
+          <Plus color={colors.background.void} size={18} />
+          <Text style={styles.emptyActionText}>{t(language, 'createHabit')}</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -257,16 +275,28 @@ const styles = StyleSheet.create({
   },
   empty: {
     alignItems: 'center',
+    backgroundColor: colors.background.surface,
     borderColor: colors.background.border,
     borderRadius: radii.md,
     borderStyle: 'dashed',
     borderWidth: 1,
-    padding: 24,
+    overflow: 'hidden',
+    padding: 22,
+    position: 'relative',
     width: '100%',
+  },
+  emptyRail: {
+    backgroundColor: colors.brand.cyanCore,
+    height: 3,
+    left: 0,
+    opacity: 0.72,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   emptyIcon: {
     alignItems: 'center',
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.card,
     borderColor: colors.background.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -287,6 +317,45 @@ const styles = StyleSheet.create({
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
     fontSize: 12,
+  },
+  emptyKicker: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  emptyTitle: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 17,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  emptyText: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  emptyAction: {
+    alignItems: 'center',
+    backgroundColor: colors.brand.cyanCore,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 18,
+  },
+  emptyActionText: {
+    color: colors.background.void,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 14,
   },
   metaLine: {
     alignItems: 'center',

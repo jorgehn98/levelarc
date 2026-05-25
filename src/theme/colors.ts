@@ -24,11 +24,11 @@ export const colors = {
     pending: '#5A5A6E',
   },
   rank: {
-    E: '#7A7A8C',
+    E: '#9A9AAF',
     D: '#4DB8C4',
-    C: '#4D8BE0',
-    B: '#9B6BE0',
-    A: '#E84855',
+    C: '#5F9BFF',
+    B: '#B589F2',
+    A: '#FF6B76',
     S: '#F5C542',
   },
 } as const;

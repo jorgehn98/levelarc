@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useMemo, useState } from 'react';
+import { useMemo, useReducer } from 'react';
 import { Archive, BarChart3, Check, ChevronDown, ChevronRight, Plus, X } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -22,19 +22,116 @@ type HabitFormProps = {
   onCancel?: () => void;
 };
 
+type HabitFormState = {
+  name: string;
+  icon: HabitIconId;
+  attributes: AttributeId[];
+  isIconPickerOpen: boolean;
+  isAttributePickerOpen: boolean;
+  importance: HabitImportance;
+  type: HabitType;
+  goal: string;
+  days: number[];
+  reminder: string | null;
+};
+
+type HabitFormAction =
+  | { type: 'setName'; name: string }
+  | { type: 'setIcon'; icon: HabitIconId }
+  | { type: 'toggleIconPicker' }
+  | { type: 'toggleAttributePicker' }
+  | { type: 'closeAttributePicker' }
+  | { type: 'toggleAttribute'; attributeId: AttributeId }
+  | { type: 'setImportance'; importance: HabitImportance }
+  | { type: 'setType'; habitType: HabitType }
+  | { type: 'setGoal'; goal: string }
+  | { type: 'toggleDay'; dayId: number }
+  | { type: 'selectEveryDay' }
+  | { type: 'setReminder'; reminder: string | null };
+
+function createHabitFormState(habit?: HabitRecord | null): HabitFormState {
+  return {
+    name: habit?.nombre ?? '',
+    icon: normalizeHabitIcon(habit?.icono ?? defaultHabitIcon),
+    attributes: normalizeHabitAttributes(habit?.atributos),
+    isIconPickerOpen: true,
+    isAttributePickerOpen: false,
+    importance: habit?.importancia ?? 3,
+    type: habit?.tipo ?? 'binario',
+    goal: String(habit?.meta ?? 1),
+    days: habit?.diasSemana ? habit.diasSemana.split(',').map(Number) : [],
+    reminder: habit?.horaRecordatorio ?? null,
+  };
+}
+
+function habitFormReducer(state: HabitFormState, action: HabitFormAction): HabitFormState {
+  switch (action.type) {
+    case 'setName':
+      return { ...state, name: action.name };
+    case 'setIcon':
+      return { ...state, icon: action.icon, isIconPickerOpen: false, isAttributePickerOpen: true };
+    case 'toggleIconPicker': {
+      const isIconPickerOpen = !state.isIconPickerOpen;
+      return {
+        ...state,
+        isIconPickerOpen,
+        isAttributePickerOpen: isIconPickerOpen ? false : state.isAttributePickerOpen,
+      };
+    }
+    case 'toggleAttributePicker': {
+      const isAttributePickerOpen = !state.isAttributePickerOpen;
+      return {
+        ...state,
+        isAttributePickerOpen,
+        isIconPickerOpen: isAttributePickerOpen ? false : state.isIconPickerOpen,
+      };
+    }
+    case 'closeAttributePicker':
+      return { ...state, isAttributePickerOpen: false };
+    case 'toggleAttribute':
+      return {
+        ...state,
+        attributes: state.attributes.includes(action.attributeId)
+          ? state.attributes.filter((id) => id !== action.attributeId)
+          : state.attributes.length >= maxHabitAttributes
+            ? state.attributes
+            : [...state.attributes, action.attributeId],
+      };
+    case 'setImportance':
+      return { ...state, importance: action.importance, isAttributePickerOpen: false };
+    case 'setType':
+      return { ...state, type: action.habitType, isAttributePickerOpen: false };
+    case 'setGoal':
+      return { ...state, goal: action.goal };
+    case 'toggleDay':
+      return {
+        ...state,
+        isAttributePickerOpen: false,
+        days: state.days.includes(action.dayId)
+          ? state.days.filter((day) => day !== action.dayId)
+          : [...state.days, action.dayId].sort((a, b) => a - b),
+      };
+    case 'selectEveryDay':
+      return { ...state, isAttributePickerOpen: false, days: weekDays.map((day) => day.id) };
+    case 'setReminder':
+      return { ...state, reminder: action.reminder };
+  }
+}
+
 export function HabitForm({ habit, language, onSave, onArchive, onCancel }: HabitFormProps) {
-  const [name, setName] = useState(habit?.nombre ?? '');
-  const [icon, setIcon] = useState<HabitIconId>(normalizeHabitIcon(habit?.icono ?? defaultHabitIcon));
-  const [attributes, setAttributes] = useState<AttributeId[]>(normalizeHabitAttributes(habit?.atributos));
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(true);
-  const [isAttributePickerOpen, setIsAttributePickerOpen] = useState(false);
-  const [importance, setImportance] = useState<HabitImportance>(habit?.importancia ?? 3);
-  const [type, setType] = useState<HabitType>(habit?.tipo ?? 'binario');
-  const [goal, setGoal] = useState(String(habit?.meta ?? 1));
-  const [days, setDays] = useState<number[]>(
-    habit?.diasSemana ? habit.diasSemana.split(',').map(Number) : [],
-  );
-  const [reminder, setReminder] = useState<string | null>(habit?.horaRecordatorio ?? null);
+  const [state, dispatch] = useReducer(habitFormReducer, habit, createHabitFormState);
+  const {
+    attributes,
+    days,
+    goal,
+    icon,
+    importance,
+    isAttributePickerOpen,
+    isIconPickerOpen,
+    name,
+    reminder,
+    type,
+  } = state;
 
   const canSave = name.trim().length > 0 && days.length > 0 && attributes.length > 0;
   const normalizedGoal = useMemo(() => Math.max(1, Number.parseInt(goal, 10) || 1), [goal]);
@@ -44,33 +141,23 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   const selectedAttributes = habitAttributes.filter((item) => attributes.includes(item.id));
 
   function toggleDay(dayId: number) {
-    setIsAttributePickerOpen(false);
-    setDays((current) =>
-      current.includes(dayId) ? current.filter((day) => day !== dayId) : [...current, dayId].sort((a, b) => a - b),
-    );
+    dispatch({ type: 'toggleDay', dayId });
   }
 
   function selectEveryDay() {
-    setIsAttributePickerOpen(false);
-    setDays(weekDays.map((day) => day.id));
+    dispatch({ type: 'selectEveryDay' });
   }
 
   function toggleAttribute(attributeId: AttributeId) {
-    setAttributes((current) => {
-      if (current.includes(attributeId)) return current.filter((id) => id !== attributeId);
-      if (current.length >= maxHabitAttributes) return current;
-      return [...current, attributeId];
-    });
+    dispatch({ type: 'toggleAttribute', attributeId });
   }
 
   function selectIcon(iconId: HabitIconId) {
-    setIcon(iconId);
-    setIsIconPickerOpen(false);
-    setIsAttributePickerOpen(true);
+    dispatch({ type: 'setIcon', icon: iconId });
   }
 
   function closeAttributePicker() {
-    setIsAttributePickerOpen(false);
+    dispatch({ type: 'closeAttributePicker' });
   }
 
   function handleSave() {
@@ -130,13 +217,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       <CollapsibleField
         isOpen={isIconPickerOpen}
         label={t(language, 'pickIcon')}
-        onToggle={() => {
-          setIsIconPickerOpen((current) => {
-            const next = !current;
-            if (next) setIsAttributePickerOpen(false);
-            return next;
-          });
-        }}
+        onToggle={() => dispatch({ type: 'toggleIconPicker' })}
         summary={(
           <View style={styles.iconSummary}>
             <View style={styles.summaryIconTile}>
@@ -168,13 +249,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       <CollapsibleField
         isOpen={isAttributePickerOpen}
         label={t(language, 'attributes')}
-        onToggle={() => {
-          setIsAttributePickerOpen((current) => {
-            const next = !current;
-            if (next) setIsIconPickerOpen(false);
-            return next;
-          });
-        }}
+        onToggle={() => dispatch({ type: 'toggleAttributePicker' })}
         summary={(
           <View style={styles.selectedAttributeSummary}>
             {selectedAttributes.map((item) => (
@@ -222,7 +297,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       <Field label={t(language, 'name')}>
         <TextInput
           cursorColor={colors.brand.cyanCore}
-          onChangeText={setName}
+          onChangeText={(value) => dispatch({ type: 'setName', name: value })}
           onFocus={closeAttributePicker}
           placeholder={t(language, 'namePlaceholder')}
           placeholderTextColor={colors.state.pending}
@@ -239,7 +314,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
               key={value}
               onPress={() => {
                 closeAttributePicker();
-                setImportance(value as HabitImportance);
+                dispatch({ type: 'setImportance', importance: value as HabitImportance });
               }}
               style={[styles.importanceCard, importance === value && styles.selectedCard]}
             >
@@ -259,7 +334,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
             label={t(language, 'binary')}
             onPress={() => {
               closeAttributePicker();
-              setType('binario');
+              dispatch({ type: 'setType', habitType: 'binario' });
             }}
           />
           <TypeCard
@@ -269,7 +344,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
             label={t(language, 'countable')}
             onPress={() => {
               closeAttributePicker();
-              setType('contable');
+              dispatch({ type: 'setType', habitType: 'contable' });
             }}
           />
         </View>
@@ -280,7 +355,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
           <TextInput
             cursorColor={colors.brand.cyanCore}
             keyboardType="number-pad"
-            onChangeText={setGoal}
+            onChangeText={(value) => dispatch({ type: 'setGoal', goal: value })}
             onFocus={closeAttributePicker}
             placeholder="4"
             placeholderTextColor={colors.state.pending}
@@ -319,8 +394,9 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
           clearLabel={t(language, 'clearTime')}
           confirmLabel={t(language, 'useTime')}
           help={t(language, 'optionalReminder')}
-          onChange={setReminder}
+          onChange={(value) => dispatch({ type: 'setReminder', reminder: value })}
           placeholder={t(language, 'noReminder')}
+          systemLabel={t(language, 'systemLabel')}
           title={t(language, 'selectTime')}
           value={reminder}
         />

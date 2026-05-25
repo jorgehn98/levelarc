@@ -241,15 +241,35 @@ export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
   const db = await loadDb();
   db.events = db.events.filter((event) => !(event.habitId === habitId && event.fecha === dateKey));
   db.progress = db.progress.filter((progress) => !(progress.habitId === habitId && progress.fecha === dateKey));
+  syncMission(db, dateKey);
+  recalculatePlayerFromLedger(db);
+  await saveDb(db);
+}
+
+function recalculatePlayerFromLedger(db: WebDb) {
   db.player.xpTotal = 0;
   db.player.atributosXp = createEmptyAttributeXp();
-  for (const event of db.events.sort((a, b) => a.registradoEn.localeCompare(b.registradoEn))) {
-    db.player.xpTotal = applyXpDelta(db.player.xpTotal, event.xpDelta);
-    db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, event.attributeDelta);
+  const ledger = [
+    ...db.events.map((event) => ({
+      attributeDelta: event.attributeDelta,
+      registradoEn: event.registradoEn,
+      xpDelta: event.xpDelta,
+    })),
+    ...db.missions.flatMap((mission) => [
+      ...(mission.reclamada
+        ? [{ attributeDelta: createEmptyAttributeXp(), registradoEn: `${mission.fecha}T23:59:59.000Z`, xpDelta: mission.xpBonus }]
+        : []),
+      ...(mission.streakBonusClaimed
+        ? [{ attributeDelta: createEmptyAttributeXp(), registradoEn: `${mission.fecha}T23:59:59.000Z`, xpDelta: mission.streakBonusXp }]
+        : []),
+    ]),
+  ].sort((a, b) => a.registradoEn.localeCompare(b.registradoEn));
+
+  for (const entry of ledger) {
+    db.player.xpTotal = applyXpDelta(db.player.xpTotal, entry.xpDelta);
+    db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, entry.attributeDelta);
   }
   syncPlayer(db);
-  syncMission(db, dateKey);
-  await saveDb(db);
 }
 
 export async function getPlayer() {

@@ -305,8 +305,8 @@ export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
 
   await sqlite.runAsync('DELETE FROM events WHERE habit_id = ? AND fecha = ?', [habitId, dateKey]);
   await sqlite.runAsync('DELETE FROM habit_daily_progress WHERE id = ?', [progress.id]);
-  await recalculatePlayerFromEvents();
   await syncDailyMission(dateKey);
+  await recalculatePlayerFromEvents();
 }
 
 export async function getPlayer(): Promise<PlayerRecord> {
@@ -383,98 +383,106 @@ export async function exportAllData() {
 export async function importAllData(data: unknown) {
   const backup = normalizeBackupData(data);
   const existingHabits = await listHabits(true);
-
-  for (const habit of existingHabits) {
-    if (habit.notificationId) {
-      await cancelHabitReminder(habit.notificationId);
-    }
-  }
-
-  await sqlite.runAsync('DELETE FROM habit_daily_progress');
-  await sqlite.runAsync('DELETE FROM events');
-  await sqlite.runAsync('DELETE FROM daily_missions');
-  await sqlite.runAsync('DELETE FROM habits');
-  await sqlite.runAsync('DELETE FROM player');
+  const restoredHabits: Array<HabitRecord & { notificationId: string | null }> = [];
 
   for (const habit of backup.habits) {
     const notificationId = habit.archivado
       ? null
       : await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana);
-    await sqlite.runAsync(
-      `
-        INSERT INTO habits (id, nombre, icono, atributos, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        habit.id,
-        habit.nombre,
-        normalizeHabitIcon(habit.icono),
-        serializeHabitAttributes(habit.atributos),
-        habit.importancia,
-        habit.tipo,
-        habit.meta,
-        habit.diasSemana,
-        habit.horaRecordatorio,
-        notificationId,
-        habit.archivado ? 1 : 0,
-        habit.creadoEn,
-      ],
-    );
-  }
-
-  for (const progress of backup.habitDailyProgress) {
-    await sqlite.runAsync(
-      `
-        INSERT INTO habit_daily_progress (id, habit_id, fecha, cantidad, estado, actualizado_en)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      [progress.id, progress.habitId, progress.fecha, progress.cantidad, progress.estado, progress.actualizadoEn],
-    );
-  }
-
-  for (const event of backup.events) {
-    await sqlite.runAsync(
-      `
-        INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, registrado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `,
-      [event.id, event.habitId, event.fecha, event.tipoEvento, event.xpDelta, serializeAttributeXp(event.attributeDelta), event.registradoEn],
-    );
-  }
-
-  for (const mission of backup.dailyMissions) {
-    await sqlite.runAsync(
-      `
-        INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus, perfect_streak_days, streak_bonus_claimed, streak_bonus_xp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        mission.fecha,
-        mission.objetivo,
-        mission.completados,
-        mission.reclamada ? 1 : 0,
-        mission.xpBonus,
-        mission.perfectStreakDays,
-        mission.streakBonusClaimed ? 1 : 0,
-        mission.streakBonusXp,
-      ],
-    );
+    restoredHabits.push({ ...habit, notificationId });
   }
 
   const player = backup.player ?? getLevelProgress(0);
-  await sqlite.runAsync(
-    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?, ?)',
-    [
-      'nombre' in player ? player.nombre : null,
-      'xpTotal' in player ? player.xpTotal : 0,
-      'nivel' in player ? player.nivel : 1,
-      'rango' in player ? player.rango : 'E',
-      'rachaMisiones' in player ? player.rachaMisiones : 0,
-      'atributosXp' in player ? serializeAttributeXp(player.atributosXp) : '{}',
-      'actualizadoEn' in player ? player.actualizadoEn : toIsoTimestamp(),
-    ],
-  );
 
+  try {
+    await sqlite.withExclusiveTransactionAsync(async (tx) => {
+      await tx.runAsync('DELETE FROM habit_daily_progress');
+      await tx.runAsync('DELETE FROM events');
+      await tx.runAsync('DELETE FROM daily_missions');
+      await tx.runAsync('DELETE FROM habits');
+      await tx.runAsync('DELETE FROM player');
+
+      for (const habit of restoredHabits) {
+        await tx.runAsync(
+          `
+            INSERT INTO habits (id, nombre, icono, atributos, importancia, tipo, meta, dias_semana, hora_recordatorio, notification_id, archivado, creado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            habit.id,
+            habit.nombre,
+            normalizeHabitIcon(habit.icono),
+            serializeHabitAttributes(habit.atributos),
+            habit.importancia,
+            habit.tipo,
+            habit.meta,
+            habit.diasSemana,
+            habit.horaRecordatorio,
+            habit.notificationId,
+            habit.archivado ? 1 : 0,
+            habit.creadoEn,
+          ],
+        );
+      }
+
+      for (const progress of backup.habitDailyProgress) {
+        await tx.runAsync(
+          `
+            INSERT INTO habit_daily_progress (id, habit_id, fecha, cantidad, estado, actualizado_en)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `,
+          [progress.id, progress.habitId, progress.fecha, progress.cantidad, progress.estado, progress.actualizadoEn],
+        );
+      }
+
+      for (const event of backup.events) {
+        await tx.runAsync(
+          `
+            INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, registrado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `,
+          [event.id, event.habitId, event.fecha, event.tipoEvento, event.xpDelta, serializeAttributeXp(event.attributeDelta), event.registradoEn],
+        );
+      }
+
+      for (const mission of backup.dailyMissions) {
+        await tx.runAsync(
+          `
+            INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus, perfect_streak_days, streak_bonus_claimed, streak_bonus_xp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            mission.fecha,
+            mission.objetivo,
+            mission.completados,
+            mission.reclamada ? 1 : 0,
+            mission.xpBonus,
+            mission.perfectStreakDays,
+            mission.streakBonusClaimed ? 1 : 0,
+            mission.streakBonusXp,
+          ],
+        );
+      }
+
+      await tx.runAsync(
+        'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'nombre' in player ? player.nombre : null,
+          'xpTotal' in player ? player.xpTotal : 0,
+          'nivel' in player ? player.nivel : 1,
+          'rango' in player ? player.rango : 'E',
+          'rachaMisiones' in player ? player.rachaMisiones : 0,
+          'atributosXp' in player ? serializeAttributeXp(player.atributosXp) : '{}',
+          'actualizadoEn' in player ? player.actualizadoEn : toIsoTimestamp(),
+        ],
+      );
+    });
+  } catch (error) {
+    await Promise.all(restoredHabits.map((habit) => cancelHabitReminder(habit.notificationId)));
+    throw error;
+  }
+
+  await Promise.all(existingHabits.map((habit) => cancelHabitReminder(habit.notificationId)));
   await ensureDailyMission(toDateKey());
 }
 
@@ -647,12 +655,32 @@ async function setPlayerProgress(xpTotal: number, rachaMisiones?: number, atribu
 }
 
 async function recalculatePlayerFromEvents() {
-  const rows = await sqlite.getAllAsync<{ xp_delta: number; attribute_delta: string | null }>(
-    'SELECT xp_delta, attribute_delta FROM events ORDER BY registrado_en ASC',
+  const rows = await sqlite.getAllAsync<{ xp_delta: number; attribute_delta: string | null; registrado_en: string }>(
+    'SELECT xp_delta, attribute_delta, registrado_en FROM events ORDER BY registrado_en ASC',
   );
+  const missionRows = await sqlite.getAllAsync<{ fecha: string; xp_delta: number }>(
+    `
+      SELECT fecha, xp_bonus as xp_delta
+      FROM daily_missions
+      WHERE reclamada = 1
+      UNION ALL
+      SELECT fecha, streak_bonus_xp as xp_delta
+      FROM daily_missions
+      WHERE streak_bonus_claimed = 1
+      ORDER BY fecha ASC
+    `,
+  );
+  const ledger = [
+    ...rows,
+    ...missionRows.map((row) => ({
+      attribute_delta: null,
+      registrado_en: `${row.fecha}T23:59:59.000Z`,
+      xp_delta: row.xp_delta,
+    })),
+  ].sort((a, b) => a.registrado_en.localeCompare(b.registrado_en));
   let xpTotal = 0;
   let atributosXp = createEmptyAttributeXp();
-  for (const row of rows) {
+  for (const row of ledger) {
     xpTotal = applyXpDelta(xpTotal, row.xp_delta);
     atributosXp = applyAttributeDeltas(atributosXp, row.attribute_delta);
   }

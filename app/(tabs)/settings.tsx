@@ -1,5 +1,6 @@
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import {
   Bell,
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react-native';
 import type { LucideProps } from 'lucide-react-native';
 import type { ComponentType, ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -30,7 +31,7 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { TimePickerField } from '@/components/TimePickerField';
-import { t } from '@/i18n';
+import { t, type Language } from '@/i18n';
 import {
   cancelEndOfDayReminder,
   requestNotificationPermissions,
@@ -43,6 +44,105 @@ const END_OF_DAY_REMINDER_TIME_KEY = 'levelarc.endOfDayReminderTime';
 const END_OF_DAY_REMINDER_ID_KEY = 'levelarc.endOfDayReminderNotificationId';
 const VIBRATION_KEY = 'levelarc.settings.vibration';
 const SOUND_KEY = 'levelarc.settings.sound';
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.2';
+
+async function clearEndOfDayReminder() {
+  const existingId = await AsyncStorage.getItem(END_OF_DAY_REMINDER_ID_KEY);
+  await Promise.all([
+    cancelEndOfDayReminder(existingId),
+    AsyncStorage.multiRemove([END_OF_DAY_REMINDER_TIME_KEY, END_OF_DAY_REMINDER_ID_KEY]),
+  ]);
+}
+
+type SettingsState = {
+  isImportOpen: boolean;
+  isNameOpen: boolean;
+  isEndOfDayReminderOpen: boolean;
+  backupJson: string;
+  playerName: string;
+  endOfDayReminderTime: string | null;
+  endOfDayReminderDraft: string | null;
+  vibrationEnabled: boolean;
+  soundEnabled: boolean;
+  isCheckingUpdate: boolean;
+};
+
+type SettingsAction =
+  | { type: 'setImportOpen'; value: boolean }
+  | { type: 'setNameOpen'; value: boolean }
+  | { type: 'setEndOfDayReminderOpen'; value: boolean }
+  | { type: 'setBackupJson'; value: string }
+  | { type: 'setPlayerName'; value: string }
+  | { type: 'setEndOfDayReminderTime'; value: string | null }
+  | { type: 'setEndOfDayReminderDraft'; value: string | null }
+  | { type: 'setVibrationEnabled'; value: boolean }
+  | { type: 'setSoundEnabled'; value: boolean }
+  | { type: 'setCheckingUpdate'; value: boolean }
+  | { type: 'loadPreferences'; reminderTime: string | null; vibrationEnabled: boolean; soundEnabled: boolean }
+  | { type: 'clearEndOfDayReminder' }
+  | { type: 'saveEndOfDayReminder'; value: string };
+
+function createSettingsState(playerName: string): SettingsState {
+  return {
+    isImportOpen: false,
+    isNameOpen: false,
+    isEndOfDayReminderOpen: false,
+    backupJson: '',
+    playerName,
+    endOfDayReminderTime: null,
+    endOfDayReminderDraft: '21:30',
+    vibrationEnabled: true,
+    soundEnabled: false,
+    isCheckingUpdate: false,
+  };
+}
+
+function settingsReducer(state: SettingsState, action: SettingsAction): SettingsState {
+  switch (action.type) {
+    case 'setImportOpen':
+      return { ...state, isImportOpen: action.value };
+    case 'setNameOpen':
+      return { ...state, isNameOpen: action.value };
+    case 'setEndOfDayReminderOpen':
+      return { ...state, isEndOfDayReminderOpen: action.value };
+    case 'setBackupJson':
+      return { ...state, backupJson: action.value };
+    case 'setPlayerName':
+      return { ...state, playerName: action.value };
+    case 'setEndOfDayReminderTime':
+      return { ...state, endOfDayReminderTime: action.value };
+    case 'setEndOfDayReminderDraft':
+      return { ...state, endOfDayReminderDraft: action.value };
+    case 'setVibrationEnabled':
+      return { ...state, vibrationEnabled: action.value };
+    case 'setSoundEnabled':
+      return { ...state, soundEnabled: action.value };
+    case 'setCheckingUpdate':
+      return { ...state, isCheckingUpdate: action.value };
+    case 'loadPreferences':
+      return {
+        ...state,
+        vibrationEnabled: action.vibrationEnabled,
+        soundEnabled: action.soundEnabled,
+        endOfDayReminderTime: action.reminderTime,
+        endOfDayReminderDraft: action.reminderTime ?? state.endOfDayReminderDraft,
+      };
+    case 'clearEndOfDayReminder':
+      return {
+        ...state,
+        endOfDayReminderTime: null,
+        endOfDayReminderDraft: null,
+        isEndOfDayReminderOpen: false,
+      };
+    case 'saveEndOfDayReminder':
+      return {
+        ...state,
+        endOfDayReminderTime: action.value,
+        endOfDayReminderDraft: action.value,
+        isEndOfDayReminderOpen: false,
+      };
+  }
+}
 
 export default function SettingsScreen() {
   const language = useAppStore((state) => state.language);
@@ -53,16 +153,19 @@ export default function SettingsScreen() {
   const importBackup = useAppStore((state) => state.importBackup);
   const closeToday = useAppStore((state) => state.closeToday);
   const resetAll = useAppStore((state) => state.resetAll);
-  const [isImportOpen, setIsImportOpen] = useState(false);
-  const [isNameOpen, setIsNameOpen] = useState(false);
-  const [isEndOfDayReminderOpen, setIsEndOfDayReminderOpen] = useState(false);
-  const [backupJson, setBackupJson] = useState('');
-  const [playerName, setPlayerNameInput] = useState(player?.nombre ?? '');
-  const [endOfDayReminderTime, setEndOfDayReminderTime] = useState<string | null>(null);
-  const [endOfDayReminderDraft, setEndOfDayReminderDraft] = useState<string | null>('21:30');
-  const [vibrationEnabled, setVibrationEnabled] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(false);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [state, dispatch] = useReducer(settingsReducer, player?.nombre ?? '', createSettingsState);
+  const {
+    backupJson,
+    endOfDayReminderDraft,
+    endOfDayReminderTime,
+    isCheckingUpdate,
+    isEndOfDayReminderOpen,
+    isImportOpen,
+    isNameOpen,
+    playerName,
+    soundEnabled,
+    vibrationEnabled,
+  } = state;
 
   useEffect(() => {
     async function loadEndOfDayReminder() {
@@ -71,31 +174,43 @@ export default function SettingsScreen() {
         AsyncStorage.getItem(VIBRATION_KEY),
         AsyncStorage.getItem(SOUND_KEY),
       ]);
-      setVibrationEnabled(storedVibration !== 'false');
-      setSoundEnabled(storedSound === 'true');
-      if (!storedTime) return;
-      setEndOfDayReminderTime(storedTime);
-      setEndOfDayReminderDraft(storedTime);
+      dispatch({
+        type: 'loadPreferences',
+        reminderTime: storedTime,
+        vibrationEnabled: storedVibration !== 'false',
+        soundEnabled: storedSound === 'true',
+      });
     }
 
     void loadEndOfDayReminder();
   }, []);
 
-  const handleImportBackup = async () => {
-    await importBackup(backupJson);
-    setBackupJson('');
-    setIsImportOpen(false);
-    Alert.alert(t(language, 'backupImported'), t(language, 'backupImportedCopy'));
+  const handleImportBackup = () => {
+    Alert.alert(t(language, 'restoreConfirmTitle'), t(language, 'restoreConfirmCopy'), [
+      { text: t(language, 'cancel'), style: 'cancel' },
+      {
+        text: t(language, 'restore'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            await importBackup(backupJson);
+            dispatch({ type: 'setBackupJson', value: '' });
+            dispatch({ type: 'setImportOpen', value: false });
+            Alert.alert(t(language, 'backupImported'), t(language, 'backupImportedCopy'));
+          })();
+        },
+      },
+    ]);
   };
 
   const handleSaveName = async () => {
     await setPlayerName(playerName);
-    setIsNameOpen(false);
+    dispatch({ type: 'setNameOpen', value: false });
     Alert.alert(t(language, 'nameUpdated'), t(language, 'nameUpdatedCopy'));
   };
 
   const handleCheckForUpdates = async () => {
-    setIsCheckingUpdate(true);
+    dispatch({ type: 'setCheckingUpdate', value: true });
     try {
       const result = await Updates.checkForUpdateAsync();
       if (!result.isAvailable) {
@@ -111,7 +226,7 @@ export default function SettingsScreen() {
     } catch {
       Alert.alert(t(language, 'updateUnavailable'), t(language, 'updateUnavailableCopy'));
     } finally {
-      setIsCheckingUpdate(false);
+      dispatch({ type: 'setCheckingUpdate', value: false });
     }
   };
 
@@ -123,12 +238,14 @@ export default function SettingsScreen() {
     }
 
     const existingId = await AsyncStorage.getItem(END_OF_DAY_REMINDER_ID_KEY);
-    await cancelEndOfDayReminder(existingId);
-    const notificationId = await scheduleEndOfDayReminder(
-      normalizedTime,
-      t(language, 'endOfDayNotificationTitle'),
-      t(language, 'endOfDayNotificationBody'),
-    );
+    const [, notificationId] = await Promise.all([
+      cancelEndOfDayReminder(existingId),
+      scheduleEndOfDayReminder(
+        normalizedTime,
+        t(language, 'endOfDayNotificationTitle'),
+        t(language, 'endOfDayNotificationBody'),
+      ),
+    ]);
 
     if (!notificationId) {
       Alert.alert(t(language, 'notificationPermissionDenied'), t(language, 'notificationPermissionDeniedCopy'));
@@ -139,31 +256,25 @@ export default function SettingsScreen() {
       [END_OF_DAY_REMINDER_TIME_KEY, normalizedTime],
       [END_OF_DAY_REMINDER_ID_KEY, notificationId],
     ]);
-    setEndOfDayReminderTime(normalizedTime);
-    setEndOfDayReminderDraft(normalizedTime);
-    setIsEndOfDayReminderOpen(false);
+    dispatch({ type: 'saveEndOfDayReminder', value: normalizedTime });
     Alert.alert(t(language, 'reminderSaved'), t(language, 'reminderSavedCopy'));
   };
 
   const handleDisableEndOfDayReminder = async () => {
-    const existingId = await AsyncStorage.getItem(END_OF_DAY_REMINDER_ID_KEY);
-    await cancelEndOfDayReminder(existingId);
-    await AsyncStorage.multiRemove([END_OF_DAY_REMINDER_TIME_KEY, END_OF_DAY_REMINDER_ID_KEY]);
-    setEndOfDayReminderTime(null);
-    setEndOfDayReminderDraft(null);
-    setIsEndOfDayReminderOpen(false);
+    await clearEndOfDayReminder();
+    dispatch({ type: 'clearEndOfDayReminder' });
     Alert.alert(t(language, 'reminderDisabled'), t(language, 'reminderDisabledCopy'));
   };
 
   const handleToggleVibration = async () => {
     const next = !vibrationEnabled;
-    setVibrationEnabled(next);
+    dispatch({ type: 'setVibrationEnabled', value: next });
     await AsyncStorage.setItem(VIBRATION_KEY, String(next));
   };
 
   const handleToggleSound = async () => {
     const next = !soundEnabled;
-    setSoundEnabled(next);
+    dispatch({ type: 'setSoundEnabled', value: next });
     await AsyncStorage.setItem(SOUND_KEY, String(next));
   };
 
@@ -175,11 +286,8 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: () => {
           void (async () => {
-            const existingId = await AsyncStorage.getItem(END_OF_DAY_REMINDER_ID_KEY);
-            await cancelEndOfDayReminder(existingId);
-            await AsyncStorage.multiRemove([END_OF_DAY_REMINDER_TIME_KEY, END_OF_DAY_REMINDER_ID_KEY]);
-            setEndOfDayReminderTime(null);
-            setEndOfDayReminderDraft(null);
+            await clearEndOfDayReminder();
+            dispatch({ type: 'clearEndOfDayReminder' });
             await resetAll();
             Alert.alert(t(language, 'resetDone'), t(language, 'resetDoneCopy'));
             router.replace('/onboarding');
@@ -189,9 +297,16 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const handleCloseToday = () => {
+    Alert.alert(t(language, 'closeDayConfirmTitle'), t(language, 'closeDayConfirmCopy'), [
+      { text: t(language, 'cancel'), style: 'cancel' },
+      { text: t(language, 'closeDay'), style: 'destructive', onPress: () => void closeToday() },
+    ]);
+  };
+
   return (
     <Screen>
-      <ScreenHeader icon={Shield} subtitle="Configuración · Sistema" title={t(language, 'settings')} />
+      <ScreenHeader icon={Shield} subtitle={t(language, 'settingsSubtitle')} title={t(language, 'settings')} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SettingsSection label={t(language, 'preferences')}>
           <SettingRow compact icon={Globe} title={t(language, 'language')} value={language === 'es' ? 'Español' : 'English'}>
@@ -206,8 +321,8 @@ export default function SettingsScreen() {
               <Button
                 label={t(language, 'changeName')}
                 onPress={() => {
-                  setPlayerNameInput(player?.nombre ?? '');
-                  setIsNameOpen(true);
+                  dispatch({ type: 'setPlayerName', value: player?.nombre ?? '' });
+                  dispatch({ type: 'setNameOpen', value: true });
                 }}
                 variant="secondary"
               />
@@ -227,8 +342,8 @@ export default function SettingsScreen() {
                   return;
                 }
                 void requestNotificationPermissions();
-                setEndOfDayReminderDraft('21:30');
-                setIsEndOfDayReminderOpen(true);
+                dispatch({ type: 'setEndOfDayReminderDraft', value: '21:30' });
+                dispatch({ type: 'setEndOfDayReminderOpen', value: true });
               }}
             />
           </SettingRow>
@@ -246,7 +361,7 @@ export default function SettingsScreen() {
           <SettingRow icon={Download} title={t(language, 'backup')} value={t(language, 'backupCopy')}>
             <View style={styles.inlineActions}>
               <Button icon={Download} label={t(language, 'export')} onPress={() => void exportBackup()} />
-              <Button icon={Upload} label={t(language, 'import')} onPress={() => setIsImportOpen(true)} variant="secondary" />
+              <Button icon={Upload} label={t(language, 'import')} onPress={() => dispatch({ type: 'setImportOpen', value: true })} variant="secondary" />
             </View>
           </SettingRow>
 
@@ -279,7 +394,7 @@ export default function SettingsScreen() {
         <SettingsSection accent={colors.state.failed} label={t(language, 'danger')}>
           <SettingRow icon={Skull} iconColor={colors.state.failed} title={t(language, 'closeDay')} value={t(language, 'closeDayCopy')}>
             <View style={styles.inlineActions}>
-              <Button label={t(language, 'closeDay')} onPress={() => void closeToday()} variant="danger" />
+              <Button label={t(language, 'closeDay')} onPress={handleCloseToday} variant="danger" />
             </View>
           </SettingRow>
 
@@ -291,97 +406,181 @@ export default function SettingsScreen() {
         </SettingsSection>
 
         <SettingsSection label={t(language, 'about')}>
-          <SettingRow compact icon={Info} iconColor={colors.state.pending} title="LevelArc 1.0.0" value={t(language, 'versionLine')} />
+          <SettingRow compact icon={Info} iconColor={colors.state.pending} title={`LevelArc ${APP_VERSION}`} value={t(language, 'versionLine')} />
         </SettingsSection>
       </ScrollView>
 
-      <Modal animationType="fade" onRequestClose={() => setIsImportOpen(false)} transparent visible={isImportOpen}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalPanel}>
-            <Text style={styles.modalKicker}>◆ SISTEMA</Text>
-            <Text style={styles.modalTitle}>{t(language, 'importBackup')}</Text>
-            <Text style={styles.modalCopy}>{t(language, 'importBackupCopy')}</Text>
-            <TextInput
-              multiline
-              cursorColor={colors.brand.cyanCore}
-              onChangeText={setBackupJson}
-              placeholder={t(language, 'pasteBackupJson')}
-              placeholderTextColor={colors.state.pending}
-              selectionColor={colors.brand.cyanShadow}
-              style={styles.backupInput}
-              textAlignVertical="top"
-              value={backupJson}
-            />
-            <View style={styles.modalActions}>
-              <Button label={t(language, 'cancel')} onPress={() => setIsImportOpen(false)} variant="secondary" />
-              <Button
-                disabled={!backupJson.trim()}
-                label={t(language, 'restore')}
-                onPress={() => void handleImportBackup()}
-                variant={backupJson.trim() ? 'primary' : 'secondary'}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal animationType="fade" onRequestClose={() => setIsNameOpen(false)} transparent visible={isNameOpen}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalPanel}>
-            <Text style={styles.modalKicker}>◆ SISTEMA</Text>
-            <Text style={styles.modalTitle}>{t(language, 'changeName')}</Text>
-            <Text style={styles.modalCopy}>{t(language, 'nameHelp')}</Text>
-            <TextInput
-              autoCapitalize="words"
-              cursorColor={colors.brand.cyanCore}
-              maxLength={24}
-              onChangeText={(value) => setPlayerNameInput(value.slice(0, 24))}
-              placeholder={t(language, 'playerNamePlaceholder')}
-              placeholderTextColor={colors.state.pending}
-              selectionColor={colors.brand.cyanShadow}
-              style={styles.nameInput}
-              value={playerName}
-            />
-            <View style={styles.modalActions}>
-              <Button label={t(language, 'cancel')} onPress={() => setIsNameOpen(false)} variant="secondary" />
-              <Button
-                disabled={playerName.trim().length < 2}
-                label={t(language, 'saveName')}
-                onPress={() => void handleSaveName()}
-                variant={playerName.trim().length >= 2 ? 'primary' : 'secondary'}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal animationType="fade" onRequestClose={() => setIsEndOfDayReminderOpen(false)} transparent visible={isEndOfDayReminderOpen}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalPanel}>
-            <Text style={styles.modalKicker}>◆ SISTEMA</Text>
-            <Text style={styles.modalTitle}>{t(language, 'endOfDayReminder')}</Text>
-            <Text style={styles.modalCopy}>{t(language, 'endOfDayReminderCopy')}</Text>
-            <TimePickerField
-              cancelLabel={t(language, 'cancel')}
-              clearLabel={t(language, 'clearTime')}
-              confirmLabel={t(language, 'useTime')}
-              help={t(language, 'reminderTimeHelp')}
-              onChange={setEndOfDayReminderDraft}
-              placeholder={t(language, 'noReminder')}
-              title={t(language, 'selectTime')}
-              value={endOfDayReminderDraft}
-            />
-            <View style={styles.modalActions}>
-              <Button label={t(language, 'cancel')} onPress={() => setIsEndOfDayReminderOpen(false)} variant="secondary" />
-              {endOfDayReminderTime ? (
-                <Button label={t(language, 'disable')} onPress={() => void handleDisableEndOfDayReminder()} variant="ghost" />
-              ) : null}
-              <Button label={t(language, 'saveReminder')} onPress={() => void handleSaveEndOfDayReminder()} />
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ImportBackupModal
+        backupJson={backupJson}
+        language={language}
+        onCancel={() => dispatch({ type: 'setImportOpen', value: false })}
+        onChange={(value) => dispatch({ type: 'setBackupJson', value })}
+        onRestore={handleImportBackup}
+        visible={isImportOpen}
+      />
+      <PlayerNameModal
+        language={language}
+        onCancel={() => dispatch({ type: 'setNameOpen', value: false })}
+        onChange={(value) => dispatch({ type: 'setPlayerName', value: value.slice(0, 24) })}
+        onSave={() => void handleSaveName()}
+        playerName={playerName}
+        visible={isNameOpen}
+      />
+      <EndOfDayReminderModal
+        endOfDayReminderTime={endOfDayReminderTime}
+        language={language}
+        onCancel={() => dispatch({ type: 'setEndOfDayReminderOpen', value: false })}
+        onChange={(value) => dispatch({ type: 'setEndOfDayReminderDraft', value })}
+        onDisable={() => void handleDisableEndOfDayReminder()}
+        onSave={() => void handleSaveEndOfDayReminder()}
+        value={endOfDayReminderDraft}
+        visible={isEndOfDayReminderOpen}
+      />
     </Screen>
+  );
+}
+
+function ImportBackupModal({
+  backupJson,
+  language,
+  onCancel,
+  onChange,
+  onRestore,
+  visible,
+}: {
+  backupJson: string;
+  language: Language;
+  onCancel: () => void;
+  onChange: (value: string) => void;
+  onRestore: () => void;
+  visible: boolean;
+}) {
+  return (
+    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalPanel}>
+          <Text style={styles.modalKicker}>◆ {t(language, 'systemLabel')}</Text>
+          <Text style={styles.modalTitle}>{t(language, 'importBackup')}</Text>
+          <Text style={styles.modalCopy}>{t(language, 'importBackupCopy')}</Text>
+          <TextInput
+            multiline
+            cursorColor={colors.brand.cyanCore}
+            onChangeText={onChange}
+            placeholder={t(language, 'pasteBackupJson')}
+            placeholderTextColor={colors.state.pending}
+            selectionColor={colors.brand.cyanShadow}
+            style={styles.backupInput}
+            textAlignVertical="top"
+            value={backupJson}
+          />
+          <View style={styles.modalActions}>
+            <Button label={t(language, 'cancel')} onPress={onCancel} variant="secondary" />
+            <Button
+              disabled={!backupJson.trim()}
+              label={t(language, 'restore')}
+              onPress={onRestore}
+              variant={backupJson.trim() ? 'primary' : 'secondary'}
+            />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function PlayerNameModal({
+  language,
+  onCancel,
+  onChange,
+  onSave,
+  playerName,
+  visible,
+}: {
+  language: Language;
+  onCancel: () => void;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  playerName: string;
+  visible: boolean;
+}) {
+  return (
+    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalPanel}>
+          <Text style={styles.modalKicker}>◆ {t(language, 'systemLabel')}</Text>
+          <Text style={styles.modalTitle}>{t(language, 'changeName')}</Text>
+          <Text style={styles.modalCopy}>{t(language, 'nameHelp')}</Text>
+          <TextInput
+            autoCapitalize="words"
+            cursorColor={colors.brand.cyanCore}
+            maxLength={24}
+            onChangeText={onChange}
+            placeholder={t(language, 'playerNamePlaceholder')}
+            placeholderTextColor={colors.state.pending}
+            selectionColor={colors.brand.cyanShadow}
+            style={styles.nameInput}
+            value={playerName}
+          />
+          <View style={styles.modalActions}>
+            <Button label={t(language, 'cancel')} onPress={onCancel} variant="secondary" />
+            <Button
+              disabled={playerName.trim().length < 2}
+              label={t(language, 'saveName')}
+              onPress={onSave}
+              variant={playerName.trim().length >= 2 ? 'primary' : 'secondary'}
+            />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function EndOfDayReminderModal({
+  endOfDayReminderTime,
+  language,
+  onCancel,
+  onChange,
+  onDisable,
+  onSave,
+  value,
+  visible,
+}: {
+  endOfDayReminderTime: string | null;
+  language: Language;
+  onCancel: () => void;
+  onChange: (value: string | null) => void;
+  onDisable: () => void;
+  onSave: () => void;
+  value: string | null;
+  visible: boolean;
+}) {
+  return (
+    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalPanel}>
+          <Text style={styles.modalKicker}>◆ {t(language, 'systemLabel')}</Text>
+          <Text style={styles.modalTitle}>{t(language, 'endOfDayReminder')}</Text>
+          <Text style={styles.modalCopy}>{t(language, 'endOfDayReminderCopy')}</Text>
+          <TimePickerField
+            cancelLabel={t(language, 'cancel')}
+            clearLabel={t(language, 'clearTime')}
+            confirmLabel={t(language, 'useTime')}
+            help={t(language, 'reminderTimeHelp')}
+            onChange={onChange}
+            placeholder={t(language, 'noReminder')}
+            systemLabel={t(language, 'systemLabel')}
+            title={t(language, 'selectTime')}
+            value={value}
+          />
+          <View style={styles.modalActions}>
+            <Button label={t(language, 'cancel')} onPress={onCancel} variant="secondary" />
+            {endOfDayReminderTime ? <Button label={t(language, 'disable')} onPress={onDisable} variant="ghost" /> : null}
+            <Button label={t(language, 'saveReminder')} onPress={onSave} />
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

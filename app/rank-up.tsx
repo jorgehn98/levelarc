@@ -1,77 +1,78 @@
 import { router } from 'expo-router';
 import { Sparkles } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Button } from '@/components/Button';
 import { RankBadge } from '@/components/RankBadge';
 import { Screen } from '@/components/Screen';
+import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
 
 export default function RankUpScreen() {
   const player = useAppStore((state) => state.player);
+  const language = useAppStore((state) => state.language);
   const rank = player?.rango ?? 'E';
   const accent = getRankAccent(rank);
-  const pulse = useRef(new Animated.Value(0)).current;
-  const reveal = useRef(new Animated.Value(0)).current;
+  const pulse = useSharedValue(0);
+  const reveal = useSharedValue(0);
 
   useEffect(() => {
-    const animation = Animated.parallel([
-      Animated.timing(reveal, {
-        duration: 700,
-        easing: Easing.out(Easing.cubic),
-        toValue: 1,
-        useNativeDriver: true,
-      }),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulse, {
-            duration: 1600,
-            easing: Easing.inOut(Easing.cubic),
-            toValue: 1,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulse, {
-            duration: 1600,
-            easing: Easing.inOut(Easing.cubic),
-            toValue: 0,
-            useNativeDriver: true,
-          }),
-        ]),
+    reveal.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) });
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.cubic) }),
+        withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.cubic) }),
       ),
-    ]);
-    animation.start();
-    return () => animation.stop();
+      -1,
+      false,
+    );
   }, [pulse, reveal]);
 
-  const ringScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.18] });
-  const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.42] });
-  const revealScale = reveal.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] });
+  const ringOuterStyle = useAnimatedStyle(() => ({
+    opacity: 0.14 + pulse.value * 0.28,
+    transform: [{ scale: 0.92 + pulse.value * 0.26 }],
+  }));
+  const ringInnerStyle = useAnimatedStyle(() => ({
+    opacity: 0.14 + pulse.value * 0.28,
+  }));
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
+    transform: [{ scale: 0.88 + reveal.value * 0.12 }],
+  }));
 
   return (
     <Screen>
       <View style={[styles.panel, { borderColor: accent }, shadows.rankGlow(accent)]}>
         <View style={styles.scanline} />
-        <Animated.View style={[styles.ringOuter, { borderColor: accent, opacity: ringOpacity, transform: [{ scale: ringScale }] }]} />
-        <Animated.View style={[styles.ringInner, { borderColor: accent, opacity: ringOpacity }]} />
-        <Animated.View style={[styles.content, { opacity: reveal, transform: [{ scale: revealScale }] }]}>
-          <Text style={[styles.kicker, { color: accent }]}>◆ ASCENSO CONFIRMADO</Text>
+        <Animated.View style={[styles.ringOuter, { borderColor: accent }, ringOuterStyle]} />
+        <Animated.View style={[styles.ringInner, { borderColor: accent }, ringInnerStyle]} />
+        <Animated.View style={[styles.content, revealStyle]}>
+          <Text style={[styles.kicker, { color: accent }]}>◆ {t(language, 'ascensionConfirmed')}</Text>
           <View style={styles.rankWrap}>
             <View style={[styles.rankAura, { backgroundColor: accent }]} />
             <RankBadge glow rank={rank} size={124} />
           </View>
-          <Text style={styles.title}>Nuevo rango</Text>
-          <Text style={styles.copy}>El Sistema ha registrado tu progreso. Continúa la ascensión.</Text>
+          <Text style={styles.title}>{t(language, 'newRank')}</Text>
+          <Text style={styles.copy}>{t(language, 'rankUpCopy')}</Text>
         </Animated.View>
         <View style={[styles.delta, { borderColor: `${accent}88` }]}>
-          <Text style={styles.deltaLabel}>RANGO ACTUAL</Text>
+          <Text style={styles.deltaLabel}>{t(language, 'currentRank')}</Text>
           <Text style={[styles.deltaValue, { color: accent }]}>{rank}</Text>
         </View>
       </View>
 
-      <Button icon={Sparkles} label="Continuar" onPress={() => router.back()} />
+      <Button icon={Sparkles} label={t(language, 'continue')} onPress={() => router.back()} />
     </Screen>
   );
 }

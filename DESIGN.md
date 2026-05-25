@@ -16,11 +16,11 @@ colors:
   success: "#3DD68C"
   danger: "#FF6B6B"
   streak: "#FFA94D"
-  rank-e: "#7A7A8C"
+  rank-e: "#9A9AAF"
   rank-d: "#4DB8C4"
-  rank-c: "#4D8BE0"
-  rank-b: "#9B6BE0"
-  rank-a: "#E84855"
+  rank-c: "#5F9BFF"
+  rank-b: "#B589F2"
+  rank-a: "#FF6B76"
   rank-s: "#F5C542"
 typography:
   display-xl:

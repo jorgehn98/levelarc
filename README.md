@@ -82,11 +82,12 @@ pnpm update:production --message "Fix UI copy"
 
 ## Siguiente bloque lógico
 
-1. Probar en emulador/dispositivo Android real.
-2. Validar icono/splash/adaptive icon en build real.
-3. Revisar permisos y UX de notificaciones en Android.
-4. Preparar build AAB de production.
-5. Hacer una pasada de diseño fino y textos antes de Play Store.
+La QA inicial en Android real ya está validada por el usuario y el icono de marca se ve bien. El objetivo no es publicar un MVP temprano, sino seguir construyendo hasta que LevelArc esté completa.
+
+1. Seguir puliendo producto y UX.
+2. Añadir más profundidad: estadísticas, logros y gamificación avanzada.
+3. Valorar IA local cuando la base esté madura.
+4. Dejar Play Store y App Store como paso final.
 
 ## Build Android
 

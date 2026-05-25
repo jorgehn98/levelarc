@@ -19,8 +19,8 @@ export default function NewHabitScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Nuevo hábito' }} />
-      <ScreenHeader subtitle="Sistema · registro" title={t(language, 'newHabit')} />
+      <Stack.Screen options={{ title: t(language, 'newHabit') }} />
+      <ScreenHeader subtitle={t(language, 'habitRegisterSubtitle')} title={t(language, 'newHabit')} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <HabitForm language={language} onCancel={() => router.back()} onSave={(input) => void handleSave(input)} />
       </ScrollView>

@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet } from 'react-native';
 
 import { HabitForm } from '@/components/HabitForm';
 import { Screen } from '@/components/Screen';
@@ -30,22 +30,29 @@ export default function HabitDetailScreen() {
     router.back();
   }
 
-  async function handleArchive() {
+  async function archiveCurrentHabit() {
     if (!id) return;
     await archiveHabitById(id);
     router.back();
   }
 
+  function handleArchive() {
+    Alert.alert(t(language, 'archiveHabitConfirmTitle'), t(language, 'archiveHabitConfirmCopy'), [
+      { text: t(language, 'cancel'), style: 'cancel' },
+      { text: t(language, 'archiveHabit'), style: 'destructive', onPress: () => void archiveCurrentHabit() },
+    ]);
+  }
+
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Hábito' }} />
-      <ScreenHeader subtitle="Sistema · edición" title={t(language, 'editHabit')} />
+      <Stack.Screen options={{ title: t(language, 'habit') }} />
+      <ScreenHeader subtitle={t(language, 'habitEditSubtitle')} title={t(language, 'editHabit')} />
       {habit ? (
         <ScrollView contentContainerStyle={styles.scroll}>
           <HabitForm
             habit={habit}
             language={language}
-            onArchive={() => void handleArchive()}
+            onArchive={handleArchive}
             onCancel={() => router.back()}
             onSave={(input) => void handleSave(input)}
           />

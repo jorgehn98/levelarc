@@ -1,6 +1,6 @@
 import { Clock3, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { formatClockTime, parseClockTime } from '@/lib/time';
@@ -14,6 +14,7 @@ type TimePickerFieldProps = {
   cancelLabel: string;
   clearLabel: string;
   confirmLabel: string;
+  systemLabel: string;
   help?: string;
 };
 
@@ -27,6 +28,7 @@ export function TimePickerField({
   help,
   onChange,
   placeholder,
+  systemLabel,
   title,
   value,
 }: TimePickerFieldProps) {
@@ -70,7 +72,7 @@ export function TimePickerField({
       <Modal animationType="fade" onRequestClose={() => setIsOpen(false)} transparent visible={isOpen}>
         <View style={styles.backdrop}>
           <View style={styles.panel}>
-            <Text style={styles.kicker}>◆ SISTEMA</Text>
+            <Text style={styles.kicker}>◆ {systemLabel}</Text>
             <Text style={styles.title}>{title}</Text>
             <View style={styles.columns}>
               <TimeColumn items={hours} selected={selectedHour} onSelect={setSelectedHour} />
@@ -93,20 +95,46 @@ export function TimePickerField({
 }
 
 function TimeColumn({ items, onSelect, selected }: { items: number[]; onSelect: (value: number) => void; selected: number }) {
-  return (
-    <ScrollView contentContainerStyle={styles.columnContent} style={styles.column}>
-      {items.map((item) => {
-        const isSelected = item === selected;
+  const renderItem = useCallback(
+    ({ item }: { item: number }) => (
+      <TimeOption
+        isSelected={item === selected}
+        onSelect={onSelect}
+        value={item}
+      />
+    ),
+    [onSelect, selected],
+  );
 
-        return (
-          <Pressable key={item} onPress={() => onSelect(item)} style={[styles.timeOption, isSelected && styles.selectedTimeOption]}>
-            <Text style={[styles.timeOptionText, isSelected && styles.selectedTimeOptionText]}>{String(item).padStart(2, '0')}</Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+  return (
+    <FlatList
+      contentContainerStyle={styles.columnContent}
+      data={items}
+      keyExtractor={(item) => String(item)}
+      renderItem={renderItem}
+      showsVerticalScrollIndicator={false}
+      style={styles.column}
+    />
   );
 }
+
+const TimeOption = memo(function TimeOption({
+  isSelected,
+  onSelect,
+  value,
+}: {
+  isSelected: boolean;
+  onSelect: (value: number) => void;
+  value: number;
+}) {
+  const handlePress = useCallback(() => onSelect(value), [onSelect, value]);
+
+  return (
+    <Pressable onPress={handlePress} style={[styles.timeOption, isSelected && styles.selectedTimeOption]}>
+      <Text style={[styles.timeOptionText, isSelected && styles.selectedTimeOptionText]}>{String(value).padStart(2, '0')}</Text>
+    </Pressable>
+  );
+});
 
 const styles = StyleSheet.create({
   controlRow: {

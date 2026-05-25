@@ -4,7 +4,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este roadmap 
 
 ## v1.0 — MVP funcional
 
-Estado: implementado a nivel código y con APK preview generado. Pendiente de QA Android real.
+Estado: implementado a nivel código, con APK preview generado y QA inicial validada en Android real por el usuario.
 
 Objetivo: demostrar el loop principal offline de hábitos + XP + progreso.
 
@@ -49,13 +49,13 @@ No incluye:
 
 ## v1.0 QA / Release candidate
 
-Estado: pendiente.
+Estado: QA inicial validada. Mantener esta fase abierta solo para bugs concretos que aparezcan al seguir usando la app.
 
-Objetivo: convertir el MVP funcional en un APK usable sin sorpresas graves.
+Objetivo: mantener el MVP funcional estable mientras se construyen las siguientes versiones de producto.
 
 Tareas:
 
-- Probar en Android real/emulador.
+- Probar en Android real/emulador: validado inicialmente por el usuario.
 - Validar SQLite en dispositivo.
 - Validar migraciones desde instalación limpia.
 - Validar recordatorios con permisos reales.
@@ -150,7 +150,9 @@ No crear tablas IA hasta que se vaya a implementar la feature.
 
 ## Play Store
 
-Estado: pendiente.
+Estado: paso final, no objetivo inmediato.
+
+La intención de producto es publicar cuando LevelArc esté más completa, no sacar un MVP temprano. Antes de tiendas deben cerrarse las fases de pulido, producto, gamificación avanzada y valorar IA local. Play Store y App Store quedan al final del roadmap.
 
 Tareas:
 
@@ -161,5 +163,6 @@ Tareas:
 - Descripción ES/EN.
 - Clasificación de contenido.
 - AAB production.
+- Definir si habrá build iOS/App Store y preparar la configuración nativa cuando toque.
 - Pruebas internas.
 - Revisión de permisos.

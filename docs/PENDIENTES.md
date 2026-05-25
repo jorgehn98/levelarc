@@ -4,13 +4,13 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 
 ## Prioridad alta
 
-- [ ] Probar en Android real o emulador.
+- [x] Probar en Android real o emulador.
 - [x] Ejecutar `pnpm build:android:preview`.
 - [x] Revisar resultado del build preview EAS `6914231b-d85a-464a-83a3-2794f392ca65`.
 - [x] Relanzar build preview tras añadir `babel-preset-expo`.
 - [x] Validar si el duplicado `expo-constants` de `expo-doctor` afecta al build nativo.
 - [x] Instalar APK preview `86105d10-d74e-4300-870a-a0081e7aee6c` en Android.
-- [ ] Instalar APK preview `a620ba5d-55a7-429c-bdb7-f67bda80bae9` en Android.
+- [x] Instalar APK preview en Android real para QA inicial.
 - [x] Crear APK preview con EAS Update activado.
 - [x] Instalar APK preview `f8c42fc9-d766-4e58-8859-d2b0a48e76e1` en Android.
 - [x] Publicar un update JS de prueba en canal `preview`.
@@ -40,7 +40,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 
 - [x] Implementar importación/restauración de backup JSON.
 - [x] Validar versión de backup.
-- [ ] Añadir confirmación explícita antes de sobrescribir datos locales.
+- [x] Añadir confirmación explícita antes de sobrescribir datos locales.
 - [x] Restaurar `player` desde backup.
 - [x] Documentar flujo de backup en Ajustes.
 - [ ] Mejorar importación con selector de archivo si hace falta.
@@ -51,7 +51,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Integrar logo en icono, favicon, splash y adaptive icon.
 - [x] Usar logo dentro de la UI inicial.
 - [x] Crear logo vector simplificado.
-- [ ] Validar icono app en tamaños pequeños reales, especialmente 48px.
+- [x] Validar icono app en Android real.
 - [ ] Crear icono app 48px simplificado.
 - [ ] Validar adaptive icon Android en build real.
 - [ ] Validar splash en build real.
@@ -76,12 +76,12 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Añadir selector manual de icono al crear/editar hábito.
 - [x] Añadir selector manual de atributos al crear/editar hábito.
 - [x] Añadir radar chart inicial de atributos en Progreso.
-- [ ] Mejorar estados vacíos.
+- [x] Mejorar estados vacíos.
 - [x] Corregir layout de Hábitos tras QA Android: eliminar lista con ancho manual y usar tarjetas a ancho completo.
-- [ ] Añadir confirmación al archivar hábito.
-- [ ] Añadir confirmación al cerrar día.
-- [ ] Revisar textos del Sistema.
-- [ ] Revisar contraste de rangos E-S.
+- [x] Añadir confirmación al archivar hábito.
+- [x] Añadir confirmación al cerrar día.
+- [x] Revisar textos del Sistema.
+- [x] Revisar contraste de rangos E-S.
 - [ ] Revisar pantallas pequeñas.
 
 ## Datos / lógica
@@ -89,7 +89,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Añadir tests para rachas por hábito.
 - [ ] Añadir tests para cierre de día.
 - [x] Añadir tests para misión diaria.
-- [ ] Añadir tests para recalcular player desde events.
+- [ ] Añadir tests para recalcular player desde events y misiones reclamadas.
 - [x] Añadir tests para normalización, reparto y nivel de atributos.
 - [ ] Revisar balance final de curva de atributos frente a nivel/rango.
 - [x] Igualar multiplicador de racha por hábito en web fallback.
@@ -107,7 +107,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Resolver o validar `expo-doctor` duplicado `expo-constants`.
 - [ ] Validar EAS Update end-to-end en preview.
 - [ ] Añadir tests de repositorio o integración local.
-- [ ] Revisar warnings de React Doctor.
+- [x] Revisar warnings estructurales de React Doctor.
 - [ ] Revisar rendimiento de SQLite sync/async.
 - [ ] Revisar imports y dead code antes de release.
 - [ ] Añadir manejo de errores visible para backup/notificaciones.
@@ -115,8 +115,10 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 ## Store / release
 
 - [x] Crear build preview.
-- [ ] Test interno.
+- [x] QA inicial en Android real.
+- [ ] Test interno amplio cuando el producto este mas completo.
 - [ ] Crear build production AAB.
+- [ ] Definir build iOS/App Store cuando el producto este listo para tiendas.
 - [ ] Política de privacidad.
 - [ ] Descripción Play Store ES/EN.
 - [ ] Screenshots.
