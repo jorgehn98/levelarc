@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { BarChart3, Check, ChevronDown, ChevronRight } from 'lucide-react-native';
+import { BarChart3, Check, ChevronDown, ChevronRight, Plus, X } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -88,9 +88,11 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
 
   const actions = (
     <View style={styles.actions}>
-      {onCancel ? <Button label={t(language, 'cancel')} onPress={onCancel} style={styles.actionButton} variant="secondary" /> : null}
+      <View style={styles.actionDivider} />
+      {onCancel ? <Button icon={X} label={t(language, 'cancel')} onPress={onCancel} style={styles.cancelAction} variant="secondary" /> : null}
       <Button
         disabled={!canSave}
+        icon={habit ? Check : Plus}
         label={habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
         onPress={handleSave}
         style={styles.primaryAction}
@@ -682,15 +684,36 @@ const styles = StyleSheet.create({
     color: colors.background.void,
   },
   actions: {
+    backgroundColor: colors.background.surface,
+    borderColor: colors.background.borderBright,
+    borderRadius: radii.md,
+    borderWidth: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
+    marginTop: 2,
+    overflow: 'hidden',
+    padding: 10,
+    position: 'relative',
   },
-  actionButton: {
+  actionDivider: {
+    backgroundColor: colors.brand.cyanCore,
+    bottom: 0,
+    left: 0,
+    opacity: 0.72,
+    position: 'absolute',
+    top: 0,
+    width: 3,
+  },
+  cancelAction: {
+    borderColor: colors.background.borderBright,
     flex: 1,
+    minWidth: 116,
   },
   primaryAction: {
-    flex: 2,
+    flex: 1.6,
+    minHeight: 50,
+    minWidth: 178,
   },
   preview: {
     alignItems: 'center',
