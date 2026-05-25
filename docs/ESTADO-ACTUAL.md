@@ -406,6 +406,14 @@ Update `preview` con rediseño de Ajustes:
 - Commit: `5d9aaa41e246c0b59d7cafd8ea38e5ccd7dd7bde`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/2f83ad06-7893-4b49-922d-71c4b7364c5a>
 
+Update `preview` con botones del formulario de habito:
+
+- Update group: `bf0c34fe-544c-40d9-b587-866d2efd38a3`
+- Runtime: `1.0.2`
+- Mensaje: `Polish habit form actions`
+- Commit: `cafca2e8a44018834ff2072486d6e7c5f4fff88a`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/bf0c34fe-544c-40d9-b587-866d2efd38a3>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
