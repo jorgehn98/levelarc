@@ -374,6 +374,14 @@ Update `preview` con selector de hora para recordatorios:
 - Commit: `5c5cb9a0889c4f56a0095a2257b9fa8deb485877`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/70e19809-c073-484f-ba91-ec052fb3165f>
 
+Update `preview` con pulido visual de Hoy:
+
+- Update group: `b82db624-fa8b-422a-a546-d4395542338e`
+- Runtime: `1.0.2`
+- Mensaje: `Polish today habit cards`
+- Commit: `096ea469e048a0f1a9e4d2fd0e04984b3a61125a`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/b82db624-fa8b-422a-a546-d4395542338e>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
