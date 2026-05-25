@@ -398,6 +398,14 @@ Update `preview` con widgets de actividad en Progreso:
 - Commit: `73520cd542ddd7c099270dbe6def3e41ace462a9`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/9e86fe1b-9162-49d3-8ee6-fb464a422340>
 
+Update `preview` con rediseño de Ajustes:
+
+- Update group: `2f83ad06-7893-4b49-922d-71c4b7364c5a`
+- Runtime: `1.0.2`
+- Mensaje: `Redesign settings screen`
+- Commit: `5d9aaa41e246c0b59d7cafd8ea38e5ccd7dd7bde`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/2f83ad06-7893-4b49-922d-71c4b7364c5a>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
