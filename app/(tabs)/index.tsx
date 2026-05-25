@@ -4,11 +4,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { HabitCard } from '@/components/HabitCard';
-import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
-import { SystemPanel } from '@/components/SystemPanel';
 import { getDailyMissionProgress, getPerfectWeekMissionProgress } from '@/core/missions';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
@@ -48,19 +46,19 @@ export default function TodayScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <SystemPanel title={t(language, 'dailyMission')}>
+        <View style={styles.missionPanel}>
           <View style={styles.missionTop}>
             <View style={[styles.missionIcon, mission.isComplete && styles.missionCompleteIcon]}>
               {mission.isComplete ? <Check color={colors.state.completed} size={18} /> : <Target color={colors.brand.cyanCore} size={18} />}
             </View>
             <View style={styles.missionCopy}>
-              <Text style={styles.kicker}>{t(language, 'missionStatus')}</Text>
+              <Text style={styles.kicker}>◆ {t(language, 'missionStatus')}</Text>
               <Text style={styles.systemText}>{mission.isAvailable ? t(language, 'completeTodayHabits') : t(language, 'noDailyMission')}</Text>
             </View>
             <Text style={[styles.missionCount, mission.isComplete && styles.missionComplete]}>{mission.completed} / {mission.target}</Text>
           </View>
 
-          <ProgressBar ratio={mission.ratio} color={mission.isComplete ? colors.state.completed : colors.brand.cyanCore} />
+          <SegmentedProgress completed={mission.completed} target={mission.target} color={mission.isComplete ? colors.state.completed : colors.brand.cyanCore} />
 
           {!mission.isAvailable ? (
             <Text style={styles.metaText}>{t(language, 'noDailyMissionCopy')}</Text>
@@ -73,16 +71,16 @@ export default function TodayScreen() {
           ) : (
             <Text style={styles.metaText}>{t(language, 'completedCount', { done: mission.completed, target: mission.target })}</Text>
           )}
-        </SystemPanel>
+        </View>
 
         {showPerfectWeekMission ? (
-          <SystemPanel title={t(language, 'perfectWeekMission')}>
+          <View style={[styles.missionPanel, styles.streakMissionPanel]}>
             <View style={styles.missionTop}>
               <View style={[styles.missionIcon, perfectWeekMission.isComplete && styles.missionCompleteIcon]}>
                 {perfectWeekMission.isComplete ? <Check color={colors.state.completed} size={18} /> : <Flame color={colors.state.streak} size={18} />}
               </View>
               <View style={styles.missionCopy}>
-                <Text style={styles.kicker}>{t(language, 'perfectWeekStatus')}</Text>
+                <Text style={[styles.kicker, styles.streakKicker]}>◆ {t(language, 'perfectWeekStatus')}</Text>
                 <Text style={styles.systemText}>{t(language, 'perfectWeekCopy')}</Text>
               </View>
               <Text style={[styles.missionCount, perfectWeekMission.isComplete && styles.missionComplete]}>
@@ -90,7 +88,11 @@ export default function TodayScreen() {
               </Text>
             </View>
 
-            <ProgressBar ratio={perfectWeekMission.ratio} color={perfectWeekMission.isComplete ? colors.state.completed : colors.state.streak} />
+            <SegmentedProgress
+              completed={perfectWeekMission.completed}
+              target={perfectWeekMission.target}
+              color={perfectWeekMission.isComplete ? colors.state.completed : colors.state.streak}
+            />
 
             {canClaimPerfectWeek ? (
               <View style={styles.claim}>
@@ -101,7 +103,7 @@ export default function TodayScreen() {
             ) : (
               <Text style={styles.metaText}>{t(language, 'perfectWeekProgress', { done: perfectWeekMission.completed, target: perfectWeekMission.target })}</Text>
             )}
-          </SystemPanel>
+          </View>
         ) : null}
 
         {todayHabits.length === 0 ? (
@@ -117,7 +119,7 @@ export default function TodayScreen() {
             <HabitGroup
               accent={colors.brand.cyanCore}
               habits={pendingHabits}
-              label={t(language, 'pending')}
+              label={t(language, 'pendingGroup')}
               language={language}
               onFail={failHabit}
               onIncrement={incrementHabit}
@@ -126,7 +128,7 @@ export default function TodayScreen() {
             <HabitGroup
               accent={colors.state.completed}
               habits={completedHabits}
-              label={t(language, 'completed')}
+              label={t(language, 'completedGroup')}
               language={language}
               onFail={failHabit}
               onIncrement={incrementHabit}
@@ -135,7 +137,7 @@ export default function TodayScreen() {
             <HabitGroup
               accent={colors.state.failed}
               habits={failedHabits}
-              label={t(language, 'failed')}
+              label={t(language, 'failedGroup')}
               language={language}
               onFail={failHabit}
               onIncrement={incrementHabit}
@@ -145,6 +147,27 @@ export default function TodayScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+type SegmentedProgressProps = {
+  completed: number;
+  target: number;
+  color: string;
+};
+
+function SegmentedProgress({ completed, target, color }: SegmentedProgressProps) {
+  const segmentCount = Math.max(1, Math.min(target || 1, 6));
+  const completedSegments = target > 0 ? Math.round((Math.min(completed, target) / target) * segmentCount) : 0;
+
+  return (
+    <View style={styles.segmentedProgress}>
+      {Array.from({ length: segmentCount }).map((_, index) => (
+        <View key={index} style={styles.segmentTrack}>
+          <View style={[styles.segmentFill, index < completedSegments && { backgroundColor: color, width: '100%' }]} />
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -199,11 +222,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 12,
+  },
+  missionPanel: {
+    backgroundColor: colors.background.surface,
+    borderColor: colors.brand.cyanShadow,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: 12,
+    overflow: 'hidden',
+    padding: 16,
+  },
+  streakMissionPanel: {
+    borderColor: `${colors.state.streak}88`,
   },
   missionIcon: {
     alignItems: 'center',
-    backgroundColor: colors.background.card,
+    backgroundColor: `${colors.brand.cyanCore}14`,
     borderColor: colors.brand.cyanCore,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -213,6 +247,7 @@ const styles = StyleSheet.create({
   },
   missionCompleteIcon: {
     borderColor: colors.state.completed,
+    backgroundColor: `${colors.state.completed}14`,
   },
   missionCopy: {
     flex: 1,
@@ -223,17 +258,38 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
   },
+  streakKicker: {
+    color: colors.state.streak,
+  },
   systemText: {
     color: colors.brand.bone,
     fontFamily: typography.font.bodyMedium,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 20,
     marginTop: 3,
   },
   missionCount: {
     color: colors.brand.cyanCore,
     fontFamily: typography.font.displayBold,
     fontSize: 15,
+  },
+  segmentedProgress: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  segmentTrack: {
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    flex: 1,
+    height: 8,
+    overflow: 'hidden',
+  },
+  segmentFill: {
+    borderRadius: 3,
+    height: '100%',
+    width: 0,
   },
   missionComplete: {
     color: colors.state.completed,

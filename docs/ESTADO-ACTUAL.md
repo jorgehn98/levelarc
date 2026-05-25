@@ -81,8 +81,9 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 
 ### Hoy
 
-- Misión diaria con jerarquía visual de Sistema, icono, contador y estado de bonus.
-- Hábitos agrupados por pendiente/completado/fallado.
+- Misión diaria compacta con panel de Sistema, icono, contador y progreso segmentado.
+- Hábitos agrupados por Pendientes/Completados/Fallidos con cabecera, contador y línea de sección.
+- Tarjetas de hábito rediseñadas en estilo neón: rail lateral, icono, pill de estado, metadatos XP/atributos, CTA principal y fallo separado.
 - Lista de hábitos que aplican al día actual.
 - Completar hábito binario.
 - Sumar progreso `+1` en hábito contable.

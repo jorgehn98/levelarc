@@ -1,14 +1,14 @@
-import { Check, Plus, RotateCcw, Skull } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { Check, Plus, RotateCcw, X } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import { normalizeHabitAttributes } from '@/core/attributes';
+import { getCompletionXp, type HabitImportance } from '@/core/xp';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
 import { getHabitAttribute } from '@/lib/habitAttributes';
 import { getHabitIconComponent } from '@/lib/habitIcons';
-import { colors, radii, shadows, typography } from '@/theme/colors';
+import { colors, radii, typography } from '@/theme/colors';
 
 type HabitCardProps = {
   habit: TodayHabit;
@@ -21,58 +21,83 @@ type HabitCardProps = {
 export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: HabitCardProps) {
   const isDone = habit.estado === 'completado';
   const isFailed = habit.estado === 'fallado';
+  const isPending = !isDone && !isFailed;
   const ratio = habit.meta > 0 ? habit.cantidad / habit.meta : 0;
   const HabitIcon = getHabitIconComponent(habit.icono);
   const attributes = normalizeHabitAttributes(habit.atributos);
+  const accent = isDone ? colors.state.completed : isFailed ? colors.state.failed : colors.brand.cyanCore;
+  const xp = getCompletionXp(habit.importancia as HabitImportance, 0);
+  const ActionIcon = habit.tipo === 'binario' ? Check : Plus;
+  const stateLabel = isDone ? t(language, 'completed') : isFailed ? t(language, 'failed') : t(language, 'pending');
 
   return (
-    <View style={[styles.card, isDone && styles.doneCard, isFailed && styles.failedCard]}>
-      <View style={[styles.statusRail, isDone && styles.doneRail, isFailed && styles.failedRail]} />
+    <View style={[styles.card, { borderColor: accent }, isDone && styles.doneCard, isFailed && styles.failedCard]}>
+      <View style={[styles.statusRail, { backgroundColor: accent }]} />
       <View style={styles.topRow}>
-        <View style={[styles.iconTile, isDone && styles.doneIconTile, isFailed && styles.failedIconTile]}>
+        <View style={[styles.iconTile, { borderColor: accent, backgroundColor: `${accent}10` }, isFailed && styles.failedIconTile]}>
           {isDone ? (
             <Check color={colors.state.completed} size={20} />
           ) : (
             <HabitIcon color={isFailed ? colors.state.pending : colors.brand.cyanCore} size={20} />
           )}
         </View>
+
         <View style={styles.copy}>
-          <Text style={styles.title}>{habit.nombre}</Text>
+          <Text style={[styles.title, isFailed && styles.failedTitle]} numberOfLines={2}>{habit.nombre}</Text>
           <View style={styles.metaRow}>
-            <Text style={styles.meta}>
-              {t(language, 'importance')} {habit.importancia}{habit.tipo === 'contable' ? ` · ${habit.cantidad}/${habit.meta}` : ''}
-            </Text>
-            <View style={styles.attributeChips}>
-              {attributes.map((attributeId) => {
-                const attribute = getHabitAttribute(attributeId);
-                return (
-                  <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
-                    <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
-                  </View>
-                );
-              })}
-            </View>
+            <Text style={styles.xpText}>+{xp} XP</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.importanceText}>◆ {habit.importancia}</Text>
+            {attributes.length > 0 ? <Text style={styles.metaDot}>·</Text> : null}
+            {attributes.map((attributeId) => {
+              const attribute = getHabitAttribute(attributeId);
+              return (
+                <Text key={attribute.id} style={[styles.attributeCode, { color: attribute.color }]}>
+                  {attribute.code}
+                </Text>
+              );
+            })}
           </View>
         </View>
-        <Text style={[styles.state, isDone && styles.doneText, isFailed && styles.failedText]}>
-          {isDone ? t(language, 'completed') : isFailed ? t(language, 'failed') : t(language, 'pending')}
+
+        <Text style={[styles.state, { borderColor: accent, color: accent }]} numberOfLines={1}>
+          {stateLabel}
         </Text>
       </View>
 
-      {habit.tipo === 'contable' ? <ProgressBar ratio={ratio} color={isDone ? colors.state.completed : colors.brand.cyanCore} /> : null}
+      {habit.tipo === 'contable' ? (
+        <View style={styles.progressBlock}>
+          <Text style={styles.progressText}>{habit.cantidad}/{habit.meta}</Text>
+          <ProgressBar ratio={ratio} color={accent} />
+        </View>
+      ) : null}
 
-      <View style={styles.actions}>
-        <Button
-          disabled={isDone || isFailed}
-          icon={habit.tipo === 'binario' ? Check : Plus}
-          label={habit.tipo === 'binario' ? t(language, 'complete') : '+1'}
-          onPress={onIncrement}
-        />
-        <Button disabled={isDone || isFailed || habit.cantidad > 0} icon={Skull} label={t(language, 'fail')} onPress={onFail} variant="danger" />
-        {(isDone || isFailed || habit.cantidad > 0) ? (
-          <Button icon={RotateCcw} label={t(language, 'undo')} onPress={onUndo} variant="secondary" />
-        ) : null}
-      </View>
+      {isPending ? (
+        <View style={styles.pendingActions}>
+          <Pressable accessibilityRole="button" onPress={onIncrement} style={styles.completeButton}>
+            <ActionIcon color={colors.background.void} size={18} />
+            <Text style={styles.completeButtonText}>{habit.tipo === 'binario' ? t(language, 'complete') : '+1'}</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={habit.cantidad > 0}
+            onPress={onFail}
+            style={[styles.failButton, habit.cantidad > 0 && styles.disabledFailButton]}
+          >
+            <X color={habit.cantidad > 0 ? colors.state.pending : colors.state.failed} size={22} />
+          </Pressable>
+        </View>
+      ) : null}
+
+      {(isDone || isFailed || habit.cantidad > 0) ? (
+        <Pressable accessibilityRole="button" onPress={onUndo} style={styles.undoButton}>
+          <RotateCcw color={colors.brand.boneMuted} size={13} />
+          <Text style={styles.undoText}>{t(language, 'undo')}</Text>
+        </Pressable>
+      ) : null}
+
+      <Text style={[styles.cornerDots, { color: accent }]}>•••</Text>
     </View>
   );
 }
@@ -80,37 +105,27 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.background.card,
-    borderColor: colors.background.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    gap: 14,
+    gap: 12,
     overflow: 'hidden',
-    padding: 16,
+    padding: 14,
     paddingLeft: 18,
+    paddingBottom: 18,
     position: 'relative',
   },
   doneCard: {
-    borderColor: colors.state.completed,
-    ...shadows.rankGlow(colors.state.completed),
+    backgroundColor: `${colors.background.card}F2`,
   },
   failedCard: {
-    borderColor: colors.state.failed,
     opacity: 0.78,
   },
   statusRail: {
-    backgroundColor: colors.brand.cyanCore,
     bottom: 0,
     left: 0,
     position: 'absolute',
     top: 0,
-    width: 3,
-  },
-  doneRail: {
-    backgroundColor: colors.state.completed,
-  },
-  failedRail: {
-    backgroundColor: colors.state.failed,
-    opacity: 0.56,
+    width: 4,
   },
   topRow: {
     alignItems: 'flex-start',
@@ -121,26 +136,29 @@ const styles = StyleSheet.create({
   iconTile: {
     alignItems: 'center',
     backgroundColor: colors.background.surface,
-    borderColor: colors.background.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    height: 40,
+    height: 42,
     justifyContent: 'center',
-    width: 40,
-  },
-  doneIconTile: {
-    borderColor: colors.state.completed,
+    width: 42,
   },
   failedIconTile: {
     borderColor: colors.background.border,
+    backgroundColor: colors.background.surface,
   },
   copy: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
     color: colors.brand.bone,
-    fontFamily: typography.font.bodyMedium,
-    fontSize: 17,
+    fontFamily: typography.font.bodySemiBold,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  failedTitle: {
+    color: colors.state.pending,
+    textDecorationLine: 'line-through',
   },
   metaRow: {
     alignItems: 'center',
@@ -149,48 +167,93 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 4,
   },
-  meta: {
+  xpText: {
+    color: colors.rank.S,
+    fontFamily: typography.font.displayBold,
+    fontSize: 12,
+  },
+  metaDot: {
     color: colors.state.pending,
     fontFamily: typography.font.bodyRegular,
-    fontSize: 13,
+    fontSize: 11,
   },
-  attributeChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
+  importanceText: {
+    color: colors.state.streak,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
   },
-  attributeChip: {
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-  attributeChipText: {
-    fontFamily: typography.font.displayBold,
-    fontSize: 8,
+  attributeCode: {
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
   },
   state: {
-    color: colors.state.pending,
-    borderColor: colors.state.pending,
     borderRadius: radii.sm,
     borderWidth: 1,
     fontFamily: typography.font.displayMedium,
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 0,
+    maxWidth: 112,
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  doneText: {
-    borderColor: colors.state.completed,
-    color: colors.state.completed,
+  progressBlock: {
+    gap: 6,
+    marginTop: -2,
   },
-  failedText: {
-    borderColor: colors.state.failed,
-    color: colors.state.failed,
+  progressText: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
   },
-  actions: {
+  pendingActions: {
+    alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+  },
+  completeButton: {
+    alignItems: 'center',
+    backgroundColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    height: 46,
+    justifyContent: 'center',
+  },
+  completeButtonText: {
+    color: colors.background.void,
+    fontFamily: typography.font.bodySemiBold,
+    fontSize: 15,
+  },
+  failButton: {
+    alignItems: 'center',
+    borderColor: colors.state.failed,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 46,
+    justifyContent: 'center',
+    width: 50,
+  },
+  disabledFailButton: {
+    borderColor: colors.background.borderBright,
+    opacity: 0.45,
+  },
+  undoButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  undoText: {
+    color: colors.brand.boneMuted,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 13,
+  },
+  cornerDots: {
+    bottom: 6,
+    fontFamily: typography.font.displayBold,
+    fontSize: 13,
+    position: 'absolute',
+    right: 10,
   },
 });
