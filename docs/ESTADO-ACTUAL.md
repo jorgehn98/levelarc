@@ -432,6 +432,14 @@ Update `preview` con cierre automatico de dias perdidos:
 - Commit: `f630ee746b56c61e4937bc648de965d2c45a0431`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/0a64cf90-5025-4dde-84af-abb14298cb0c>
 
+Update `preview` corrigiendo contraste de botones principales:
+
+- Update group: `1c916ec3-9c6d-42b6-8688-fcc2adca12f5`
+- Runtime: `1.0.2`
+- Mensaje: `Fix primary button contrast`
+- Commit: `7412b9a66d11d296284e204dda502518aebfe548`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/1c916ec3-9c6d-42b6-8688-fcc2adca12f5>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
