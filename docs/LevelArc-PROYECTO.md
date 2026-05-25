@@ -150,7 +150,7 @@ Fórmula de partida: `XP_acumulada(nivel) = 50 × nivel^1.8`. Rápida al inicio 
 Una sola misión fija, NO generativa: "Completa 3 hábitos hoy" → XP bonus. Reset diario. Sin variedad ni IA en el MVP.
 
 ### Penalización por inactividad (cerrado)
-La inactividad (no abrir la app varios días) **solo rompe rachas**, NO resta XP retroactivo. La penalización de XP aplica únicamente cuando: (a) el usuario marca activamente un hábito como fallado, o (b) al cierre del día con la app activa y un hábito sin completar. Un hábito contable con progreso parcial (1/4) NO penaliza; solo penaliza el 0 absoluto al cierre del día, igual que un binario fallado. Esto preserva la tensión (perder rachas duele) sin la espiral de abandono.
+La app usa fecha local del dispositivo y guarda el último día activo. Al arrancar o al cruzar medianoche, cierra automáticamente los días pasados hasta ayer: un hábito programado que quedó pendiente con progreso 0 se marca como fallado y aplica la penalización normal. Un día en que el hábito NO toca no cuenta como fallado. Un hábito contable con progreso parcial (1/4) no penaliza por ahora; solo penaliza el 0 absoluto, igual que el cierre manual. La primera versión con este sistema inicializa el marcador sin penalizar historial antiguo.
 
 ---
 

@@ -29,6 +29,7 @@ Incluye:
 - Pantalla Ajustes.
 - Misión diaria dinámica: completar todos los hábitos programados para hoy.
 - Misión extra de racha perfecta de 7 días.
+- Cierre automático de días pasados usando fecha local del dispositivo.
 - Recordatorios locales opcionales con selector de hora.
 - Recordatorio diario configurable de cierre del día con selector de hora.
 - Exportación JSON.

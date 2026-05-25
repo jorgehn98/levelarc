@@ -25,6 +25,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Zustand para estado global.
 - Fecha, hora y zona horaria salen siempre del dispositivo: no se consulta Internet para decidir qué hábitos tocan hoy.
 - La app detecta cambio de día local al volver del background y con app abierta mediante una comprobación periódica.
+- La app cierra automáticamente los días pasados desde el último día activo local: los hábitos programados que quedaron pendientes con progreso 0 pasan a fallados al arrancar o al cruzar medianoche.
 - NativeWind/Tailwind configurado.
 - Fuentes Inter y Orbitron autocontenidas en `assets/fonts/` para mantener el enfoque offline-first.
 - EAS configurado con `preview` y `production`.
@@ -119,6 +120,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Reclamar bonus de XP escalado por carga diaria: 1 hábito +5 XP, 2-3 +10 XP, 4-5 +15 XP, 6+ +20 XP.
 - Misión extra de racha perfecta: si los 6 días anteriores fueron perfectos, en el día 7 aparece una misión de racha. Al completar todos los hábitos del día 7 se puede reclamar un bonus extra de +30 XP.
 - La racha de misión (`player.racha_misiones`) sube al reclamar la misión diaria normal; la racha perfecta se calcula desde `daily_missions`.
+- Al arrancar la app o cambiar de día, se ejecuta cierre automático hasta ayer usando `levelarc.lastActiveDate` en almacenamiento local. La primera ejecución inicializa el marcador sin penalizar historial antiguo.
 
 ### Persistencia
 
@@ -172,9 +174,9 @@ La biblia conceptual no incluía tabla de progreso diario mutable. Se añadió p
 
 Eventos sigue siendo la fuente de verdad del XP; `habit_daily_progress` solo representa estado del día.
 
-### Cierre del día manual
+### Cierre del día automático
 
-La biblia habla de cierre del día con app activa. En el MVP se implementó como acción manual en Ajustes para evitar automatismos frágiles sin background jobs.
+La app no depende de background jobs ni de Internet. Guarda el último día activo local y, al volver a abrir o al cruzar medianoche con la app abierta, cierra todos los días pendientes hasta ayer. Ajustes mantiene `Cerrar día` como fallback manual.
 
 ### Web fallback
 
@@ -421,6 +423,14 @@ Update `preview` con botones del formulario de edicion de habito:
 - Mensaje: `Polish edit habit form actions`
 - Commit: `ef84146044482bce4b2fcecb583c4bcb6967654d`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/580f555f-0ad5-4ed0-af1b-6421b0af3ac6>
+
+Update `preview` con cierre automatico de dias perdidos:
+
+- Update group: `0a64cf90-5025-4dde-84af-abb14298cb0c`
+- Runtime: `1.0.2`
+- Mensaje: `Auto close missed habit days`
+- Commit: `f630ee746b56c61e4937bc648de965d2c45a0431`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/0a64cf90-5025-4dde-84af-abb14298cb0c>
 
 Build preview fallido durante la configuración de EAS Update:
 
