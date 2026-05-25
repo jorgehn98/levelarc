@@ -19,7 +19,15 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
   const isPrimary = variant === 'primary';
   const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
-  const textColor = isPrimary ? colors.background.void : isSelected ? colors.brand.cyanCore : isDanger ? colors.state.failed : colors.brand.bone;
+  const textColor = disabled
+    ? colors.brand.boneMuted
+    : isPrimary
+      ? colors.brand.bone
+      : isSelected
+        ? colors.brand.cyanCore
+        : isDanger
+          ? colors.state.failed
+          : colors.brand.bone;
 
   return (
     <Pressable
@@ -29,7 +37,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
         styles.button,
         styles[variant],
         style,
-        disabled && styles.disabled,
+        disabled && (isPrimary ? styles.primaryDisabled : styles.disabled),
         pressed && !disabled && styles.pressed,
       ]}
     >
@@ -52,7 +60,7 @@ const styles = StyleSheet.create({
   },
   primary: {
     ...shadows.primaryGlow,
-    backgroundColor: colors.brand.cyanCore,
+    backgroundColor: colors.brand.cyanDeep,
     borderColor: colors.brand.cyanCore,
   },
   secondary: {
@@ -74,6 +82,11 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
+  },
+  primaryDisabled: {
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.borderBright,
+    opacity: 0.72,
   },
   pressed: {
     opacity: 0.88,
