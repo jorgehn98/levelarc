@@ -84,7 +84,7 @@ Incluye:
 
 ## v1.2 — Pulido de producto
 
-Estado: pendiente.
+Estado: implementado y validado en Android real por el usuario.
 
 Objetivo: que la app se sienta publicable.
 
@@ -101,12 +101,14 @@ Incluye:
 - Microinteracciones razonables.
 - Accesibilidad básica.
 - Revisión de contraste.
+- QA de pantallas pequeñas.
+- Warnings estructurales de React Doctor resueltos.
 
-## v1.3 — Estadísticas simples
+## v1.3 — Producto, métricas simples y uso real
 
-Estado: pendiente.
+Estado: siguiente fase activa.
 
-Objetivo: dar más feedback sin complicar demasiado.
+Objetivo: hacer que LevelArc sea más útil al usarla varios días seguidos, sin meter todavía complejidad de IA ni sistemas grandes.
 
 Incluye:
 
@@ -115,6 +117,10 @@ Incluye:
 - Completados/fallados por semana.
 - Mejor pantalla de detalle de hábito.
 - Filtro básico de historial.
+- Métricas útiles de consistencia.
+- Lectura más clara de progreso por atributo.
+- Ajustes de producto que salgan usando la app con datos reales.
+- Mantener backup import/export como salvavidas antes de cerrar release, pero sin bloquear esta fase.
 
 ## v2.0 — Gamificación avanzada
 

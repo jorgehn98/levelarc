@@ -14,27 +14,27 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Crear APK preview con EAS Update activado.
 - [x] Instalar APK preview `f8c42fc9-d766-4e58-8859-d2b0a48e76e1` en Android.
 - [x] Publicar un update JS de prueba en canal `preview`.
-- [ ] Validar botón Ajustes > Actualizaciones en Android.
-- [ ] Probar crear hábito en Android.
-- [ ] Probar selector de hora en hábitos: seleccionar hora, guardar, editar y limpiar recordatorio.
-- [ ] Probar onboarding inicial en Android: guardar nombre y entrar con "Iniciar juego".
-- [ ] Probar entrada de retorno en Android: resumen de rango/XP y "Continuar jugando".
-- [ ] Probar cambio de nombre desde Ajustes.
-- [ ] Probar editar hábito en Android.
-- [ ] Probar archivar hábito en Android.
+- [x] Validar botón Ajustes > Actualizaciones en Android.
+- [x] Probar crear hábito en Android.
+- [x] Probar selector de hora en hábitos: seleccionar hora, guardar, editar y limpiar recordatorio.
+- [x] Probar onboarding inicial en Android: guardar nombre y entrar con "Iniciar juego".
+- [x] Probar entrada de retorno en Android: resumen de rango/XP y "Continuar jugando".
+- [x] Probar cambio de nombre desde Ajustes.
+- [x] Probar editar hábito en Android.
+- [x] Probar archivar hábito en Android.
 - [x] Confirmar en Android que Hábitos muestra todos los hábitos activos y que las tarjetas/empty states ocupan ancho completo.
-- [ ] Probar hábito contable hasta completar meta.
-- [ ] Confirmar que un hábito lunes/miércoles/viernes/sábado no aparece en domingo.
+- [x] Probar hábito contable hasta completar meta.
+- [x] Confirmar que un hábito lunes/miércoles/viernes/sábado no aparece en domingo.
 - [ ] Probar cambio de día local en Android: dejar la app abierta hasta medianoche y confirmar que Hoy pasa al día nuevo.
 - [ ] Probar cambio de zona horaria del teléfono sin Internet y confirmar que Hoy usa la fecha local nueva.
-- [ ] Probar fallar hábito y confirmar que no baja de nivel.
-- [ ] Probar deshacer acción del día.
-- [ ] Probar misión diaria y reclamar bonus.
-- [ ] Probar cierre manual del día.
+- [x] Probar fallar hábito y confirmar que no baja de nivel.
+- [x] Probar deshacer acción del día.
+- [x] Probar misión diaria y reclamar bonus.
+- [x] Probar cierre manual del día.
 - [ ] Probar exportación JSON vía Android share sheet.
 - [ ] Probar importación/restauración JSON en Android.
-- [ ] Probar permisos y scheduling de notificaciones.
-- [ ] Probar recordatorio de cierre del día: configurar hora, recibir notificación y desactivar.
+- [x] Probar permisos y scheduling de notificaciones.
+- [x] Probar recordatorio de cierre del día: configurar hora, recibir notificación y desactivar.
 
 ## Backup
 
@@ -82,7 +82,17 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Añadir confirmación al cerrar día.
 - [x] Revisar textos del Sistema.
 - [x] Revisar contraste de rangos E-S.
-- [ ] Revisar pantallas pequeñas.
+- [x] Revisar pantallas pequeñas.
+
+## Producto / métricas
+
+- [ ] Definir métricas v1.3 sin sobrecargar la app.
+- [ ] Mejorar detalle de hábito con historial y consistencia.
+- [ ] Mostrar rachas por hábito de forma más accionable.
+- [ ] Añadir resumen semanal simple de completados/fallados.
+- [ ] Mejorar lectura de progreso por atributos.
+- [ ] Revisar si hacen falta logros simples antes de v2.
+- [ ] Recoger fricciones que aparezcan usando la app varios días.
 
 ## Datos / lógica
 

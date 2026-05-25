@@ -468,6 +468,14 @@ MVP funcional: sí.
 
 QA Android inicial: validada en móvil real por el usuario.
 
+OTA preview de pulido v1.2: validada por el usuario en Android real.
+
+Flujo principal con datos reales: validado por el usuario. Crear/editar/archivar hábitos, completar/fallar/deshacer, misión diaria, progreso, onboarding, ajustes, recordatorios y actualización preview funcionan correctamente en el móvil.
+
+Backup import/export: implementado, pero queda como comprobación menor pendiente. No bloquea el paso a la siguiente fase de producto porque es un salvavidas, no el loop principal.
+
 MVP listo para publicar: no por decisión de producto, no por bloqueo técnico principal.
 
-Siguiente paso recomendado: seguir construyendo producto completo antes de pensar en tiendas: pulido, más profundidad de producto, estadísticas/logros y, más adelante, IA local opcional.
+Fase actual: pasar de pulido v1.2 a producto v1.3.
+
+Siguiente paso recomendado: construir métricas simples y más profundidad de producto antes de pensar en tiendas. IA local queda como futuro opcional, después de validar que la app base tiene suficiente valor y uso real.
