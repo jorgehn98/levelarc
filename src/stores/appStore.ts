@@ -85,7 +85,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       listTodayHabits(),
       getPlayer(),
       getDailyMission(),
-      getRecentEvents(),
+      getRecentEvents(250),
     ]);
     set({ habits, todayHabits, player, dailyMission, events });
   },

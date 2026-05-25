@@ -1,4 +1,4 @@
-import { Check, Clock, Flame, Shield, Sparkles, Target, Trophy, X } from 'lucide-react-native';
+import { BarChart3, CalendarDays, Check, Clock, Flame, Shield, Sparkles, Target, Trophy, X } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AttributeRadar } from '@/components/AttributeRadar';
@@ -9,13 +9,15 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { StatTile } from '@/components/StatTile';
 import { getLevelProgress } from '@/core/ranks';
-import type { EventRecord } from '@/db/repository';
+import type { EventRecord, HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
 
 const ranks: Rank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
+const weekLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const heatLevels = [colors.background.card, '#5F5224', '#8D7429', '#C79B31', colors.rank.S];
 
 export default function ProgressScreen() {
   const player = useAppStore((state) => state.player);
@@ -25,6 +27,8 @@ export default function ProgressScreen() {
   const progress = getLevelProgress(player?.xpTotal ?? 0);
   const accent = getRankAccent(progress.rank);
   const activeHabits = habits.filter((habit) => !habit.archivado).length;
+  const weekActivity = getWeekActivity(events, habits);
+  const heatMap = getHeatMap(events);
 
   return (
     <Screen>
@@ -48,6 +52,52 @@ export default function ProgressScreen() {
         </View>
 
         <AttributeRadar attributeXp={player?.atributosXp} />
+
+        <View style={styles.panel}>
+          <View style={styles.panelTitleRow}>
+            <View style={styles.panelTitleCopy}>
+              <BarChart3 color={colors.brand.cyanCore} size={14} />
+              <Text style={styles.panelTitle}>{t(language, 'weekActivity')}</Text>
+            </View>
+            <Text style={styles.panelMetric}>{weekActivity.completed} / {weekActivity.target}</Text>
+          </View>
+          <View style={styles.weekBars}>
+            {weekActivity.days.map((day) => (
+              <View key={day.dateKey} style={styles.weekBarItem}>
+                <Text style={styles.weekBarValue}>{day.completed}</Text>
+                <View style={styles.weekBarTrack}>
+                  <View style={[styles.weekBarFill, { height: `${day.ratio * 100}%`, minHeight: day.completed > 0 ? 8 : 0 }]} />
+                </View>
+                <Text style={[styles.weekBarLabel, day.isToday && styles.weekBarLabelActive]}>{day.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.panel}>
+          <View style={styles.panelTitleRow}>
+            <View style={styles.panelTitleCopy}>
+              <CalendarDays color={colors.brand.cyanCore} size={14} />
+              <Text style={styles.panelTitle}>{t(language, 'heatMap')}</Text>
+            </View>
+          </View>
+          <View style={styles.heatGrid}>
+            {heatMap.map((week) => (
+              <View key={week[0]?.dateKey} style={styles.heatColumn}>
+                {week.map((item) => (
+                  <View key={item.dateKey} style={[styles.heatCell, { backgroundColor: heatLevels[item.level] }]} />
+                ))}
+              </View>
+            ))}
+          </View>
+          <View style={styles.heatLegend}>
+            <Text style={styles.legendText}>{t(language, 'less').toUpperCase()}</Text>
+            {heatLevels.map((color, index) => (
+              <View key={`${color}-${index}`} style={[styles.legendCell, { backgroundColor: color }]} />
+            ))}
+            <Text style={styles.legendText}>{t(language, 'more').toUpperCase()}</Text>
+          </View>
+        </View>
 
         <View style={styles.panel}>
           <SectionHeader accent={accent} label={t(language, 'ascensionPath')} />
@@ -94,13 +144,105 @@ export default function ProgressScreen() {
             {events.length === 0 ? (
               <Text style={styles.empty}>{t(language, 'noEvents')}</Text>
             ) : (
-              events.map((item) => <EventRow key={item.id} event={item} language={language} />)
+              events.slice(0, 25).map((item) => <EventRow key={item.id} event={item} language={language} />)
             )}
           </View>
         </View>
       </ScrollView>
     </Screen>
   );
+}
+
+type WeekActivityDay = {
+  dateKey: string;
+  label: string;
+  completed: number;
+  target: number;
+  ratio: number;
+  isToday: boolean;
+};
+
+function getWeekActivity(events: EventRecord[], habits: HabitRecord[]) {
+  const today = startOfLocalDay(new Date());
+  const start = addDays(today, -6);
+  const completedByDate = countCompletedEventsByDate(events);
+  const activeHabits = habits.filter((habit) => !habit.archivado);
+  const days: WeekActivityDay[] = Array.from({ length: 7 }).map((_, index) => {
+    const date = addDays(start, index);
+    const dateKey = toLocalDateKey(date);
+    const target = activeHabits.filter((habit) => isHabitScheduledOn(habit, date)).length;
+    const completed = completedByDate.get(dateKey) ?? 0;
+    return {
+      dateKey,
+      label: weekLabels[getLevelArcWeekday(date) - 1],
+      completed,
+      target,
+      ratio: target > 0 ? Math.min(1, completed / target) : 0,
+      isToday: dateKey === toLocalDateKey(today),
+    };
+  });
+
+  return {
+    completed: days.reduce((total, day) => total + day.completed, 0),
+    target: days.reduce((total, day) => total + day.target, 0),
+    days,
+  };
+}
+
+function getHeatMap(events: EventRecord[]) {
+  const completedByDate = countCompletedEventsByDate(events);
+  const today = startOfLocalDay(new Date());
+  const firstDay = addDays(today, -83);
+  const days = Array.from({ length: 84 }).map((_, index) => {
+    const date = addDays(firstDay, index);
+    const dateKey = toLocalDateKey(date);
+    const count = completedByDate.get(dateKey) ?? 0;
+    return { dateKey, count, level: getHeatLevel(count) };
+  });
+
+  const rows = 7;
+  return Array.from({ length: 12 }).map((_, column) => days.slice(column * rows, column * rows + rows));
+}
+
+function countCompletedEventsByDate(events: EventRecord[]) {
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    if (event.tipoEvento !== 'completado') continue;
+    counts.set(event.fecha, (counts.get(event.fecha) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function getHeatLevel(count: number) {
+  if (count <= 0) return 0;
+  if (count === 1) return 1;
+  if (count === 2) return 2;
+  if (count <= 4) return 3;
+  return 4;
+}
+
+function isHabitScheduledOn(habit: HabitRecord, date: Date) {
+  return habit.diasSemana.split(',').map(Number).includes(getLevelArcWeekday(date));
+}
+
+function getLevelArcWeekday(date: Date) {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function toLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function EventRow({ event, language }: { event: EventRecord; language: Language }) {
@@ -180,6 +322,104 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     padding: 14,
+  },
+  panelTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  panelTitleCopy: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 7,
+  },
+  panelTitle: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.displayBold,
+    fontSize: 12,
+    textTransform: 'uppercase',
+  },
+  panelMetric: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+  },
+  weekBars: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 9,
+    height: 130,
+    marginTop: 14,
+  },
+  weekBarItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+  },
+  weekBarValue: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+  },
+  weekBarTrack: {
+    backgroundColor: `${colors.background.card}66`,
+    borderColor: colors.background.border,
+    borderRadius: radii.sm,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    height: 96,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  weekBarFill: {
+    backgroundColor: colors.brand.cyanCore,
+    borderTopLeftRadius: radii.sm,
+    borderTopRightRadius: radii.sm,
+    width: '100%',
+  },
+  weekBarLabel: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+  },
+  weekBarLabelActive: {
+    color: colors.brand.cyanGlow,
+  },
+  heatGrid: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 14,
+  },
+  heatColumn: {
+    flex: 1,
+    gap: 4,
+  },
+  heatCell: {
+    aspectRatio: 1,
+    borderColor: `${colors.background.borderBright}88`,
+    borderRadius: 3,
+    borderWidth: 1,
+    width: '100%',
+  },
+  heatLegend: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
+  legendText: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+  },
+  legendCell: {
+    borderColor: `${colors.background.borderBright}88`,
+    borderRadius: 2,
+    borderWidth: 1,
+    height: 10,
+    width: 10,
   },
   rankLadder: {
     flexDirection: 'row',

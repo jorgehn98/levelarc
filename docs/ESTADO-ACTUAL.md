@@ -103,12 +103,13 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - Al completar un hábito, el XP de atributo se reparte entre los atributos seleccionados: 1 atributo 100%, 2 atributos 50% cada uno, 3 atributos 33.33% cada uno.
 - Los eventos guardan `attribute_delta` para que deshacer/recalcular no dependa de cambios futuros en el hábito.
 - Pantalla Progreso muestra radar chart y barras por atributo.
+- Pantalla Progreso incluye actividad de los últimos 7 días y mapa de calor de 12 semanas basado en eventos completados.
 - Multiplicador de racha por hábito capado a `x1.50`: 4+ días `x1.10`, 8+ `x1.20`, 15+ `x1.35`, 31+ `x1.50`.
 - La racha por hábito cuenta ocurrencias programadas consecutivas, no días naturales: un hábito lunes/miércoles no se rompe por el martes, y uno solo de domingo avanza una vez por semana.
 - Niveles según curva `50 * nivel^1.8`.
 - Rangos E/D/C/B/A/S.
 - Penalización con suelo de nivel: nunca baja de nivel/rango.
-- Pantalla Progreso con rank hero, ruta E/D/C/B/A/S, estadísticas y eventos de historial.
+- Pantalla Progreso con rank hero, actividad semanal, mapa de calor, ruta E/D/C/B/A/S, estadísticas y eventos de historial.
 
 ### Misión diaria
 
