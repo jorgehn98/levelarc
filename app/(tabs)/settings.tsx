@@ -1,13 +1,31 @@
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Bell, Clock3, Download, Globe, Info, Moon, RefreshCw, Shield, Skull, Upload, User } from 'lucide-react-native';
+import { router } from 'expo-router';
+import {
+  Bell,
+  ChevronLeft,
+  Download,
+  Eye,
+  Globe,
+  Info,
+  Moon,
+  Music,
+  RefreshCw,
+  Shield,
+  Skull,
+  Snowflake,
+  Sparkles,
+  Upload,
+  User,
+  X,
+  Zap,
+} from 'lucide-react-native';
 import type { LucideProps } from 'lucide-react-native';
 import type { ComponentType, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
-import { PlayerHeader } from '@/components/PlayerHeader';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -23,6 +41,8 @@ import { colors, radii, typography } from '@/theme/colors';
 
 const END_OF_DAY_REMINDER_TIME_KEY = 'levelarc.endOfDayReminderTime';
 const END_OF_DAY_REMINDER_ID_KEY = 'levelarc.endOfDayReminderNotificationId';
+const VIBRATION_KEY = 'levelarc.settings.vibration';
+const SOUND_KEY = 'levelarc.settings.sound';
 
 export default function SettingsScreen() {
   const language = useAppStore((state) => state.language);
@@ -32,6 +52,7 @@ export default function SettingsScreen() {
   const exportBackup = useAppStore((state) => state.exportBackup);
   const importBackup = useAppStore((state) => state.importBackup);
   const closeToday = useAppStore((state) => state.closeToday);
+  const resetAll = useAppStore((state) => state.resetAll);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isNameOpen, setIsNameOpen] = useState(false);
   const [isEndOfDayReminderOpen, setIsEndOfDayReminderOpen] = useState(false);
@@ -39,11 +60,19 @@ export default function SettingsScreen() {
   const [playerName, setPlayerNameInput] = useState(player?.nombre ?? '');
   const [endOfDayReminderTime, setEndOfDayReminderTime] = useState<string | null>(null);
   const [endOfDayReminderDraft, setEndOfDayReminderDraft] = useState<string | null>('21:30');
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   useEffect(() => {
     async function loadEndOfDayReminder() {
-      const storedTime = await AsyncStorage.getItem(END_OF_DAY_REMINDER_TIME_KEY);
+      const [storedTime, storedVibration, storedSound] = await Promise.all([
+        AsyncStorage.getItem(END_OF_DAY_REMINDER_TIME_KEY),
+        AsyncStorage.getItem(VIBRATION_KEY),
+        AsyncStorage.getItem(SOUND_KEY),
+      ]);
+      setVibrationEnabled(storedVibration !== 'false');
+      setSoundEnabled(storedSound === 'true');
       if (!storedTime) return;
       setEndOfDayReminderTime(storedTime);
       setEndOfDayReminderDraft(storedTime);
@@ -126,22 +155,54 @@ export default function SettingsScreen() {
     Alert.alert(t(language, 'reminderDisabled'), t(language, 'reminderDisabledCopy'));
   };
 
+  const handleToggleVibration = async () => {
+    const next = !vibrationEnabled;
+    setVibrationEnabled(next);
+    await AsyncStorage.setItem(VIBRATION_KEY, String(next));
+  };
+
+  const handleToggleSound = async () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    await AsyncStorage.setItem(SOUND_KEY, String(next));
+  };
+
+  const handleResetAll = () => {
+    Alert.alert(t(language, 'resetAllConfirmTitle'), t(language, 'resetAllConfirmCopy'), [
+      { text: t(language, 'cancel'), style: 'cancel' },
+      {
+        text: t(language, 'resetAll'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const existingId = await AsyncStorage.getItem(END_OF_DAY_REMINDER_ID_KEY);
+            await cancelEndOfDayReminder(existingId);
+            await AsyncStorage.multiRemove([END_OF_DAY_REMINDER_TIME_KEY, END_OF_DAY_REMINDER_ID_KEY]);
+            setEndOfDayReminderTime(null);
+            setEndOfDayReminderDraft(null);
+            await resetAll();
+            Alert.alert(t(language, 'resetDone'), t(language, 'resetDoneCopy'));
+            router.replace('/onboarding');
+          })();
+        },
+      },
+    ]);
+  };
+
   return (
     <Screen>
       <ScreenHeader icon={Shield} subtitle="Configuración · Sistema" title={t(language, 'settings')} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <PlayerHeader language={language} player={player} />
-
         <SettingsSection label={t(language, 'preferences')}>
-          <SettingRow icon={Globe} title={t(language, 'language')} value={language === 'es' ? 'Español' : 'English'}>
-            <View style={styles.actions}>
-              <Button label="ES" onPress={() => void setLanguage('es')} variant={language === 'es' ? 'selected' : 'secondary'} />
-              <Button label="EN" onPress={() => void setLanguage('en')} variant={language === 'en' ? 'selected' : 'secondary'} />
+          <SettingRow compact icon={Globe} title={t(language, 'language')} value={language === 'es' ? 'Español' : 'English'}>
+            <View style={styles.segmentActions}>
+              <Button label="ES" onPress={() => void setLanguage('es')} variant={language === 'es' ? 'primary' : 'secondary'} />
+              <Button label="EN" onPress={() => void setLanguage('en')} variant={language === 'en' ? 'primary' : 'secondary'} />
             </View>
           </SettingRow>
 
           <SettingRow icon={User} title={t(language, 'playerName')} value={player?.nombre ?? t(language, 'unnamedPlayer')}>
-            <View style={styles.actions}>
+            <View style={styles.inlineActions}>
               <Button
                 label={t(language, 'changeName')}
                 onPress={() => {
@@ -153,38 +214,44 @@ export default function SettingsScreen() {
             </View>
           </SettingRow>
 
-          <SettingRow icon={Moon} title={t(language, 'theme')} value={t(language, 'darkFixed')} />
-
-          <SettingRow icon={Bell} title={t(language, 'notifications')} value={t(language, 'notificationCopy')}>
-            <View style={styles.actions}>
-              <Button label={t(language, 'activate')} onPress={() => void requestNotificationPermissions()} variant="secondary" />
-            </View>
+          <SettingRow compact icon={Moon} title={t(language, 'theme')} value={t(language, 'darkFixed')}>
+            <Text style={styles.fixedValue}>{t(language, 'fixed').toUpperCase()}</Text>
           </SettingRow>
 
-          <SettingRow
-            icon={Clock3}
-            title={t(language, 'endOfDayReminder')}
-            value={endOfDayReminderTime ? endOfDayReminderTime : t(language, 'endOfDayReminderDisabled')}
-          >
-            <View style={styles.actions}>
-              <Button
-                label={t(language, 'configure')}
-                onPress={() => {
-                  setEndOfDayReminderDraft(endOfDayReminderTime ?? '21:30');
-                  setIsEndOfDayReminderOpen(true);
-                }}
-                variant="secondary"
-              />
-              {endOfDayReminderTime ? (
-                <Button label={t(language, 'disable')} onPress={() => void handleDisableEndOfDayReminder()} variant="ghost" />
-              ) : null}
-            </View>
+          <SettingRow compact icon={Bell} title={t(language, 'notifications')} value={t(language, 'endOfDayReminderCopy')}>
+            <Toggle
+              active={Boolean(endOfDayReminderTime)}
+              onPress={() => {
+                if (endOfDayReminderTime) {
+                  void handleDisableEndOfDayReminder();
+                  return;
+                }
+                void requestNotificationPermissions();
+                setEndOfDayReminderDraft('21:30');
+                setIsEndOfDayReminderOpen(true);
+              }}
+            />
+          </SettingRow>
+
+          <SettingRow compact icon={Snowflake} title={t(language, 'vibration')} value={t(language, 'vibrationCopy')}>
+            <Toggle active={vibrationEnabled} onPress={() => void handleToggleVibration()} />
+          </SettingRow>
+
+          <SettingRow compact icon={Music} title={t(language, 'sound')} value={t(language, 'soundCopy')}>
+            <Toggle active={soundEnabled} onPress={() => void handleToggleSound()} />
           </SettingRow>
         </SettingsSection>
 
         <SettingsSection label={t(language, 'data')}>
+          <SettingRow icon={Download} title={t(language, 'backup')} value={t(language, 'backupCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Download} label={t(language, 'export')} onPress={() => void exportBackup()} />
+              <Button icon={Upload} label={t(language, 'import')} onPress={() => setIsImportOpen(true)} variant="secondary" />
+            </View>
+          </SettingRow>
+
           <SettingRow icon={RefreshCw} title={t(language, 'updates')} value={t(language, 'updatesCopy')}>
-            <View style={styles.actions}>
+            <View style={styles.inlineActions}>
               <Button
                 disabled={isCheckingUpdate}
                 label={isCheckingUpdate ? t(language, 'checking') : t(language, 'checkUpdates')}
@@ -193,25 +260,38 @@ export default function SettingsScreen() {
               />
             </View>
           </SettingRow>
+        </SettingsSection>
 
-          <SettingRow icon={Download} title={t(language, 'backup')} value={t(language, 'backupCopy')}>
-            <View style={styles.actions}>
-              <Button icon={Download} label={t(language, 'export')} onPress={() => void exportBackup()} />
-              <Button icon={Upload} label={t(language, 'import')} onPress={() => setIsImportOpen(true)} variant="secondary" />
+        <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'demo')}>
+          <SettingRow icon={Sparkles} title={t(language, 'rankAscension')} value={t(language, 'rankAscensionCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Zap} label={t(language, 'viewAscension')} onPress={() => router.push('/rank-up')} variant="selected" />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={Eye} title={t(language, 'startScreen')} value={t(language, 'startScreenCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={ChevronLeft} label={t(language, 'goHome')} onPress={() => router.push('/onboarding')} variant="secondary" />
             </View>
           </SettingRow>
         </SettingsSection>
 
         <SettingsSection accent={colors.state.failed} label={t(language, 'danger')}>
           <SettingRow icon={Skull} iconColor={colors.state.failed} title={t(language, 'closeDay')} value={t(language, 'closeDayCopy')}>
-            <View style={styles.actions}>
+            <View style={styles.inlineActions}>
               <Button label={t(language, 'closeDay')} onPress={() => void closeToday()} variant="danger" />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={X} iconColor={colors.state.failed} title={t(language, 'resetAll')} value={t(language, 'resetAllCopy')}>
+            <View style={styles.inlineActions}>
+              <Button label={t(language, 'resetAll')} onPress={handleResetAll} variant="danger" />
             </View>
           </SettingRow>
         </SettingsSection>
 
         <SettingsSection label={t(language, 'about')}>
-          <SettingRow icon={Info} iconColor={colors.state.pending} title="LevelArc" value={t(language, 'versionLine')} />
+          <SettingRow compact icon={Info} iconColor={colors.state.pending} title="LevelArc 1.0.0" value={t(language, 'versionLine')} />
         </SettingsSection>
       </ScrollView>
 
@@ -316,12 +396,14 @@ function SettingsSection({ children, label, accent }: { children: ReactNode; lab
 
 function SettingRow({
   children,
+  compact,
   icon: Icon,
   iconColor = colors.brand.cyanCore,
   title,
   value,
 }: {
   children?: ReactNode;
+  compact?: boolean;
   icon: ComponentType<LucideProps>;
   iconColor?: string;
   title: string;
@@ -337,9 +419,23 @@ function SettingRow({
           <Text style={styles.rowTitle}>{title}</Text>
           <Text style={styles.rowValue}>{value}</Text>
         </View>
+        {compact && children ? <View style={styles.rowTrailing}>{children}</View> : null}
       </View>
-      {children ? <View style={styles.rowActions}>{children}</View> : null}
+      {!compact && children ? <View style={styles.rowActions}>{children}</View> : null}
     </View>
+  );
+}
+
+function Toggle({ active, onPress }: { active: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: active }}
+      onPress={onPress}
+      style={[styles.toggle, active && styles.toggleActive]}
+    >
+      <View style={[styles.toggleKnob, active && styles.toggleKnobActive]} />
+    </Pressable>
   );
 }
 
@@ -361,11 +457,10 @@ const styles = StyleSheet.create({
   row: {
     borderBottomColor: colors.background.border,
     borderBottomWidth: 1,
-    gap: 12,
     padding: 14,
   },
   rowTop: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
   },
@@ -381,6 +476,7 @@ const styles = StyleSheet.create({
   },
   copy: {
     flex: 1,
+    minWidth: 0,
   },
   rowTitle: {
     color: colors.brand.bone,
@@ -395,12 +491,52 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   rowActions: {
+    marginTop: 12,
     marginLeft: 46,
   },
-  actions: {
+  rowTrailing: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  segmentActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  fixedValue: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+  },
+  toggle: {
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 28,
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    width: 44,
+  },
+  toggleActive: {
+    backgroundColor: `${colors.brand.cyanCore}22`,
+    borderColor: colors.brand.cyanCore,
+  },
+  toggleKnob: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.state.pending,
+    borderRadius: 999,
+    height: 20,
+    width: 20,
+  },
+  toggleKnobActive: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.brand.cyanCore,
   },
   modalBackdrop: {
     alignItems: 'center',

@@ -109,6 +109,13 @@ export async function initializeDatabase() {
   await ensureDailyMission(toDateKey());
 }
 
+export async function resetAllData() {
+  const db = createEmptyDb();
+  ensureMission(db, toDateKey());
+  syncMission(db, toDateKey());
+  await saveDb(db);
+}
+
 export async function listHabits(includeArchived = false) {
   const db = await loadDb();
   return db.habits

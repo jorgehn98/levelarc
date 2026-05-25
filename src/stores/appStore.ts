@@ -21,6 +21,7 @@ import {
   listHabits,
   listTodayHabits,
   markHabitFailed,
+  resetAllData,
   undoTodayHabit,
   updateHabit,
   updatePlayerName,
@@ -56,6 +57,7 @@ type AppState = {
   setPlayerName: (name: string) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (rawBackup: string) => Promise<void>;
+  resetAll: () => Promise<void>;
 };
 
 const LANGUAGE_KEY = 'levelarc.language';
@@ -160,6 +162,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       Alert.alert('Backup inválido', error instanceof Error ? error.message : 'No se pudo importar el backup.');
       throw error;
+    } finally {
+      set({ isBusy: false });
+    }
+  },
+  resetAll: async () => {
+    set({ isBusy: true });
+    try {
+      await resetAllData();
+      await get().refresh();
     } finally {
       set({ isBusy: false });
     }

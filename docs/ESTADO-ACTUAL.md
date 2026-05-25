@@ -63,7 +63,7 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
   - Crear hábito.
   - Editar hábito.
   - Entrada/onboarding con nombre inicial y modo retorno.
-  - Rank-up placeholder.
+  - Rank-up cinematic con anillos/glow de rango y acceso demo desde Ajustes.
 
 ### Hábitos
 
@@ -141,6 +141,13 @@ Todavía no está lista para Play Store: faltan QA real en Android, validar asse
 - ES/EN con diccionario tipado en `src/i18n/index.ts`.
 - Español por defecto.
 - JSONs legacy de idioma eliminados; `src/i18n/index.ts` es la única fuente activa.
+
+### Ajustes
+
+- Pantalla rediseñada con secciones compactas: Preferencias, Datos, Demo, Zona peligrosa y Acerca.
+- Preferencias incluye idioma, nombre de jugador, tema fijo, recordatorio diario con toggle, vibración y sonido.
+- Demo incluye acceso a la cinemática de ascenso de rango y a la pantalla de inicio.
+- Zona peligrosa incluye cerrar día y resetear todo con confirmación.
 
 ### Notificaciones
 

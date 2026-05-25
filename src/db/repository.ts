@@ -144,6 +144,20 @@ export async function initializeDatabase() {
   await ensureDailyMission(toDateKey());
 }
 
+export async function resetAllData() {
+  const existingHabits = await listHabits(true);
+  await Promise.all(existingHabits.map((habit) => cancelHabitReminder(habit.notificationId)));
+  await sqlite.execAsync(`
+    DELETE FROM events;
+    DELETE FROM habit_daily_progress;
+    DELETE FROM daily_missions;
+    DELETE FROM habits;
+    DELETE FROM player;
+  `);
+  await ensurePlayer();
+  await ensureDailyMission(toDateKey());
+}
+
 export async function listHabits(includeArchived = false): Promise<HabitRecord[]> {
   const rows = await sqlite.getAllAsync<HabitRow>(
     `SELECT * FROM habits ${includeArchived ? '' : 'WHERE archivado = 0'} ORDER BY creado_en DESC`,
