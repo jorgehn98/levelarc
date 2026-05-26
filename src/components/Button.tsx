@@ -39,9 +39,9 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
       onPressOut={() => setIsPressed(false)}
       style={[
         styles.button,
-        styles[variant],
+        disabled && isPrimary ? styles.primaryDisabled : styles[variant],
         style,
-        disabled && (isPrimary ? styles.primaryDisabled : styles.disabled),
+        disabled && !isPrimary && styles.disabled,
         isPressed && !disabled && styles.pressed,
       ]}
     >
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   primaryDisabled: {
     backgroundColor: colors.background.card,
     borderColor: colors.background.borderBright,
-    opacity: 0.72,
+    opacity: 1,
   },
   pressed: {
     opacity: 0.88,
