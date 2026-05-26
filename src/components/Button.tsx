@@ -22,7 +22,9 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
   const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
   const textColor = disabled
-    ? colors.brand.boneMuted
+    ? isPrimary
+      ? colors.brand.bone
+      : colors.brand.boneMuted
     : isPrimary
       ? colors.brand.bone
       : isSelected
@@ -94,6 +96,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   primaryDisabled: {
+    ...shadows.primaryGlow,
     backgroundColor: colors.brand.cyanDeep,
     borderColor: colors.brand.cyanCore,
     opacity: 1,
