@@ -463,6 +463,14 @@ Update `preview` corrigiendo contraste de botones principales:
 - Commit: `7412b9a66d11d296284e204dda502518aebfe548`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/1c916ec3-9c6d-42b6-8688-fcc2adca12f5>
 
+Update `preview` con detalle de hábito y métricas simples:
+
+- Update group: `e5777047-0f20-4a48-b043-c88485cb0597`
+- Runtime: `1.0.2`
+- Mensaje: `Add habit detail metrics`
+- Commit: `e2158e5fbe9c0b511f2ed30f542d15619131cc51`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/e5777047-0f20-4a48-b043-c88485cb0597>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
