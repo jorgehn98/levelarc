@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   primaryDisabled: {
-    backgroundColor: colors.background.card,
-    borderColor: colors.background.borderBright,
+    backgroundColor: colors.brand.cyanDeep,
+    borderColor: colors.brand.cyanCore,
     opacity: 1,
   },
   pressed: {
