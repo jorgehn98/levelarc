@@ -16,9 +16,10 @@ type HabitCardProps = {
   onIncrement: () => void;
   onFail: () => void;
   onUndo: () => void;
+  onOpenDetail?: () => void;
 };
 
-export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: HabitCardProps) {
+export function HabitCard({ habit, language, onIncrement, onFail, onOpenDetail, onUndo }: HabitCardProps) {
   const isDone = habit.estado === 'completado';
   const isFailed = habit.estado === 'fallado';
   const isPending = !isDone && !isFailed;
@@ -34,13 +35,19 @@ export function HabitCard({ habit, language, onIncrement, onFail, onUndo }: Habi
     <View style={[styles.card, { borderColor: accent }, isDone && styles.doneCard, isFailed && styles.failedCard]}>
       <View style={[styles.statusRail, { backgroundColor: accent }]} />
       <View style={styles.topRow}>
-        <View style={[styles.iconTile, { borderColor: accent, backgroundColor: `${accent}10` }, isFailed && styles.failedIconTile]}>
+        <Pressable
+          accessibilityLabel={habit.nombre}
+          accessibilityRole="button"
+          disabled={!onOpenDetail}
+          onPress={onOpenDetail}
+          style={[styles.iconTile, { borderColor: accent, backgroundColor: `${accent}10` }, isFailed && styles.failedIconTile]}
+        >
           {isDone ? (
             <Check color={colors.state.completed} size={20} />
           ) : (
             <HabitIcon color={isFailed ? colors.state.pending : colors.brand.cyanCore} size={20} />
           )}
-        </View>
+        </Pressable>
 
         <View style={styles.copy}>
           <Text style={[styles.title, isFailed && styles.failedTitle]} numberOfLines={2}>{habit.nombre}</Text>

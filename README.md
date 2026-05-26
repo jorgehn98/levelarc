@@ -10,10 +10,11 @@ La guía de diseño operativa está en [`DESIGN.md`](DESIGN.md). Define tokens, 
 
 MVP funcional:
 
-- Crear, editar y archivar hábitos.
+- Crear, editar, archivar y desarchivar hábitos.
 - Hábitos binarios y contables con meta diaria.
 - Frecuencia por días de la semana.
 - Pantalla Hoy con completar, sumar progreso, fallar y deshacer.
+- Detalle de hábito con estado de hoy, racha actual, consistencia 30 días, últimos 7 días e historial reciente.
 - Recordatorios de hábito opcionales con selector de hora y acción para limpiar.
 - XP escalado por importancia, niveles con curva `30 * (nivel - 1)^1.6`, rangos E-S y eventos de historial.
 - Atributos RPG con la misma curva de niveles que el jugador y potenciador x1.5 sobre el XP repartido entre 1-3 atributos por hábito.
@@ -86,8 +87,8 @@ pnpm update:production --message "Fix UI copy"
 
 La QA inicial en Android real ya está validada por el usuario y el icono de marca se ve bien. El objetivo no es publicar un MVP temprano, sino seguir construyendo hasta que LevelArc esté completa.
 
-1. Seguir puliendo producto y UX.
-2. Añadir más profundidad: estadísticas, logros y gamificación avanzada.
+1. Seguir validando las métricas simples de v1.3 con datos reales.
+2. Añadir más profundidad: resumen semanal, estadísticas, logros y gamificación avanzada.
 3. Valorar IA local cuando la base esté madura.
 4. Dejar Play Store y App Store como paso final.
 

@@ -14,6 +14,7 @@ import {
   exportAllData,
   getDailyMission,
   getHabit,
+  getHabitInsight,
   getPlayer,
   getRecentEvents,
   incrementHabitProgress,
@@ -24,11 +25,13 @@ import {
   markHabitFailed,
   resetAllData,
   undoTodayHabit,
+  unarchiveHabit,
   updateHabit,
   updatePlayerName,
   type DailyMissionRecord,
   type EventRecord,
   type HabitInput,
+  type HabitInsightRecord,
   type HabitRecord,
   type PlayerRecord,
   type TodayHabit,
@@ -47,7 +50,9 @@ type AppState = {
   refresh: () => Promise<void>;
   saveHabit: (input: HabitInput, id?: string) => Promise<void>;
   getHabitById: (id: string) => Promise<HabitRecord | null>;
+  getHabitInsightById: (id: string) => Promise<HabitInsightRecord | null>;
   archiveHabitById: (id: string) => Promise<void>;
+  unarchiveHabitById: (id: string) => Promise<void>;
   incrementHabit: (id: string) => Promise<void>;
   failHabit: (id: string) => Promise<void>;
   undoHabit: (id: string) => Promise<void>;
@@ -106,9 +111,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isBusy: false });
   },
   getHabitById: (id) => getHabit(id),
+  getHabitInsightById: (id) => getHabitInsight(id),
   archiveHabitById: async (id) => {
     set({ isBusy: true });
     await archiveHabit(id);
+    await get().refresh();
+    set({ isBusy: false });
+  },
+  unarchiveHabitById: async (id) => {
+    set({ isBusy: true });
+    await unarchiveHabit(id);
     await get().refresh();
     set({ isBusy: false });
   },

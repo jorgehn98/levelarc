@@ -187,10 +187,10 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       {onArchive ? (
         <Button
           icon={Archive}
-          label={t(language, 'archiveHabit')}
+          label={habit?.archivado ? t(language, 'unarchiveHabit') : t(language, 'archiveHabit')}
           onPress={onArchive}
           style={styles.archiveAction}
-          variant="danger"
+          variant={habit?.archivado ? 'secondary' : 'danger'}
         />
       ) : null}
     </View>

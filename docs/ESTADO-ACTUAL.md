@@ -14,6 +14,8 @@ La pantalla de entrada/onboarding replica el flujo de `docs/UI-UX`: primera acti
 
 La pantalla Hábitos se corrigió de nuevo tras QA en Android: el update OTA llegaba correctamente, pero la lista anterior con `FlatList` y anchos manuales dejaba huecos y podía renderizar mal los elementos. Ahora usa `ScrollView` + renderizado directo, igual que Hoy, con filtros, tarjetas y empty state a ancho completo. Las filas de hábito usan `View` como tarjeta real y dejan `Pressable` solo como objetivo táctil interno para evitar problemas de layout en Android.
 
+La primera mejora de producto v1.3 ya está aplicada: tocar un hábito en la pantalla Hábitos abre un detalle con métricas útiles del hábito, y en Hoy solo se abre ese detalle desde el icono para no interferir con completar/fallar/deshacer. La edición queda detrás del botón Editar dentro del detalle.
+
 La QA inicial en Android real ya está validada por el usuario: la app funciona bien en el móvil y el icono de marca se ve correctamente. Aun así, la app no se quiere publicar todavía: Play Store/App Store quedan como paso final, cuando el producto esté más completo y no solo como MVP funcional.
 
 ## Implementado
@@ -62,6 +64,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
   - Ajustes.
 - Pantallas:
   - Crear hábito.
+  - Detalle de hábito.
   - Editar hábito.
   - Entrada/onboarding con nombre inicial y modo retorno.
   - Rank-up cinematic con anillos/glow de rango y acceso demo desde Ajustes.
@@ -71,11 +74,15 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Crear hábitos.
 - Editar hábitos.
 - Archivar hábitos.
+- Desarchivar hábitos.
 - Archivar hábitos pide confirmación antes de retirar la misión activa y conserva el historial.
+- Desarchivar hábitos pide confirmación, devuelve la misión al registro activo y reprograma recordatorios nativos si estaban configurados.
 - Importancia 1-5.
 - Selector manual de icono para cada hábito.
 - Selector manual de atributos para cada hábito.
 - Cada hábito permite 1-3 atributos entre Fuerza, Vitalidad, Intelecto, Voluntad, Carisma y Destreza.
+- Detalle de hábito con estado de hoy, racha actual, consistencia de 30 días, últimos 7 días hacia atrás e historial reciente del hábito.
+- En Hoy, el detalle se abre solo tocando el icono del hábito; en Hábitos, tocando la fila completa.
 - Tipo binario.
 - Tipo contable con meta diaria.
 - Días de la semana.
@@ -476,6 +483,6 @@ Backup import/export: implementado, pero queda como comprobación menor pendient
 
 MVP listo para publicar: no por decisión de producto, no por bloqueo técnico principal.
 
-Fase actual: pasar de pulido v1.2 a producto v1.3.
+Fase actual: producto v1.3 en marcha.
 
-Siguiente paso recomendado: construir métricas simples y más profundidad de producto antes de pensar en tiendas. IA local queda como futuro opcional, después de validar que la app base tiene suficiente valor y uso real.
+Siguiente paso recomendado: seguir usando la app con datos reales y ajustar las métricas simples antes de avanzar a estadísticas más amplias, logros o tiendas. IA local queda como futuro opcional, después de validar que la app base tiene suficiente valor y uso real.

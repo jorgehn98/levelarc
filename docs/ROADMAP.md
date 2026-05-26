@@ -106,18 +106,18 @@ Incluye:
 
 ## v1.3 — Producto, métricas simples y uso real
 
-Estado: siguiente fase activa.
+Estado: fase activa, primer bloque implementado.
 
 Objetivo: hacer que LevelArc sea más útil al usarla varios días seguidos, sin meter todavía complejidad de IA ni sistemas grandes.
 
 Incluye:
 
-- Rachas por hábito visibles.
-- Historial por hábito.
+- Rachas por hábito visibles: implementado en detalle de hábito.
+- Historial por hábito: implementado en detalle de hábito.
 - Completados/fallados por semana.
-- Mejor pantalla de detalle de hábito.
+- Mejor pantalla de detalle de hábito: implementada primera versión.
 - Filtro básico de historial.
-- Métricas útiles de consistencia.
+- Métricas útiles de consistencia: implementada consistencia 30 días por hábito.
 - Lectura más clara de progreso por atributo.
 - Ajustes de producto que salgan usando la app con datos reales.
 - Mantener backup import/export como salvavidas antes de cerrar release, pero sin bloquear esta fase.

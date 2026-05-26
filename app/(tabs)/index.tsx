@@ -198,6 +198,7 @@ function HabitGroup({ habits, label, accent, language, onIncrement, onFail, onUn
             language={language}
             onFail={() => void onFail(item.id)}
             onIncrement={() => void onIncrement(item.id)}
+            onOpenDetail={() => router.push(`/habit/${item.id}`)}
             onUndo={() => void onUndo(item.id)}
           />
         ))}

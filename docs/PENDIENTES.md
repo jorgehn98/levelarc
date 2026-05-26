@@ -86,9 +86,9 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 
 ## Producto / métricas
 
-- [ ] Definir métricas v1.3 sin sobrecargar la app.
-- [ ] Mejorar detalle de hábito con historial y consistencia.
-- [ ] Mostrar rachas por hábito de forma más accionable.
+- [x] Definir métricas v1.3 sin sobrecargar la app.
+- [x] Mejorar detalle de hábito con historial y consistencia.
+- [x] Mostrar rachas por hábito de forma más accionable.
 - [ ] Añadir resumen semanal simple de completados/fallados.
 - [ ] Mejorar lectura de progreso por atributos.
 - [ ] Revisar si hacen falta logros simples antes de v2.

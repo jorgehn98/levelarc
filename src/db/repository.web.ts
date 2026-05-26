@@ -90,6 +90,29 @@ export type EventRecord = {
   habitName?: string;
 };
 
+type HabitDayStatus = ProgressState | 'no_programado';
+
+export type HabitInsightDay = {
+  fecha: string;
+  weekday: number;
+  status: HabitDayStatus;
+  cantidad: number;
+  meta: number;
+};
+
+export type HabitInsightRecord = {
+  today: HabitInsightDay;
+  currentStreak: number;
+  consistency30: {
+    completed: number;
+    scheduled: number;
+    failed: number;
+    ratio: number;
+  };
+  last7: HabitInsightDay[];
+  recentEvents: EventRecord[];
+};
+
 type DailyProgressRecord = {
   id: string;
   habitId: string;
@@ -146,6 +169,39 @@ export async function getHabit(id: string) {
   return db.habits.find((habit) => habit.id === id) ?? null;
 }
 
+export async function getHabitInsight(id: string, dateKey = toDateKey()): Promise<HabitInsightRecord | null> {
+  const db = await loadDb();
+  const habit = db.habits.find((item) => item.id === id);
+  if (!habit) return null;
+
+  const days = getDateWindow(dateKey, 30).map((day) => {
+    const progress = db.progress.find((item) => item.habitId === id && item.fecha === day);
+    return getHabitInsightDay(habit, day, progress);
+  });
+  const scheduledDays = days.filter((day) => day.status !== 'no_programado');
+  const completed = scheduledDays.filter((day) => day.status === 'completado').length;
+  const failed = scheduledDays.filter((day) => day.status === 'fallado').length;
+  const today = days[days.length - 1];
+  const currentStreak = getCurrentHabitStreak(db, habit, today);
+  const recentEvents = db.events
+    .filter((event) => event.habitId === id)
+    .sort((a, b) => b.registradoEn.localeCompare(a.registradoEn))
+    .slice(0, 10);
+
+  return {
+    today,
+    currentStreak,
+    consistency30: {
+      completed,
+      scheduled: scheduledDays.length,
+      failed,
+      ratio: scheduledDays.length > 0 ? completed / scheduledDays.length : 0,
+    },
+    last7: days.slice(-8, -1).reverse(),
+    recentEvents,
+  };
+}
+
 export async function createHabit(input: HabitInput) {
   const db = await loadDb();
   const id = createId();
@@ -190,6 +246,12 @@ export async function updateHabit(id: string, input: HabitInput) {
 export async function archiveHabit(id: string) {
   const db = await loadDb();
   db.habits = db.habits.map((habit) => (habit.id === id ? { ...habit, archivado: true } : habit));
+  await saveDb(db);
+}
+
+export async function unarchiveHabit(id: string) {
+  const db = await loadDb();
+  db.habits = db.habits.map((habit) => (habit.id === id ? { ...habit, archivado: false } : habit));
   await saveDb(db);
 }
 
@@ -450,6 +512,54 @@ function getHabitCompletionStreak(db: WebDb, habitId: string, dateKey: string, w
     dateKey,
     weekdaysCsv,
   );
+}
+
+function getCurrentHabitStreak(db: WebDb, habit: HabitRecord, today: HabitInsightDay) {
+  const priorStreak = getHabitCompletionStreak(db, habit.id, today.fecha, habit.diasSemana);
+  return today.status === 'completado' ? priorStreak + 1 : priorStreak;
+}
+
+function getHabitInsightDay(habit: HabitRecord, dateKey: string, progress?: DailyProgressRecord): HabitInsightDay {
+  const date = new Date(`${dateKey}T12:00:00`);
+  const weekday = getLevelArcWeekday(date);
+  const isScheduled = habit.diasSemana.split(',').map(Number).includes(weekday);
+
+  if (!isScheduled) {
+    return {
+      fecha: dateKey,
+      weekday,
+      status: 'no_programado',
+      cantidad: 0,
+      meta: habit.meta,
+    };
+  }
+
+  return {
+    fecha: dateKey,
+    weekday,
+    status: progress?.estado ?? 'pendiente',
+    cantidad: progress?.cantidad ?? 0,
+    meta: habit.meta,
+  };
+}
+
+function getDateWindow(endDateKey: string, days: number) {
+  const end = new Date(`${endDateKey}T12:00:00`);
+  const cursor = new Date(end);
+  cursor.setDate(cursor.getDate() - Math.max(0, days - 1));
+  const keys: string[] = [];
+
+  while (cursor <= end) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return keys;
+}
+
+function getLevelArcWeekday(date: Date) {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
 }
 
 function createEvent(

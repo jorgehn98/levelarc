@@ -91,6 +91,29 @@ export type EventRecord = {
   habitName?: string;
 };
 
+type HabitDayStatus = ProgressState | 'no_programado';
+
+export type HabitInsightDay = {
+  fecha: string;
+  weekday: number;
+  status: HabitDayStatus;
+  cantidad: number;
+  meta: number;
+};
+
+export type HabitInsightRecord = {
+  today: HabitInsightDay;
+  currentStreak: number;
+  consistency30: {
+    completed: number;
+    scheduled: number;
+    failed: number;
+    ratio: number;
+  };
+  last7: HabitInsightDay[];
+  recentEvents: EventRecord[];
+};
+
 type HabitRow = {
   id: string;
   nombre: string;
@@ -196,6 +219,46 @@ export async function getHabit(id: string): Promise<HabitRecord | null> {
   return row ? mapHabit(row) : null;
 }
 
+export async function getHabitInsight(id: string, dateKey = toDateKey()): Promise<HabitInsightRecord | null> {
+  const habit = await getHabit(id);
+  if (!habit) return null;
+
+  const days30 = getDateWindow(dateKey, 30);
+  const progressRows = await sqlite.getAllAsync<{
+    fecha: string;
+    cantidad: number;
+    estado: ProgressState;
+  }>(
+    `
+      SELECT fecha, cantidad, estado
+      FROM habit_daily_progress
+      WHERE habit_id = ? AND fecha BETWEEN ? AND ?
+    `,
+    [id, days30[0], dateKey],
+  );
+  const progressByDate = new Map(progressRows.map((row) => [row.fecha, row]));
+  const days = days30.map((day) => getHabitInsightDay(habit, day, progressByDate.get(day)));
+  const scheduledDays = days.filter((day) => day.status !== 'no_programado');
+  const completed = scheduledDays.filter((day) => day.status === 'completado').length;
+  const failed = scheduledDays.filter((day) => day.status === 'fallado').length;
+  const today = days[days.length - 1];
+  const currentStreak = await getCurrentHabitStreak(habit, today);
+  const recentEvents = await getHabitEvents(id, 10);
+
+  return {
+    today,
+    currentStreak,
+    consistency30: {
+      completed,
+      scheduled: scheduledDays.length,
+      failed,
+      ratio: scheduledDays.length > 0 ? completed / scheduledDays.length : 0,
+    },
+    last7: days.slice(-8, -1).reverse(),
+    recentEvents,
+  };
+}
+
 export async function createHabit(input: HabitInput): Promise<string> {
   const id = createId();
   const notificationId = await scheduleHabitReminder(input.nombre.trim(), input.horaRecordatorio, input.diasSemana);
@@ -254,6 +317,13 @@ export async function archiveHabit(id: string) {
     await cancelHabitReminder(habit.notificationId);
   }
   await sqlite.runAsync('UPDATE habits SET archivado = 1 WHERE id = ?', [id]);
+}
+
+export async function unarchiveHabit(id: string) {
+  const habit = await getHabit(id);
+  if (!habit) return;
+  const notificationId = await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana);
+  await sqlite.runAsync('UPDATE habits SET archivado = 0, notification_id = ? WHERE id = ?', [notificationId, id]);
 }
 
 export async function incrementHabitProgress(habitId: string, dateKey = toDateKey()) {
@@ -363,6 +433,21 @@ export async function getRecentEvents(limit = 25): Promise<EventRecord[]> {
       LIMIT ?
     `,
     [limit],
+  );
+  return rows.map(mapEvent);
+}
+
+async function getHabitEvents(habitId: string, limit = 10): Promise<EventRecord[]> {
+  const rows = await sqlite.getAllAsync<EventRow>(
+    `
+      SELECT e.*, h.nombre
+      FROM events e
+      LEFT JOIN habits h ON h.id = e.habit_id
+      WHERE e.habit_id = ?
+      ORDER BY e.registrado_en DESC
+      LIMIT ?
+    `,
+    [habitId, limit],
   );
   return rows.map(mapEvent);
 }
@@ -758,6 +843,54 @@ async function getHabitCompletionStreak(habitId: string, dateKey: string, weekda
     dateKey,
     weekdaysCsv,
   );
+}
+
+async function getCurrentHabitStreak(habit: HabitRecord, today: HabitInsightDay) {
+  const priorStreak = await getHabitCompletionStreak(habit.id, today.fecha, habit.diasSemana);
+  return today.status === 'completado' ? priorStreak + 1 : priorStreak;
+}
+
+function getHabitInsightDay(
+  habit: HabitRecord,
+  dateKey: string,
+  progress?: { cantidad: number; estado: ProgressState },
+): HabitInsightDay {
+  const date = new Date(`${dateKey}T12:00:00`);
+  const weekday = getTodayWeekday(date);
+  const isScheduled = habit.diasSemana.split(',').map(Number).includes(weekday);
+
+  if (!isScheduled) {
+    return {
+      fecha: dateKey,
+      weekday,
+      status: 'no_programado',
+      cantidad: 0,
+      meta: habit.meta,
+    };
+  }
+
+  return {
+    fecha: dateKey,
+    weekday,
+    status: progress?.estado ?? 'pendiente',
+    cantidad: progress?.cantidad ?? 0,
+    meta: habit.meta,
+  };
+}
+
+function getDateWindow(endDateKey: string, days: number) {
+  const end = new Date(`${endDateKey}T12:00:00`);
+  const start = new Date(end);
+  start.setDate(start.getDate() - Math.max(0, days - 1));
+  const keys: string[] = [];
+  const cursor = start;
+
+  while (cursor <= end) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return keys;
 }
 
 function normalizeMeta(input: HabitInput) {
