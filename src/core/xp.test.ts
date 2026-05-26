@@ -23,7 +23,8 @@ describe('xp rules', () => {
     expect(getCompletionXp(1, 1)).toBe(5);
     expect(getCompletionXp(5, 1)).toBe(25);
     expect(getCompletionXp(4, 8)).toBe(24);
-    expect(getFailureXp(4)).toBe(-20);
+    expect(getFailureXp(4)).toBe(-16);
+    expect(getFailureXp(5)).toBe(-20);
   });
 
   it('never drops below the current level floor when applying penalties', () => {

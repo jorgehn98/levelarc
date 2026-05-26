@@ -106,7 +106,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Nombre del jugador guardado en `player.nombre`.
 - XP de atributos guardado en `player.atributos_xp`.
 - Al completar un hábito, el XP base es importancia x5 antes del multiplicador de racha: importancia 1 = 5 XP, 2 = 10 XP, 3 = 15 XP, 4 = 20 XP, 5 = 25 XP.
-- Al fallar un hábito, la penalización base es la misma escala sin multiplicador: importancia 1 = -5 XP, 2 = -10 XP, 3 = -15 XP, 4 = -20 XP, 5 = -25 XP, siempre con suelo de nivel.
+- Al fallar un hábito, la penalización es el 80% del XP base sin multiplicador de racha: importancia 1 = -4 XP, 2 = -8 XP, 3 = -12 XP, 4 = -16 XP, 5 = -20 XP, siempre con suelo de nivel.
 - Al completar un hábito, el XP de atributo aplica un potenciador fijo x1.5 sobre el XP positivo del hábito y luego se reparte entre los atributos seleccionados: 1 atributo 100%, 2 atributos 50% cada uno, 3 atributos 33.33% cada uno.
 - Los niveles de atributo usan la misma curva que el nivel de jugador: `30 * (nivel - 1)^1.6`.
 - Los eventos guardan `attribute_delta` para que deshacer/recalcular no dependa de cambios futuros en el hábito.

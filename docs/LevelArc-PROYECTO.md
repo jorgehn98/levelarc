@@ -113,7 +113,7 @@ Ambas en Google Fonts (gratis, licencia OFL apta para monetizar) con soporte lat
 
 ### Fórmula de XP
 - **Completar:** `XP = importancia (1-5) × 5 × multiplicador_de_racha`
-- **Fallar:** `XP = − importancia × 5` (sin multiplicador). Recuperarse siempre es más barato que caer cuando se sostiene la racha.
+- **Fallar:** `XP = − redondear(importancia × 5 × 0.8)` (sin multiplicador). Recuperarse siempre es más barato que caer cuando se sostiene la racha.
 
 ### Suelo de seguridad (crítico)
 La penalización **nunca** baja de rango ni de nivel. Se pierde XP del nivel actual, pero el rango conquistado no se devuelve jamás. Evita la espiral de abandono.
