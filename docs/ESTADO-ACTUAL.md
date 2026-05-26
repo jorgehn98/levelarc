@@ -471,6 +471,14 @@ Update `preview` con detalle de hábito y métricas simples:
 - Commit: `e2158e5fbe9c0b511f2ed30f542d15619131cc51`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/e5777047-0f20-4a48-b043-c88485cb0597>
 
+Update `preview` corrigiendo layout nativo de botones de acción:
+
+- Update group: `a7886bb4-5643-402e-9d88-3aa0f7176059`
+- Runtime: `1.0.2`
+- Mensaje: `Fix native action button layout`
+- Commit: `da4bc9f14de7b1caa95c7d67ae2a7f666622f5d7`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a7886bb4-5643-402e-9d88-3aa0f7176059>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`

@@ -136,10 +136,10 @@ La app incluye en Ajustes un botón para buscar updates, descargarlos y reinicia
 
 Último update `preview` publicado:
 
-- Update group: `e5777047-0f20-4a48-b043-c88485cb0597`
+- Update group: `a7886bb4-5643-402e-9d88-3aa0f7176059`
 - Runtime: `1.0.2`
-- Mensaje: `Add habit detail metrics`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/e5777047-0f20-4a48-b043-c88485cb0597>
+- Mensaje: `Fix native action button layout`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a7886bb4-5643-402e-9d88-3aa0f7176059>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
