@@ -189,8 +189,10 @@ export default function HabitDetailScreen() {
 
         <View style={styles.actions}>
           <View style={styles.actionDivider} />
-          <Button icon={X} label={t(language, 'cancel')} onPress={() => router.back()} style={styles.cancelAction} variant="secondary" />
-          <Button icon={Edit3} label={t(language, 'edit')} onPress={() => router.push(`/habit/edit/${id}`)} style={styles.primaryAction} />
+          <View style={styles.actionRow}>
+            <Button icon={X} label={t(language, 'cancel')} onPress={() => router.back()} style={styles.cancelAction} variant="secondary" />
+            <Button icon={Edit3} label={t(language, 'edit')} onPress={() => router.push(`/habit/edit/${id}`)} style={styles.primaryAction} />
+          </View>
           {habit.archivado ? (
             <Button icon={Archive} label={t(language, 'unarchiveHabit')} onPress={handleUnarchive} style={styles.archiveAction} variant="secondary" />
           ) : (
@@ -569,13 +571,15 @@ const styles = StyleSheet.create({
     borderColor: colors.background.borderBright,
     borderRadius: radii.md,
     borderWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
     marginTop: 2,
     overflow: 'hidden',
     padding: 10,
     position: 'relative',
+  },
+  actionRow: {
+    alignItems: 'stretch',
+    flexDirection: 'row',
+    width: '100%',
   },
   actionDivider: {
     backgroundColor: colors.brand.cyanCore,
@@ -589,15 +593,15 @@ const styles = StyleSheet.create({
   cancelAction: {
     borderColor: colors.background.borderBright,
     flex: 1,
-    minWidth: 116,
+    marginRight: 8,
   },
   primaryAction: {
     flex: 1.6,
     minHeight: 50,
-    minWidth: 178,
   },
   archiveAction: {
-    flexBasis: '100%',
+    marginTop: 8,
     minHeight: 46,
+    width: '100%',
   },
 });

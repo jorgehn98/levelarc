@@ -176,14 +176,16 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
   const actions = (
     <View style={styles.actions}>
       <View style={styles.actionDivider} />
-      {onCancel ? <Button icon={X} label={t(language, 'cancel')} onPress={onCancel} style={styles.cancelAction} variant="secondary" /> : null}
-      <Button
-        disabled={!canSave}
-        icon={habit ? Check : Plus}
-        label={habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
-        onPress={handleSave}
-        style={styles.primaryAction}
-      />
+      <View style={styles.actionRow}>
+        {onCancel ? <Button icon={X} label={t(language, 'cancel')} onPress={onCancel} style={styles.cancelAction} variant="secondary" /> : null}
+        <Button
+          disabled={!canSave}
+          icon={habit ? Check : Plus}
+          label={habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
+          onPress={handleSave}
+          style={styles.primaryAction}
+        />
+      </View>
       {onArchive ? (
         <Button
           icon={Archive}
@@ -771,13 +773,15 @@ const styles = StyleSheet.create({
     borderColor: colors.background.borderBright,
     borderRadius: radii.md,
     borderWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
     marginTop: 2,
     overflow: 'hidden',
     padding: 10,
     position: 'relative',
+  },
+  actionRow: {
+    alignItems: 'stretch',
+    flexDirection: 'row',
+    width: '100%',
   },
   actionDivider: {
     backgroundColor: colors.brand.cyanCore,
@@ -791,16 +795,16 @@ const styles = StyleSheet.create({
   cancelAction: {
     borderColor: colors.background.borderBright,
     flex: 1,
-    minWidth: 116,
+    marginRight: 8,
   },
   primaryAction: {
     flex: 1.6,
     minHeight: 50,
-    minWidth: 178,
   },
   archiveAction: {
-    flexBasis: '100%',
+    marginTop: 8,
     minHeight: 46,
+    width: '100%',
   },
   preview: {
     alignItems: 'center',

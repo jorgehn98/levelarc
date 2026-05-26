@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { LucideProps } from 'lucide-react-native';
 
 import { colors, radii, shadows, typography } from '@/theme/colors';
@@ -41,7 +41,11 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
         pressed && !disabled && styles.pressed,
       ]}
     >
-      {Icon ? <Icon color={textColor} size={18} /> : null}
+      {Icon ? (
+        <View style={styles.iconSlot}>
+          <Icon color={textColor} size={18} />
+        </View>
+      ) : null}
       <Text style={[styles.label, { color: textColor }]}>{label}</Text>
     </Pressable>
   );
@@ -53,10 +57,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
     justifyContent: 'center',
     minHeight: 44,
     paddingHorizontal: 18,
+  },
+  iconSlot: {
+    marginRight: 8,
   },
   primary: {
     ...shadows.primaryGlow,
