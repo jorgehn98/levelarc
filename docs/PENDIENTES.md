@@ -116,7 +116,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 ## Calidad técnica
 
 - [x] Resolver o validar `expo-doctor` duplicado `expo-constants`.
-- [ ] Validar EAS Update end-to-end en preview.
+- [x] Validar EAS Update end-to-end en preview.
 - [ ] Añadir tests de repositorio o integración local.
 - [x] Revisar warnings estructurales de React Doctor.
 - [ ] Revisar rendimiento de SQLite sync/async.
