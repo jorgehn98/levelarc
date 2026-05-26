@@ -136,10 +136,10 @@ La app incluye en Ajustes un botón para buscar updates, descargarlos y reinicia
 
 Último update `preview` publicado:
 
-- Update group: `f4d2330b-ed19-4205-84b5-0d2272a02567`
+- Update group: `385d7af6-43f8-4bd7-925c-87e3b5b7f238`
 - Runtime: `1.0.2`
-- Mensaje: `Fix disabled create habit button`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/f4d2330b-ed19-4205-84b5-0d2272a02567>
+- Mensaje: `Use blue disabled create button`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/385d7af6-43f8-4bd7-925c-87e3b5b7f238>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 

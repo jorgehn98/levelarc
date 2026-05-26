@@ -495,6 +495,14 @@ Update `preview` corrigiendo el boton Crear habito deshabilitado:
 - Commit: `db2eb5101a4500c7f56cde496a5414c59d40bf7d`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/f4d2330b-ed19-4205-84b5-0d2272a02567>
 
+Update `preview` manteniendo azul el boton Crear habito deshabilitado:
+
+- Update group: `385d7af6-43f8-4bd7-925c-87e3b5b7f238`
+- Runtime: `1.0.2`
+- Mensaje: `Use blue disabled create button`
+- Commit: `7bca409f5b62c811249afc007f529a73135de7e9`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/385d7af6-43f8-4bd7-925c-87e3b5b7f238>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
