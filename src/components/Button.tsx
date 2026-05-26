@@ -41,7 +41,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
       onPressOut={() => setIsPressed(false)}
       style={[
         styles.button,
-        disabled && isPrimary ? styles.primaryDisabled : styles[variant],
+        styles[variant],
         style,
         disabled && !isPrimary && styles.disabled,
         isPressed && !disabled && styles.pressed,
@@ -94,12 +94,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
-  },
-  primaryDisabled: {
-    ...shadows.primaryGlow,
-    backgroundColor: colors.brand.cyanDeep,
-    borderColor: colors.brand.cyanCore,
-    opacity: 1,
   },
   pressed: {
     opacity: 0.88,
