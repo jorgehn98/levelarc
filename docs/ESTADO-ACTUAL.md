@@ -487,6 +487,14 @@ Update `preview` corrigiendo cajas de botones en Android:
 - Commit: `aec9976ced5657cba5242f03dac5e8708a4ac0a4`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/10c9eee1-f606-4378-854c-87e2d4b6d2e3>
 
+Update `preview` corrigiendo el boton Crear habito deshabilitado:
+
+- Update group: `f4d2330b-ed19-4205-84b5-0d2272a02567`
+- Runtime: `1.0.2`
+- Mensaje: `Fix disabled create habit button`
+- Commit: `db2eb5101a4500c7f56cde496a5414c59d40bf7d`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/f4d2330b-ed19-4205-84b5-0d2272a02567>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
