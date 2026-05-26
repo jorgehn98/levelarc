@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { LucideProps } from 'lucide-react-native';
 
@@ -16,6 +17,7 @@ type ButtonProps = {
 };
 
 export function Button({ label, onPress, variant = 'primary', disabled, icon: Icon, style }: ButtonProps) {
+  const [isPressed, setIsPressed] = useState(false);
   const isPrimary = variant === 'primary';
   const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
@@ -33,12 +35,14 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      style={[
         styles.button,
         styles[variant],
         style,
         disabled && (isPrimary ? styles.primaryDisabled : styles.disabled),
-        pressed && !disabled && styles.pressed,
+        isPressed && !disabled && styles.pressed,
       ]}
     >
       {Icon ? (
