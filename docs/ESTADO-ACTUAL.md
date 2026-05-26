@@ -479,6 +479,14 @@ Update `preview` corrigiendo layout nativo de botones de acción:
 - Commit: `da4bc9f14de7b1caa95c7d67ae2a7f666622f5d7`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a7886bb4-5643-402e-9d88-3aa0f7176059>
 
+Update `preview` corrigiendo cajas de botones en Android:
+
+- Update group: `10c9eee1-f606-4378-854c-87e2d4b6d2e3`
+- Runtime: `1.0.2`
+- Mensaje: `Fix native button boxes`
+- Commit: `aec9976ced5657cba5242f03dac5e8708a4ac0a4`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/10c9eee1-f606-4378-854c-87e2d4b6d2e3>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`
