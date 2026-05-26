@@ -503,6 +503,14 @@ Update `preview` manteniendo azul el boton Crear habito deshabilitado:
 - Commit: `7bca409f5b62c811249afc007f529a73135de7e9`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/385d7af6-43f8-4bd7-925c-87e3b5b7f238>
 
+Update `preview` igualando visualmente botones primary deshabilitados:
+
+- Update group: `bb5fb7cc-ea82-4ffb-a930-8527cbf862ec`
+- Runtime: `1.0.2`
+- Mensaje: `Use identical primary button visuals`
+- Commit: `d0f646ad35da1699f7dd79fc85fb5c9cc37fb6f4`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/bb5fb7cc-ea82-4ffb-a930-8527cbf862ec>
+
 Build preview fallido durante la configuración de EAS Update:
 
 - ID: `bd0a55b6-69a7-42db-838e-2dab83f5c4ac`

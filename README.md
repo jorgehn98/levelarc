@@ -136,10 +136,10 @@ La app incluye en Ajustes un botón para buscar updates, descargarlos y reinicia
 
 Último update `preview` publicado:
 
-- Update group: `385d7af6-43f8-4bd7-925c-87e3b5b7f238`
+- Update group: `bb5fb7cc-ea82-4ffb-a930-8527cbf862ec`
 - Runtime: `1.0.2`
-- Mensaje: `Use blue disabled create button`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/385d7af6-43f8-4bd7-925c-87e3b5b7f238>
+- Mensaje: `Use identical primary button visuals`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/bb5fb7cc-ea82-4ffb-a930-8527cbf862ec>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
