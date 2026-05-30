@@ -6,7 +6,9 @@ import { resolveEngine, templateEngine } from '@/ai';
 import * as modelManager from '@/ai/modelManager';
 import { t } from '@/i18n';
 import { toDateKey, toIsoTimestamp } from '@/lib/date';
-import { getInterjectionTone } from '@/core/systemVoice';
+import { buildHabitContext } from '@/core/aiContext';
+import { getDailyBriefing, getHabitInsight, getInterjectionTone } from '@/core/systemVoice';
+import type { HabitInsightInput } from '@/core/aiContext';
 import {
   addAiMessage,
   buildSystemContext,
@@ -35,6 +37,13 @@ type AiProfileState = {
 // si lo generó el LLM local (true) o el motor por plantillas (false), para mostrar el distintivo.
 type DailyMessage = {
   date: string;
+  text: string;
+  fromAi: boolean;
+};
+
+// Micro-comentario del Sistema sobre UN hábito, que la pantalla de detalle muestra. `fromAi` indica si
+// lo generó el LLM local (true) o el motor por plantillas (false), para mostrar el distintivo de IA.
+type HabitInsightEntry = {
   text: string;
   fromAi: boolean;
 };
@@ -74,6 +83,10 @@ type AiState = {
   modelProgress: number;
   // Mensaje del día del Sistema para la pantalla Hoy. null hasta que ensureDailyMessage lo rellena.
   dailyMessage: DailyMessage | null;
+  // Micro-comentarios del Sistema por hábito (clave = habitId), para la pantalla de detalle. Vacío
+  // hasta que ensureHabitInsight rellena cada entrada. Se queda en memoria (no persiste): el detalle
+  // del hábito no es una pantalla de arranque y la plantilla es instantánea.
+  habitInsights: Record<string, HabitInsightEntry>;
   // Aparición del Sistema en curso. null = no hay aparición. El overlay del personaje la consume.
   interjection: Interjection | null;
   // Preferencia "Apariciones del Sistema": si está off, triggerInterjection no dispara nada. Se carga
@@ -84,6 +97,10 @@ type AiState = {
   loadAi: () => Promise<void>;
   openChat: () => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
+  // Cancela la generación en curso del chat: aborta la inferencia nativa (si el motor es llama) y
+  // resetea isGenerating para desbloquear la UI. Si no hay nada generando, es no-op. La respuesta
+  // abortada se descarta (no se persiste como mensaje del Sistema).
+  cancelGeneration: () => void;
   // Dispara una aparición del Sistema si el cooldown lo permite (1/sesión, 1/día por trigger).
   triggerInterjection: (trigger: InterjectionTrigger) => Promise<void>;
   // Descarta la aparición en curso (la UI la llama al cerrarla sin abrir el chat).
@@ -97,6 +114,10 @@ type AiState = {
   continueFromInterjection: () => Promise<void>;
   // Genera el mensaje del día: plantilla al instante + LLM en background si está activo. Cachea por día.
   ensureDailyMessage: () => Promise<void>;
+  // Asegura el micro-comentario del Sistema para un hábito: plantilla al instante + LLM en background
+  // si el engine es llama y el modelo está listo. Cachea por habitId+día (no reinfiere si ya hay uno
+  // de IA fresco de hoy) y no lanza dos inferencias a la vez para el mismo hábito.
+  ensureHabitInsight: (habitId: string, input: HabitInsightInput) => Promise<void>;
   // Fuerza regenerar el mensaje del día ignorando el cache de hoy (para un botón "actualizar").
   refreshDailyMessage: () => Promise<void>;
   clearChat: () => Promise<void>;
@@ -112,6 +133,31 @@ type AiState = {
 // AbortController de la descarga en curso (vive fuera del estado: no es UI, solo un handle de
 // cancelación). cancelDownload lo aborta; al terminar/fallar la descarga se limpia.
 let downloadController: AbortController | null = null;
+
+// Token incremental de la generación del chat en curso. sendMessage captura el token al empezar; si
+// cancelGeneration (o un nuevo envío) lo cambia, el resultado de la inferencia vieja se descarta en
+// vez de persistirse. Vive fuera del estado: es un handle de cancelación, no UI.
+let chatGenerationToken = 0;
+
+// Cache/dedupe en memoria del micro-comentario de IA por hábito. `habitInsightAiDay[habitId]` guarda
+// el dateKey del último insight de IA fresco: si es de hoy, no reinferimos con el LLM (lento). El Set
+// marca los hábitos con una inferencia en vuelo para no lanzar dos a la vez (no spamear). Viven fuera
+// del estado: son handles de control, no UI. Solo en memoria: se resetean al arrancar el proceso, que
+// basta (la plantilla siempre repinta al instante y el LLM se reintenta en la siguiente visita).
+const habitInsightAiDay: Record<string, string> = {};
+const habitInsightInFlight = new Set<string>();
+
+// Aborta la inferencia nativa del LLM si el motor cargado lo soporta. Import dinámico para no arrastrar
+// llama.rn en web/plantillas. Best-effort: si no está cargado o falla, no rompe nada.
+async function abortLlamaGeneration(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    const { abortGeneration } = await import('@/ai/llamaEngine');
+    await abortGeneration();
+  } catch (err) {
+    if (__DEV__) console.warn('[ai] abortGeneration falló', err);
+  }
+}
 
 // Clave de AsyncStorage donde se cachea el mensaje del día (JSON DailyMessage). Persistir evita
 // regenerar al reabrir la app el mismo día y, sobre todo, evita reinferir con el LLM (lento) si ya
@@ -255,6 +301,7 @@ export const useAiStore = create<AiState>((set, get) => ({
   isReady: false,
   modelProgress: 0,
   dailyMessage: null,
+  habitInsights: {},
   interjection: null,
   interjectionsEnabled: true,
   chatContextNote: null,
@@ -287,7 +334,8 @@ export const useAiStore = create<AiState>((set, get) => ({
       const ctx = await buildSystemContext();
       const text = resolveReply(await engine.greeting(ctx, language));
       await addAiMessage('assistant', text);
-    } catch {
+    } catch (err) {
+      if (__DEV__) console.warn('[ai] openChat: fallo en el saludo del Sistema', err);
       const language = useAppStore.getState().language;
       await addAiMessage('assistant', t(language, 'systemChatError'));
     } finally {
@@ -299,6 +347,9 @@ export const useAiStore = create<AiState>((set, get) => ({
     if (!trimmed || get().isGenerating) return;
 
     await addAiMessage('user', trimmed);
+    // Token de esta generación: si cancelGeneration lo invalida mientras inferimos, descartamos la
+    // respuesta en vez de persistirla.
+    const token = ++chatGenerationToken;
     set({ messages: await listAiMessages(), isGenerating: true });
 
     // Si el chat nació de una aparición, pasamos el motivo al engine (solo el LLM lo usa) para que la
@@ -315,19 +366,38 @@ export const useAiStore = create<AiState>((set, get) => ({
       const engine = await resolveEngine(get().profile);
       const ctx = await buildSystemContext();
       const reply = resolveReply(await engine.reply(ctx, trimmed, language, contextNote ?? undefined));
+      // Cancelada/reemplazada mientras inferíamos: descarta la respuesta, no la persistas.
+      if (token !== chatGenerationToken) return;
       await addAiMessage('assistant', reply);
       set({ messages: await listAiMessages(), chatContextNote: null });
-    } catch {
+    } catch (err) {
       // La pantalla llama con `void sendMessage(...)`, así que sin catch un fallo quedaría como
-      // unhandled rejection silenciosa. Si el LLM peta (modelo ausente/OOM/inferencia), registramos
-      // un mensaje de error del Sistema para que el usuario vea feedback en lugar de silencio.
+      // unhandled rejection silenciosa. Si el LLM peta (modelo ausente/OOM/inferencia/timeout),
+      // registramos un mensaje de error del Sistema para que el usuario vea feedback en lugar de
+      // silencio. Si fue cancelación (token ya invalidado), no escribimos error: cancelGeneration ya
+      // limpió el estado.
+      if (__DEV__) console.warn('[ai] sendMessage: fallo en la respuesta del Sistema', err);
+      if (token !== chatGenerationToken) return;
       const language = useAppStore.getState().language;
       await addAiMessage('assistant', t(language, 'systemChatError'));
       // Limpiamos el contextNote igualmente: el intento ya consumió el contexto inicial.
       set({ messages: await listAiMessages(), chatContextNote: null });
     } finally {
-      set({ isGenerating: false });
+      // isGenerating SIEMPRE se resetea, también ante timeout/error, para no dejar el chat colgado.
+      // Solo si seguimos siendo la generación vigente: una cancelación posterior ya lo reseteó.
+      if (token === chatGenerationToken) set({ isGenerating: false });
     }
+  },
+  // Cancela la generación en curso del chat. Invalida el token (la respuesta en vuelo se descarta),
+  // aborta la inferencia nativa del LLM si la hay y resetea isGenerating para desbloquear la UI. No
+  // escribe ningún mensaje: simplemente deja el chat como estaba antes de generar.
+  cancelGeneration: () => {
+    if (!get().isGenerating) return;
+    // Invalida la generación en vuelo: su resultado/error se ignorará al volver.
+    chatGenerationToken++;
+    set({ isGenerating: false });
+    // Corta la inferencia nativa en background (no bloqueamos la UI esperando al abort).
+    void abortLlamaGeneration();
   },
   // Dispara una aparición del Sistema si el cooldown lo permite. Reglas:
   //  - 1 aparición por apertura de app (flag de sesión en memoria).
@@ -393,8 +463,9 @@ export const useAiStore = create<AiState>((set, get) => ({
       if (current && current.trigger === trigger && current.createdAt === createdAt) {
         set({ interjection: { ...current, text: aiText, fromAi: true } });
       }
-    } catch {
+    } catch (err) {
       // El LLM falló: dejamos el texto de plantilla. No rompe nada.
+      if (__DEV__) console.warn('[ai] triggerInterjection: fallo enriqueciendo con LLM, queda plantilla', err);
     }
   },
   dismissInterjection: () => {
@@ -425,13 +496,15 @@ export const useAiStore = create<AiState>((set, get) => ({
       messages: await listAiMessages(),
     });
   },
-  // Asegura un mensaje del día del Sistema para la pantalla Hoy. Estrategia "instantáneo primero":
+  // Asegura el mensaje del día del Sistema para la pantalla Hoy: un BRIEFING accionable (cuántas
+  //  misiones quedan y por dónde empezar — el eslabón débil si lo hay), no un saludo genérico.
+  //  Estrategia "instantáneo primero":
   //  1) Si ya hay un mensaje en estado/cache de HOY y es suficientemente bueno (de IA, o el engine
   //     activo no es llama), no regenera: no merece la pena reinferir con el LLM (lento).
-  //  2) Si no, genera SIEMPRE primero el texto de plantilla (síncrono, offline) y lo setea ya: Hoy
+  //  2) Si no, genera SIEMPRE primero el briefing de plantilla (síncrono, offline) y lo setea ya: Hoy
   //     nunca se queda sin mensaje.
-  //  3) Si el engine activo es 'llama', regenera EN BACKGROUND con el LLM y, si tiene éxito, sustituye
-  //     el de plantilla por el de IA. Un fallo del LLM deja el de plantilla intacto (no rompe nada).
+  //  3) Si el engine activo es 'llama', regenera EN BACKGROUND con el LLM en torno a ese briefing y,
+  //     si tiene éxito, sustituye el de plantilla por el de IA. Un fallo del LLM deja el de plantilla.
   ensureDailyMessage: async () => {
     // El perfil decide el motor (template/llama). Si todavía no se cargó (Hoy puede llamar antes de
     // que nadie haya llamado a loadAi), lo cargamos: sin esto engine sería siempre 'template' y la IA
@@ -439,7 +512,8 @@ export const useAiStore = create<AiState>((set, get) => ({
     if (!get().isReady) await get().loadAi();
 
     const today = toDateKey();
-    const isLlama = get().profile.engine === 'llama';
+    const profile = get().profile;
+    const isLlama = profile.engine === 'llama';
 
     // ¿El mensaje de hoy ya es "lo bueno"? Lo es si viene de IA, o si el engine activo no es llama
     // (en cuyo caso el de plantilla es lo máximo que vamos a tener).
@@ -449,43 +523,53 @@ export const useAiStore = create<AiState>((set, get) => ({
     // 1) Estado en memoria ya fresco → nada que hacer.
     if (isFreshEnough(get().dailyMessage)) return;
 
-    // 2) Cache de AsyncStorage: si es de hoy, úsalo como estado. Si además es "lo bueno", termina.
+    // 2) Cache de AsyncStorage. SOLO lo usamos si es de HOY: si es de AYER, no lo ponemos como estado
+    //    (evita el parpadeo de mostrar el mensaje de ayer un instante antes de regenerar). Si es de
+    //    hoy y además es "lo bueno", terminamos.
     const cached = await loadCachedDailyMessage();
-    if (cached?.date === today) {
+    const cachedIsToday = cached?.date === today;
+    if (cachedIsToday) {
       set({ dailyMessage: cached });
       if (isFreshEnough(cached)) return;
     }
 
-    // 3) Texto de plantilla SIEMPRE primero (instantáneo). Salvo que el cache de hoy ya traiga un
-    //    texto utilizable que estamos a punto de mejorar con IA: en ese caso no lo pisamos por uno
-    //    de plantilla mientras esperamos al LLM (evita parpadeo). Si no hay cache de hoy, generamos.
-    if (!cached || cached.date !== today) {
-      const language = useAppStore.getState().language;
+    // 3) Briefing de plantilla SIEMPRE primero (instantáneo, offline). Salvo que el cache de HOY ya
+    //    traiga un texto utilizable que estamos a punto de mejorar con IA: en ese caso no lo pisamos
+    //    por uno de plantilla mientras esperamos al LLM (evita parpadeo). Si no hay cache de hoy,
+    //    generamos el briefing con getDailyBriefing (N pendientes + eslabón débil) y lo cacheamos.
+    if (!cachedIsToday) {
       const ctx = await buildSystemContext();
-      const text = resolveReply(await templateEngine.greeting(ctx, language));
+      const text = resolveReply(getDailyBriefing(ctx));
       const templateMessage: DailyMessage = { date: today, text, fromAi: false };
       set({ dailyMessage: templateMessage });
       await persistDailyMessage(templateMessage);
     }
 
-    // 4) Si el engine activo NO es llama, ya hemos terminado: el de plantilla es definitivo.
+    // 4) Si el engine activo NO es llama, ya hemos terminado: el briefing de plantilla es definitivo.
     if (!isLlama) return;
 
-    // 5) IA activa: regenera en background. El de plantilla ya está en pantalla; este lo sustituye al
-    //    terminar. Try/catch silencioso: si el LLM falla, dejamos el de plantilla (sin error en el
-    //    banner; el chat ya tiene su propio manejo de error).
+    // 5) IA activa: regenera el briefing en background con el LLM (prompt construido en torno al parte
+    //    del día). El de plantilla ya está en pantalla; este lo sustituye al terminar. Si el LLM falla
+    //    o vence el timeout, dejamos el de plantilla (sin error en el banner).
     try {
       const language = useAppStore.getState().language;
-      const engine = await resolveEngine(get().profile);
-      if (engine.id !== 'llama') return;
+      // Necesitamos la ruta del modelo para generar el briefing. Solo procede en nativo con modelo
+      // listo y ruta presente (mismas condiciones que resolveEngine para usar el LLM).
+      const modelPath = profile.modelPath;
+      if (Platform.OS === 'web' || profile.modelStatus !== 'ready' || !modelPath) return;
+      const { generateDailyBriefing } = await import('@/ai/llamaEngine');
       const ctx = await buildSystemContext();
-      const text = resolveReply(await engine.greeting(ctx, language));
+      const text = resolveReply(await generateDailyBriefing(ctx, language, modelPath));
+      // El día pudo cambiar mientras inferíamos (app abierta a medianoche): solo guarda si sigue siendo
+      // el briefing de hoy.
+      if (toDateKey() !== today) return;
       const aiMessage: DailyMessage = { date: today, text, fromAi: true };
       set({ dailyMessage: aiMessage });
       await persistDailyMessage(aiMessage);
-    } catch {
-      // El LLM falló (modelo ausente/OOM/inferencia): el mensaje de plantilla ya seteado sigue siendo
-      // válido. No mostramos error en el banner.
+    } catch (err) {
+      // El LLM falló (modelo ausente/OOM/inferencia/timeout): el mensaje de plantilla ya seteado sigue
+      // siendo válido. No mostramos error en el banner.
+      if (__DEV__) console.warn('[ai] ensureDailyMessage: fallo generando briefing con LLM, queda plantilla', err);
     }
   },
   // Fuerza regenerar el mensaje del día ignorando el cache de hoy: borra el estado y delega en
@@ -494,6 +578,56 @@ export const useAiStore = create<AiState>((set, get) => ({
     set({ dailyMessage: null });
     await AsyncStorage.removeItem(DAILY_MESSAGE_KEY).catch(() => undefined);
     await get().ensureDailyMessage();
+  },
+  // Asegura el micro-comentario del Sistema para un hábito (pantalla de detalle). Mismo patrón que
+  // ensureDailyMessage:
+  //  1) Plantilla SIEMPRE primero (getHabitInsight → texto, síncrono y offline): el detalle nunca se
+  //     queda sin comentario, también sin modelo.
+  //  2) Si el engine es 'llama' con modelo listo, regenera EN BACKGROUND con el LLM y sustituye el
+  //     texto (fromAi:true) al terminar. Un fallo del LLM deja la plantilla.
+  // Cachea por habitId+día: si ya hay un insight de IA fresco de HOY, no reinfiere. Y dedupe en vuelo:
+  // no lanza dos inferencias a la vez para el mismo hábito (la pantalla puede re-llamar al re-render).
+  ensureHabitInsight: async (habitId, input) => {
+    // El perfil decide el motor. Si el store aún no se cargó (el detalle puede llamar antes que nadie),
+    // lo cargamos: sin esto engine sería siempre 'template' y la IA nunca se usaría. Igual que ensureDailyMessage.
+    if (!get().isReady) await get().loadAi();
+
+    const habitCtx = buildHabitContext(input);
+
+    // 1) Plantilla al instante. Solo la seteamos si la entrada actual no es ya de IA fresca de hoy
+    //    (evita pisar un comentario de IA con uno de plantilla en un re-render del mismo día).
+    const today = toDateKey();
+    const aiFreshToday = habitInsightAiDay[habitId] === today && get().habitInsights[habitId]?.fromAi;
+    if (!aiFreshToday) {
+      const templateText = resolveReply(getHabitInsight(habitCtx, useAppStore.getState().language));
+      set({ habitInsights: { ...get().habitInsights, [habitId]: { text: templateText, fromAi: false } } });
+    }
+
+    // 2) Solo enriquecemos con LLM si el engine es llama. Si no, la plantilla es definitiva.
+    const profile = get().profile;
+    if (profile.engine !== 'llama') return;
+
+    // No reinferir si ya hay IA fresca de hoy, ni lanzar dos inferencias a la vez para este hábito.
+    if (aiFreshToday || habitInsightInFlight.has(habitId)) return;
+
+    // Mismas condiciones que el LLM en ensureDailyMessage: nativo, modelo listo y ruta presente.
+    const modelPath = profile.modelPath;
+    if (Platform.OS === 'web' || profile.modelStatus !== 'ready' || !modelPath) return;
+
+    habitInsightInFlight.add(habitId);
+    try {
+      const language = useAppStore.getState().language;
+      const { generateHabitInsight } = await import('@/ai/llamaEngine');
+      const text = await generateHabitInsight(habitCtx, language, modelPath);
+      // generateHabitInsight devuelve texto plano (ya en el idioma correcto): se usa tal cual.
+      set({ habitInsights: { ...get().habitInsights, [habitId]: { text, fromAi: true } } });
+      habitInsightAiDay[habitId] = today;
+    } catch (err) {
+      // El LLM falló (modelo ausente/OOM/inferencia/timeout): la plantilla ya seteada sigue valiendo.
+      if (__DEV__) console.warn('[ai] ensureHabitInsight: fallo generando insight con LLM, queda plantilla', err);
+    } finally {
+      habitInsightInFlight.delete(habitId);
+    }
   },
   clearChat: async () => {
     await clearAiMessages();

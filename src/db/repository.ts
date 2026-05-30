@@ -425,7 +425,10 @@ export async function markHabitFailed(habitId: string, dateKey = toDateKey()) {
     'UPDATE habit_daily_progress SET estado = ?, actualizado_en = ? WHERE id = ?',
     ['fallado', toIsoTimestamp(), progress.id],
   );
-  await createEvent(habit.id, dateKey, 'fallado', nextXp - player.xpTotal);
+  // Persistimos la penalización NOMINAL (no el delta ya recortado por el suelo de nivel). El suelo
+  // se aplica solo al proyectar el total (applyXpDelta), aquí y en recalculatePlayerFromEvents, así
+  // reconstruir desde el ledger es idempotente y reproduce el mismo total que el jugador ve en vivo.
+  await createEvent(habit.id, dateKey, 'fallado', xpDelta);
   await setPlayerProgress(nextXp);
 }
 
@@ -661,6 +664,24 @@ export async function clearAiMessages(): Promise<void> {
 // Arma el SystemContext leyendo el estado actual: jugador, hábitos de hoy, misión diaria y la mayor
 // racha perfecta vista. Reutiliza helpers existentes (getLevelProgress, getAttributeLevelProgress)
 // para no duplicar la lógica de nivel/atributos.
+// Proxy normalizada 0..1 de la racha programada, usada como `ratio` del eslabón débil cuando no hay
+// consistencia 30d barata a mano: 0 con racha 0, satura a 1 a la semana. Misma lógica en web.
+function streakToRatio(streak: number): number {
+  return Math.min(Math.max(streak, 0), 7) / 7;
+}
+
+// ¿Es `habit` (pendiente, racha `streak`) peor eslabón que el actual? Menor racha gana; en empate,
+// mayor importancia. Determinista y compartido por nativo y web para paridad.
+function isWeakerLink(
+  current: { habit: TodayHabit; streak: number } | null,
+  habit: TodayHabit,
+  streak: number,
+): boolean {
+  if (!current) return true;
+  if (streak !== current.streak) return streak < current.streak;
+  return habit.importancia > current.habit.importancia;
+}
+
 export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemContext> {
   const player = await ensurePlayer();
   const todayHabits = await listTodayHabits(dateKey);
@@ -691,11 +712,26 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
   const diaPerfecto = habitosHoyTotal > 0 && completadosHoy === habitosHoyTotal;
 
   // Mejor racha actual entre los hábitos activos (incluye la de hoy si ya está completado).
+  // Cargamos en UNA query todas las fechas de completados previos y calculamos las rachas en
+  // memoria, evitando un query por hábito (N+1). El resultado es idéntico a getHabitCompletionStreak.
+  const completedDatesByHabit = await getCompletedDatesByHabit(dateKey);
   let mejorRachaHabito = 0;
+  // Eslabón débil del día: de los hábitos AÚN pendientes, el de peor racha programada (la señal más
+  // barata, ya calculada aquí para mejorRachaHabito; no añade queries). Empate -> mayor importancia.
+  // El ratio es una proxy normalizada de la racha (satura a la semana), sin consistencia 30d (que
+  // sería N+1). null si no hay pendientes; el briefing degrada solo.
+  let eslabonDebil: { habit: TodayHabit; streak: number } | null = null;
   for (const habit of todayHabits) {
-    const priorStreak = await getHabitCompletionStreak(habit.id, dateKey, habit.diasSemana);
+    const priorStreak = getScheduledCompletionStreak(
+      completedDatesByHabit.get(habit.id) ?? [],
+      dateKey,
+      habit.diasSemana,
+    );
     const streak = habit.estado === 'completado' ? priorStreak + 1 : priorStreak;
     if (streak > mejorRachaHabito) mejorRachaHabito = streak;
+    if (habit.estado === 'pendiente' && isWeakerLink(eslabonDebil, habit, priorStreak)) {
+      eslabonDebil = { habit, streak: priorStreak };
+    }
   }
 
   // Mayor racha perfecta vista (max de daily_missions.perfect_streak_days).
@@ -719,6 +755,9 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
     diaPerfecto,
     mejorRachaHabito,
     rachaPerfecta: Math.max(perfectStreakToday, perfectRow?.max ?? 0),
+    eslabonDebil: eslabonDebil
+      ? { nombre: eslabonDebil.habit.nombre, ratio: streakToRatio(eslabonDebil.streak) }
+      : null,
   };
 }
 
@@ -757,14 +796,23 @@ export async function buildAchievementContext(): Promise<AchievementContext> {
   const rewardsCount = await sqlite.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM player_rewards');
 
   const activeHabits = await listHabits(false);
+  // Cargamos en DOS queries todas las fechas de completados previos y los hábitos completados HOY,
+  // y calculamos las rachas en memoria, evitando 2 queries por hábito (N+1). El resultado es
+  // idéntico al cálculo original por hábito.
+  const completedDatesByHabit = await getCompletedDatesByHabit(dateKey);
+  const completedTodayRows = await sqlite.getAllAsync<{ habit_id: string }>(
+    "SELECT habit_id FROM habit_daily_progress WHERE fecha = ? AND estado = 'completado'",
+    [dateKey],
+  );
+  const completedTodayHabitIds = new Set(completedTodayRows.map((row) => row.habit_id));
   let maxRachaHabitoActual = 0;
   for (const habit of activeHabits) {
-    const streak = await getHabitCompletionStreak(habit.id, dateKey, habit.diasSemana);
-    const todayCompleted = await sqlite.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM habit_daily_progress WHERE habit_id = ? AND fecha = ? AND estado = 'completado'",
-      [habit.id, dateKey],
+    const streak = getScheduledCompletionStreak(
+      completedDatesByHabit.get(habit.id) ?? [],
+      dateKey,
+      habit.diasSemana,
     );
-    const currentStreak = (todayCompleted?.count ?? 0) > 0 ? streak + 1 : streak;
+    const currentStreak = completedTodayHabitIds.has(habit.id) ? streak + 1 : streak;
     if (currentStreak > maxRachaHabitoActual) maxRachaHabitoActual = currentStreak;
   }
 
@@ -1023,7 +1071,10 @@ async function markHabitComplete(habit: HabitRecord, dateKey: string, amount: nu
     'UPDATE habit_daily_progress SET cantidad = ?, estado = ?, actualizado_en = ? WHERE id = ?',
     [amount, 'completado', toIsoTimestamp(), progress.id],
   );
-  await createEvent(habit.id, dateKey, 'completado', nextXp - player.xpTotal, attributeDelta, esenciaOtorgada);
+  // Persistimos el delta NOMINAL (coherente con attributeDelta, que también se deriva del nominal).
+  // El suelo de nivel se aplica solo al proyectar; para completados el suelo nunca recorta, así que
+  // el valor observable no cambia, pero el ledger queda fiel para la reconstrucción.
+  await createEvent(habit.id, dateKey, 'completado', xpDelta, attributeDelta, esenciaOtorgada);
   await setPlayerProgress(nextXp, undefined, nextAttributeXp);
   await grantEssence(esenciaOtorgada);
   await syncDailyMission(dateKey);
@@ -1329,6 +1380,31 @@ async function getHabitCompletionStreak(habitId: string, dateKey: string, weekda
     dateKey,
     weekdaysCsv,
   );
+}
+
+// Versión batch de la consulta de getHabitCompletionStreak: en UNA query trae las fechas de todos
+// los eventos 'completado' anteriores a dateKey y las agrupa por hábito, para calcular rachas en
+// memoria sin un query por hábito (N+1). Mismo filtro y misma fuente que getHabitCompletionStreak.
+async function getCompletedDatesByHabit(dateKey: string): Promise<Map<string, string[]>> {
+  const rows = await sqlite.getAllAsync<{ habit_id: string; fecha: string }>(
+    `
+      SELECT habit_id, fecha
+      FROM events
+      WHERE tipo_evento = 'completado' AND fecha < ?
+      ORDER BY fecha DESC
+    `,
+    [dateKey],
+  );
+  const byHabit = new Map<string, string[]>();
+  for (const row of rows) {
+    const list = byHabit.get(row.habit_id);
+    if (list) {
+      list.push(row.fecha);
+    } else {
+      byHabit.set(row.habit_id, [row.fecha]);
+    }
+  }
+  return byHabit;
 }
 
 async function getCurrentHabitStreak(habit: HabitRecord, today: HabitInsightDay) {

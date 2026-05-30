@@ -3,7 +3,7 @@
 // bilingüismo vive en i18n y el motor/core nunca traduce. Motor de reglas, no LLM: la intención del
 // usuario se detecta por palabras clave normalizadas (sin tildes, minúsculas) en ES/EN.
 
-import type { SystemContext } from './aiContext';
+import type { HabitContext, SystemContext } from './aiContext';
 
 // Respuesta de un motor del chat. Union discriminada por `kind`:
 // - 'key': clave i18n abstracta + params, que el store resuelve con t(language, key, params). La usa
@@ -61,14 +61,29 @@ function keyReply(key: string, params?: Record<string, string | number>): System
   return { kind: 'key', key, params };
 }
 
+// Briefing diario accionable cuando hay misiones pendientes. Si conocemos el eslabón débil (hábito de
+// peor consistencia entre los de hoy), dice por dónde empezar; si no, degrada al empujón genérico
+// `sys_pending`. Determinista: misma entrada, misma clave.
+export function getDailyBriefing(ctx: SystemContext): SystemReply {
+  const params = statusParams(ctx);
+  if (ctx.eslabonDebil) {
+    return keyReply(pick('sys_briefing', 2, ctx), {
+      ...params,
+      eslabon: ctx.eslabonDebil.nombre,
+      ratioEslabon: Math.round(ctx.eslabonDebil.ratio * 100),
+    });
+  }
+  return keyReply(pick('sys_pending', 2, ctx), params);
+}
+
 // Saludo proactivo de apertura del chat, por prioridad de reglas. La primera condición que se
 // cumple gana, de mayor a menor urgencia.
 export function getSystemGreeting(ctx: SystemContext): SystemReply {
   const params = statusParams(ctx);
 
-  // 1) Hay misiones pendientes hoy → empuja.
+  // 1) Hay misiones pendientes hoy → briefing accionable (empieza por el eslabón débil si lo hay).
   if (ctx.pendientesHoy > 0) {
-    return keyReply(pick('sys_pending', 2, ctx), params);
+    return getDailyBriefing(ctx);
   }
 
   // 2) Día perfecto (hay hábitos hoy y todos completados, sin fallos) → reconoce.
@@ -199,4 +214,62 @@ export function getSystemInterjection(ctx: SystemContext, trigger: InterjectionT
     completados: ctx.completadosHoy,
   };
   return keyReply(pick(INTERJECTION_KEY_PREFIX[trigger], 2, ctx), params);
+}
+
+// Frase del Sistema para la subida de rango (pantalla de ascensión). Determinista y SIN modelo: la
+// animación es corta y un LLM la arruinaría, así que solo plantilla. Devuelve { kind: 'key' } como el
+// resto del core; la UI traduce con i18n. Si el rango alcanzado es S (clímax del juego), usa una
+// variante especial; el resto comparte la plantilla genérica. La variante (_1/_2) se rota de forma
+// estable derivando el índice de los propios rangos (sin Math.random: mismo from/to → misma frase).
+export function getRankUpLine(fromRank: string, toRank: string, _language?: string): SystemReply {
+  const params = { from: fromRank, to: toRank };
+  const prefix = toRank === 'S' ? 'sys_rankup_s' : 'sys_rankup';
+  const seed = fromRank.length + toRank.length + toRank.charCodeAt(0);
+  const variant = (seed % 2) + 1;
+  return keyReply(`${prefix}_${variant}`, params);
+}
+
+// Índice determinista para rotar variantes a partir del contexto de un hábito (no del SystemContext).
+// Mismo criterio que `variantIndex` pero con señales del propio hábito, para que la frase sea estable
+// por hábito sin Math.random.
+function habitVariantIndex(habit: HabitContext, total: number): number {
+  const seed = habit.completados7 + habit.fallados7 + habit.rachaActual + habit.nombre.length;
+  return ((seed % total) + total) % total;
+}
+
+// Lee un hábito y devuelve una frase del Sistema interpretando su rendimiento. Regla determinista por
+// prioridad: un patrón claro de fallos reciente (>=2 en 7 días) se señala primero; si no, se juzga
+// por la consistencia 30d (alta → reconocimiento seco, media → exigencia neutral, baja → corrección).
+// Devuelve { kind: 'key' } con params para que i18n traduzca; tono coherente con el resto de la voz.
+export function getHabitInsight(habit: HabitContext, _language?: string): SystemReply {
+  const consistenciaPct = Math.round(habit.consistencia * 100);
+  const params = {
+    habito: habit.nombre,
+    consistencia: consistenciaPct,
+    racha: habit.rachaActual,
+    fallos: habit.fallados7,
+  };
+
+  // 1) Patrón de fallos reciente claro: lo señala por encima de la media de 30d.
+  if (habit.fallados7 >= 2) {
+    return keyReply(pickHabit('sys_habit_failpattern', 2, habit), params);
+  }
+
+  // 2) Consistencia alta → reconocimiento seco.
+  if (habit.consistencia >= 0.8) {
+    return keyReply(pickHabit('sys_habit_high', 2, habit), params);
+  }
+
+  // 3) Consistencia baja → corrección.
+  if (habit.consistencia < 0.5) {
+    return keyReply(pickHabit('sys_habit_low', 2, habit), params);
+  }
+
+  // 4) Consistencia media → exigencia neutral.
+  return keyReply(pickHabit('sys_habit_mid', 2, habit), params);
+}
+
+// Variante `prefix_1..prefix_N` para frases de hábito, según el índice derivado del propio hábito.
+function pickHabit(prefix: string, total: number, habit: HabitContext): string {
+  return `${prefix}_${habitVariantIndex(habit, total) + 1}`;
 }

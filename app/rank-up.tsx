@@ -15,6 +15,7 @@ import { Button } from '@/components/Button';
 import { RankBadge } from '@/components/RankBadge';
 import { Screen } from '@/components/Screen';
 import { RANK_ORDER } from '@/core/ranks';
+import { getRankUpLine } from '@/core/systemVoice';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
@@ -34,6 +35,13 @@ export default function RankUpScreen() {
   const toRank = asRank(params.to);
   const rank = toRank ?? player?.rango ?? 'E';
   const accent = getRankAccent(rank);
+  // Voz del Sistema para el momento épico: frase determinista (sin LLM, la animación es corta).
+  // getRankUpLine siempre devuelve { kind: 'key' }; lo resolvemos con i18n como el resto de la UI.
+  const rankUpLine = getRankUpLine(fromRank ?? rank, rank, language);
+  const systemLine =
+    rankUpLine.kind === 'key'
+      ? t(language, rankUpLine.key as Parameters<typeof t>[1], rankUpLine.params)
+      : rankUpLine.text;
   const pulse = useSharedValue(0);
   const reveal = useSharedValue(0);
 
@@ -75,6 +83,10 @@ export default function RankUpScreen() {
           </View>
           <Text style={styles.title}>{t(language, 'newRank')}</Text>
           <Text style={styles.copy}>{t(language, 'rankUpCopy')}</Text>
+          <View style={[styles.systemLine, { borderColor: `${accent}55` }]}>
+            <Text style={[styles.systemKicker, { color: accent }]}>◆ {t(language, 'systemLabel')}</Text>
+            <Text style={styles.systemText}>{systemLine}</Text>
+          </View>
         </Animated.View>
         <View style={[styles.delta, { borderColor: `${accent}88` }]}>
           <Text style={styles.deltaLabel}>{t(language, 'currentRank')}</Text>
@@ -163,6 +175,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     marginTop: 10,
+    textAlign: 'center',
+  },
+  systemLine: {
+    alignItems: 'center',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    marginTop: 18,
+    maxWidth: 320,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  systemKicker: {
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  systemText: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
     textAlign: 'center',
   },
   delta: {

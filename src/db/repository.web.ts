@@ -348,7 +348,10 @@ export async function markHabitFailed(habitId: string, dateKey = toDateKey()) {
   const nextXp = applyXpDelta(db.player.xpTotal, xpDelta);
   progress.estado = 'fallado';
   progress.actualizadoEn = toIsoTimestamp();
-  db.events.push(createEvent(habit, dateKey, 'fallado', nextXp - db.player.xpTotal));
+  // Persistimos la penalización NOMINAL (no el delta ya recortado por el suelo de nivel). El suelo
+  // se aplica solo al proyectar el total (applyXpDelta), aquí y en recalculatePlayerFromLedger, así
+  // reconstruir desde el ledger es idempotente y reproduce el mismo total que el jugador ve en vivo.
+  db.events.push(createEvent(habit, dateKey, 'fallado', xpDelta));
   db.player.xpTotal = nextXp;
   syncPlayer(db);
   await saveDb(db);
@@ -585,6 +588,24 @@ export async function clearAiMessages(): Promise<void> {
 
 // Arma el SystemContext desde el estado actual (paridad con el nativo). Reutiliza getLevelProgress y
 // getAttributeLevelProgress; no duplica la lógica de nivel/atributos/racha.
+// Proxy normalizada 0..1 de la racha programada, usada como `ratio` del eslabón débil cuando no hay
+// consistencia 30d barata a mano: 0 con racha 0, satura a 1 a la semana. Misma lógica en nativo.
+function streakToRatio(streak: number): number {
+  return Math.min(Math.max(streak, 0), 7) / 7;
+}
+
+// ¿Es `habit` (pendiente, racha `streak`) peor eslabón que el actual? Menor racha gana; en empate,
+// mayor importancia. Determinista y compartido por nativo y web para paridad.
+function isWeakerLink(
+  current: { habit: TodayHabit; streak: number } | null,
+  habit: TodayHabit,
+  streak: number,
+): boolean {
+  if (!current) return true;
+  if (streak !== current.streak) return streak < current.streak;
+  return habit.importancia > current.habit.importancia;
+}
+
 export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemContext> {
   const db = await loadDb();
   const player = db.player;
@@ -609,10 +630,18 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
   const diaPerfecto = habitosHoyTotal > 0 && completadosHoy === habitosHoyTotal;
 
   let mejorRachaHabito = 0;
+  // Eslabón débil del día: de los hábitos AÚN pendientes, el de peor racha programada (la señal más
+  // barata, ya calculada aquí para mejorRachaHabito; no añade trabajo). Empate -> mayor importancia.
+  // El ratio es una proxy normalizada de la racha (satura a la semana), sin consistencia 30d. null
+  // si no hay pendientes; el briefing degrada solo. MISMA lógica que el nativo (paridad).
+  let eslabonDebil: { habit: TodayHabit; streak: number } | null = null;
   for (const habit of todayHabits) {
     const priorStreak = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
     const streak = habit.estado === 'completado' ? priorStreak + 1 : priorStreak;
     if (streak > mejorRachaHabito) mejorRachaHabito = streak;
+    if (habit.estado === 'pendiente' && isWeakerLink(eslabonDebil, habit, priorStreak)) {
+      eslabonDebil = { habit, streak: priorStreak };
+    }
   }
 
   const maxPerfect = db.missions.reduce((max, m) => Math.max(max, m.perfectStreakDays), 0);
@@ -633,6 +662,9 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
     diaPerfecto,
     mejorRachaHabito,
     rachaPerfecta: Math.max(mission.perfectStreakDays, maxPerfect),
+    eslabonDebil: eslabonDebil
+      ? { nombre: eslabonDebil.habit.nombre, ratio: streakToRatio(eslabonDebil.streak) }
+      : null,
   };
 }
 

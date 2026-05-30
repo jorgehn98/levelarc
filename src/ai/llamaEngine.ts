@@ -8,9 +8,9 @@
 // solo cuando de verdad se va a inferir. El selector (ai/index) además solo construye este motor en
 // nativo con modelo listo, así que ni la web ni el flujo de plantillas arrastran llama.rn.
 
-import { buildSystemContextText } from '@/core/aiContext';
+import { buildHabitContextText, buildSystemContextText } from '@/core/aiContext';
 import type { Language } from '@/i18n';
-import type { SystemContext } from '@/core/aiContext';
+import type { HabitContext, SystemContext } from '@/core/aiContext';
 import type { InterjectionTrigger, SystemReply } from '@/core/systemVoice';
 
 import type { ChatContextNote, SystemChatEngine } from './engine';
@@ -35,6 +35,41 @@ const TOP_K = 64;
 const PENALTY_REPEAT = 1.1;
 const STOP = ['<end_of_turn>', '<eos>', '</s>'];
 
+// Timeouts de seguridad para device: si el modelo se atasca, sin esto el chat queda con el spinner
+// colgado para siempre (isGenerating nunca se resetea). COMPLETION_TIMEOUT_MS corta una inferencia
+// que no termina; LOAD_TIMEOUT_MS corta una carga de modelo que no resuelve. Al disparar, abortamos
+// la generación nativa (stopCompletion) y rechazamos para que el store degrade a plantilla/error.
+const COMPLETION_TIMEOUT_MS = 45_000;
+const LOAD_TIMEOUT_MS = 120_000;
+
+// Error con el que rechazamos al vencer un timeout, para que el store pueda distinguirlo si quiere.
+export class LlamaTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LlamaTimeoutError';
+  }
+}
+
+// Carrera genérica entre una promesa y un timeout. Si vence el timeout, llama a onTimeout (best-effort:
+// para abortar la operación nativa subyacente) y rechaza con LlamaTimeoutError. Limpia el timer pase lo
+// que pase para no dejar handles colgando.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeout?: () => void): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      try {
+        onTimeout?.();
+      } catch {
+        // best-effort: el abort nativo no debe enmascarar el timeout.
+      }
+      reject(new LlamaTimeoutError(`${label} timed out after ${ms}ms`));
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 // Mensaje interno que dispara el saludo proactivo (el LLM no recibe texto del usuario al abrir el
 // chat). En el idioma del jugador para que la respuesta salga en ese idioma.
 const GREETING_PROMPT: Record<Language, string> = {
@@ -45,6 +80,23 @@ const GREETING_PROMPT: Record<Language, string> = {
 const LANGUAGE_INSTRUCTION: Record<Language, string> = {
   es: 'Responde SIEMPRE en español.',
   en: 'Always respond in English.',
+};
+
+// Mensaje interno que dispara el briefing diario accionable: pide al LLM un empujón corto basado en
+// las misiones pendientes de hoy, empezando por el eslabón débil (el hábito de peor consistencia, que
+// ya viene en el estado serializado). El propio system prompt incluye pendientes_hoy y eslabon_debil,
+// así que el LLM tiene los datos; aquí solo le fijamos la intención.
+const BRIEFING_PROMPT: Record<Language, string> = {
+  es: 'Dale al jugador el parte del día: cuántas misiones le quedan y por dónde empezar (el eslabón débil si lo hay). Seco y accionable.',
+  en: "Give the player today's briefing: how many missions remain and where to start (the weak link if any). Terse and actionable.",
+};
+
+// Mensaje interno que dispara el micro-comentario de un hábito concreto: pide al Sistema UNA frase
+// corta interpretando el rendimiento (consistencia, racha, fallos recientes) del hábito cuyo estado
+// va en el system prompt. Seco, sin relleno, como el resto de la voz del Sistema.
+const HABIT_INSIGHT_PROMPT: Record<Language, string> = {
+  es: 'Comenta el rendimiento de este hábito en UNA frase corta y seca: interpreta su consistencia, racha y fallos recientes. Sin relleno.',
+  en: 'Comment on this habit\'s performance in ONE short, terse sentence: read its consistency, streak and recent failures. No filler.',
 };
 
 // Descripción del evento que dispara cada aparición del Sistema, por idioma. Se inyecta como
@@ -114,18 +166,30 @@ let context: LlamaContext | null = null;
 let loading: Promise<LlamaContext> | null = null;
 let loadedModelPath: string | null = null;
 
-// Carga (o reutiliza) el contexto del modelo. Lanza si initLlama falla (modelo ausente/corrupto/OOM);
-// el llamador (store) ya muestra systemChatError ante el throw.
+// Flag de aborto de la carga en vuelo. Si releaseLlama llega mientras un initLlama está cargando
+// (varios segundos), no podemos cancelar initLlama, pero marcamos `loadAborted = true` para que, al
+// resolver, ensureContext libere ESE contexto recién creado en vez de cachearlo (evita LlamaContext
+// huérfano sin liberar — crítico con 3 GB de RAM). Cada carga se ata a su propio objeto-token para
+// que un release no afecte a una carga posterior que ya arrancó.
+let loadAborted = false;
+
+// Carga (o reutiliza) el contexto del modelo. Lanza si initLlama falla (modelo ausente/corrupto/OOM)
+// o si la carga supera LOAD_TIMEOUT_MS; el llamador (store) ya muestra systemChatError ante el throw.
 async function ensureContext(modelPath: string): Promise<LlamaContext> {
   if (context && loadedModelPath === modelPath) return context;
-  // Cambió el modelo: libera el anterior antes de cargar el nuevo.
-  if (context && loadedModelPath !== modelPath) {
+  // Cambió el modelo: libera el anterior (y cualquier carga en vuelo) antes de cargar el nuevo. Tras
+  // esto context queda null y no hay carga huérfana pendiente.
+  if ((context || loading) && loadedModelPath !== modelPath) {
     await releaseLlama();
   }
+  // Si justo terminó una carga del mismo modelo durante el await anterior, reutilízala.
+  if (context && loadedModelPath === modelPath) return context;
   if (loading) return loading;
 
-  loading = (async () => {
-    const { initLlama } = await import('llama.rn');
+  // Nueva carga: arranca "no abortada". releaseLlama pondrá loadAborted=true si llega en vuelo.
+  loadAborted = false;
+  const load = (async () => {
+    const { initLlama, releaseAllLlama } = await import('llama.rn');
     const ctx = await initLlama({
       model: modelPath,
       n_ctx: N_CTX,
@@ -133,20 +197,37 @@ async function ensureContext(modelPath: string): Promise<LlamaContext> {
       n_threads: N_THREADS,
       use_mmap: true,
     });
+    // Si nos abortaron mientras cargábamos (un releaseLlama concurrente), este ctx es huérfano:
+    // libéralo en el acto y propaga el aborto como fallo en vez de cachear un contexto que el usuario
+    // pidió liberar.
+    if (loadAborted) {
+      try {
+        await ctx.release();
+      } catch {
+        // Si el release del contexto individual falla, releaseAllLlama de releaseLlama lo cubre.
+        await releaseAllLlama().catch(() => undefined);
+      }
+      throw new Error('Llama context load aborted by release');
+    }
     context = ctx;
     loadedModelPath = modelPath;
     return ctx;
   })();
+  loading = load;
 
   try {
-    return await loading;
+    // Timeout de carga: si initLlama no resuelve, no dejamos el motor colgado para siempre.
+    return await withTimeout(load, LOAD_TIMEOUT_MS, 'initLlama');
   } catch (error) {
-    // Falló la carga: deja el motor en estado no-listo para reintentar en la próxima llamada.
-    context = null;
-    loadedModelPath = null;
+    // Falló/venció/abortó la carga: deja el motor en estado no-listo para reintentar en la próxima
+    // llamada. Solo limpiamos si seguimos siendo la carga vigente (otra carga pudo reemplazarnos).
+    if (loading === load) {
+      context = null;
+      loadedModelPath = null;
+    }
     throw error;
   } finally {
-    loading = null;
+    if (loading === load) loading = null;
   }
 }
 
@@ -163,27 +244,131 @@ async function generate(
   const systemContent = systemNote
     ? `${buildSystemPrompt(ctx, language)}\n\n${systemNote}`
     : buildSystemPrompt(ctx, language);
-  const result = await llama.completion({
-    messages: [
-      { role: 'system', content: systemContent },
-      { role: 'user', content: userMessage },
-    ],
-    n_predict: N_PREDICT,
-    temperature: TEMPERATURE,
-    top_p: TOP_P,
-    top_k: TOP_K,
-    penalty_repeat: PENALTY_REPEAT,
-    stop: STOP,
-  });
+  // Timeout de inferencia: si la generación se atasca, al vencer abortamos la generación nativa con
+  // stopCompletion (corta de verdad, libera CPU) y rechazamos para que el store degrade/avise.
+  const result = await withTimeout(
+    llama.completion({
+      messages: [
+        { role: 'system', content: systemContent },
+        { role: 'user', content: userMessage },
+      ],
+      n_predict: N_PREDICT,
+      temperature: TEMPERATURE,
+      top_p: TOP_P,
+      top_k: TOP_K,
+      penalty_repeat: PENALTY_REPEAT,
+      stop: STOP,
+    }),
+    COMPLETION_TIMEOUT_MS,
+    'completion',
+    () => {
+      void llama.stopCompletion().catch(() => undefined);
+    },
+  );
   return { kind: 'text', text: result.content.trim() };
+}
+
+// Briefing diario accionable generado por el LLM. Reusa `generate` con el prompt de briefing: el
+// system prompt ya incluye pendientes_hoy y eslabon_debil, así que el LLM construye su respuesta en
+// torno a ese parte del día. Lo llama el store en la rama llama de ensureDailyMessage. Lleva su propio
+// timeout/abort vía `generate`. Necesita modelPath porque se invoca fuera de la factory del motor.
+export function generateDailyBriefing(
+  ctx: SystemContext,
+  language: Language,
+  modelPath: string,
+): Promise<SystemReply> {
+  return generate(ctx, BRIEFING_PROMPT[language], language, modelPath);
+}
+
+// System prompt del micro-comentario de un hábito: misma persona seca del Sistema que buildSystemPrompt,
+// pero el estado serializado es el del hábito (buildHabitContextText), no el del jugador. No inventa
+// datos: solo usa el estado del hábito dado.
+function buildHabitInsightPrompt(ctx: HabitContext, language: Language): string {
+  const persona =
+    language === 'es'
+      ? [
+          'Eres EL SISTEMA de una app de hábitos gamificada al estilo Solo Leveling.',
+          'Hablas seco, imperativo y directo. UNA sola frase corta. Sin emojis, sin disculpas, sin relleno.',
+          'No inventes datos: usa SOLO el estado del hábito que se te da debajo.',
+        ]
+      : [
+          'You are THE SYSTEM of a gamified habit app in the style of Solo Leveling.',
+          'You speak terse, imperative and direct. ONE short sentence only. No emojis, no apologies, no filler.',
+          'Do not invent data: use ONLY the habit state given below.',
+        ];
+  return [
+    ...persona,
+    LANGUAGE_INSTRUCTION[language],
+    '',
+    language === 'es' ? 'Estado del hábito:' : 'Habit state:',
+    buildHabitContextText(ctx),
+  ].join('\n');
+}
+
+// Micro-comentario de un hábito generado por el LLM. Análogo a generateDailyBriefing pero standalone
+// (no pasa por `generate`, que asume SystemContext): construye el system prompt del hábito y corre la
+// inferencia con el mismo timeout/abort. Devuelve TEXTO plano (no SystemReply): el store lo guarda tal
+// cual. Lo llama el store en la rama llama de ensureHabitInsight. Necesita modelPath porque se invoca
+// fuera de la factory del motor.
+export async function generateHabitInsight(
+  ctx: HabitContext,
+  language: Language,
+  modelPath: string,
+): Promise<string> {
+  const llama = await ensureContext(modelPath);
+  const result = await withTimeout(
+    llama.completion({
+      messages: [
+        { role: 'system', content: buildHabitInsightPrompt(ctx, language) },
+        { role: 'user', content: HABIT_INSIGHT_PROMPT[language] },
+      ],
+      n_predict: N_PREDICT,
+      temperature: TEMPERATURE,
+      top_p: TOP_P,
+      top_k: TOP_K,
+      penalty_repeat: PENALTY_REPEAT,
+      stop: STOP,
+    }),
+    COMPLETION_TIMEOUT_MS,
+    'completion',
+    () => {
+      void llama.stopCompletion().catch(() => undefined);
+    },
+  );
+  return result.content.trim();
+}
+
+// Aborta la generación en curso del contexto cargado (si lo hay). La usa el store para cancelar una
+// inferencia a petición del usuario (cancelGeneration). Best-effort: si no hay contexto o stopCompletion
+// falla, no rompe nada. No libera el modelo (eso es releaseLlama): solo corta la generación actual.
+export async function abortGeneration(): Promise<void> {
+  if (!context) return;
+  try {
+    await context.stopCompletion();
+  } catch {
+    // Si no hay generación activa o el nativo falla, lo ignoramos: el objetivo es desbloquear el chat.
+  }
 }
 
 // Libera toda la memoria del LLM (todos los contextos) y resetea el estado cacheado. La pantalla de
 // gestión del modelo (otra tarea) puede llamarla al borrar el modelo o liberar RAM.
+//
+// Race con una carga en vuelo (A3/A4): si hay un ensureContext cargando (initLlama de varios segundos),
+// no podemos cancelar initLlama, pero marcamos `loadAborted = true` y ESPERAMOS a que esa carga termine.
+// Al resolver, ensureContext ve el flag y libera su propio contexto recién creado, así que ningún
+// LlamaContext queda huérfano. Tras esperar, releaseAllLlama barre cualquier contexto residual.
 export async function releaseLlama(): Promise<void> {
+  // Marca la carga en vuelo (si la hay) como abortada y espera a que resuelva, para que ensureContext
+  // libere su contexto en lugar de cachearlo. Ignoramos su resultado/rechazo: solo queremos que acabe.
+  const pending = loading;
+  if (pending) {
+    loadAborted = true;
+    await pending.catch(() => undefined);
+  }
   context = null;
   loadedModelPath = null;
   loading = null;
+  loadAborted = false;
   const { releaseAllLlama } = await import('llama.rn');
   await releaseAllLlama();
 }

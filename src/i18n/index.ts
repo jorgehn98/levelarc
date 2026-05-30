@@ -206,7 +206,7 @@ const dictionary = {
     fail: 'Fallar',
     undo: 'Deshacer',
     goal: 'Meta {goal}',
-    versionLine: 'Sistema autónomo · v1.0.2',
+    versionLine: 'Sistema autónomo · v1.1.0',
     settingsSubtitle: 'Sistema · configuración',
     habitRegisterSubtitle: 'Sistema · registro',
     habitEditSubtitle: 'Sistema · edición',
@@ -385,6 +385,18 @@ const dictionary = {
     sys_streak_2: '{racha} misiones seguidas. El Sistema reconoce la disciplina.',
     sys_greet_state_1: 'Nivel {nivel}, rango {rango}. El Sistema está en línea.',
     sys_greet_state_2: 'Jugador en nivel {nivel}, rango {rango}. Procede.',
+    // Briefing diario accionable (hay pendientes y se conoce el eslabón débil):
+    sys_briefing_1: '{n} misiones pendientes hoy. Empieza por «{eslabon}»: es tu punto débil ({ratioEslabon}%).',
+    sys_briefing_2: 'Quedan {n} misiones. El eslabón más débil es «{eslabon}» ({ratioEslabon}%). Atácalo primero.',
+    // Lectura del Sistema sobre un hábito concreto (insight determinista):
+    sys_habit_high_1: '«{habito}»: {consistencia}% de constancia. El Sistema lo reconoce. No bajes el ritmo.',
+    sys_habit_high_2: '«{habito}» va sólido, {consistencia}%. Racha de {racha}. Mantenlo así.',
+    sys_habit_mid_1: '«{habito}»: {consistencia}%. Aceptable, no suficiente. El Sistema espera más.',
+    sys_habit_mid_2: '«{habito}» está a medio camino, {consistencia}%. Sube el listón.',
+    sys_habit_low_1: '«{habito}»: solo {consistencia}% de constancia. Corrige esto o lo perderás.',
+    sys_habit_low_2: '«{habito}» flaquea, {consistencia}%. El Sistema exige corrección.',
+    sys_habit_failpattern_1: '«{habito}»: {fallos} fallos esta semana. El patrón es claro. Rómpelo hoy.',
+    sys_habit_failpattern_2: '{fallos} fallos en «{habito}» estos días. El Sistema lo marca. Recupéralo ya.',
     // Respuestas a la intención del usuario:
     sys_reply_hello_1: 'El Sistema responde. Nivel {nivel}, rango {rango}.',
     sys_reply_hello_2: 'Aquí el Sistema. ¿Cuál es tu siguiente movimiento?',
@@ -409,6 +421,11 @@ const dictionary = {
     sys_int_near_level_2: 'El ascenso está cerca. {falta} XP para el siguiente nivel.',
     sys_int_mission_failed_1: 'El día cerró sin completar la misión. Un fallo no te define. Mañana lo recuperas.',
     sys_int_mission_failed_2: 'Misión del día sin cumplir. El Sistema lo anota. Corrige el rumbo.',
+    // Subida de rango (pantalla de ascensión): la voz del Sistema marca el ascenso. S es el clímax.
+    sys_rankup_1: 'Rango {from} superado. Asciendes a {to}. El Sistema reconoce tu fuerza.',
+    sys_rankup_2: 'Ascenso confirmado: {from} → {to}. Has roto tu límite. Sigue subiendo.',
+    sys_rankup_s_1: 'Rango S alcanzado. La cima. Pocos llegan aquí. El Sistema se inclina.',
+    sys_rankup_s_2: 'De {from} a S. Has llegado al clímax. Ahora eres la cúspide del Sistema.',
   },
   en: {
     today: 'Today',
@@ -615,7 +632,7 @@ const dictionary = {
     fail: 'Fail',
     undo: 'Undo',
     goal: 'Goal {goal}',
-    versionLine: 'Autonomous system · v1.0.2',
+    versionLine: 'Autonomous system · v1.1.0',
     settingsSubtitle: 'System · configuration',
     habitRegisterSubtitle: 'System · registration',
     habitEditSubtitle: 'System · editing',
@@ -794,6 +811,18 @@ const dictionary = {
     sys_streak_2: '{racha} missions in a row. The System acknowledges the discipline.',
     sys_greet_state_1: 'Level {nivel}, rank {rango}. The System is online.',
     sys_greet_state_2: 'Player at level {nivel}, rank {rango}. Proceed.',
+    // Actionable daily briefing (there are pending missions and the weak link is known):
+    sys_briefing_1: '{n} missions pending today. Start with "{eslabon}": it is your weak point ({ratioEslabon}%).',
+    sys_briefing_2: '{n} missions left. The weakest link is "{eslabon}" ({ratioEslabon}%). Hit it first.',
+    // The System's reading of a specific habit (deterministic insight):
+    sys_habit_high_1: '"{habito}": {consistencia}% consistency. The System acknowledges it. Do not drop the pace.',
+    sys_habit_high_2: '"{habito}" is solid, {consistencia}%. A {racha}-day streak. Keep it that way.',
+    sys_habit_mid_1: '"{habito}": {consistencia}%. Acceptable, not enough. The System expects more.',
+    sys_habit_mid_2: '"{habito}" is halfway there, {consistencia}%. Raise the bar.',
+    sys_habit_low_1: '"{habito}": only {consistencia}% consistency. Fix this or you will lose it.',
+    sys_habit_low_2: '"{habito}" is faltering, {consistencia}%. The System demands correction.',
+    sys_habit_failpattern_1: '"{habito}": {fallos} failures this week. The pattern is clear. Break it today.',
+    sys_habit_failpattern_2: '{fallos} failures on "{habito}" lately. The System marks it. Recover it now.',
     // Replies to the user's intent:
     sys_reply_hello_1: 'The System responds. Level {nivel}, rank {rango}.',
     sys_reply_hello_2: 'System here. What is your next move?',
@@ -818,6 +847,11 @@ const dictionary = {
     sys_int_near_level_2: 'The ascent is close. {falta} XP to the next level.',
     sys_int_mission_failed_1: 'The day closed without completing the mission. A failure does not define you. Recover tomorrow.',
     sys_int_mission_failed_2: 'Today mission left unfinished. The System notes it. Correct course.',
+    // Rank up (ascension screen): the System voice marks the ascent. S is the climax.
+    sys_rankup_1: 'Rank {from} surpassed. You ascend to {to}. The System acknowledges your strength.',
+    sys_rankup_2: 'Ascent confirmed: {from} → {to}. You broke your limit. Keep climbing.',
+    sys_rankup_s_1: 'Rank S reached. The summit. Few make it here. The System bows.',
+    sys_rankup_s_2: 'From {from} to S. You reached the climax. You are now the System peak.',
   },
 } as const;
 

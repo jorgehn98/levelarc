@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SystemContext } from './aiContext';
+import { buildHabitContext, type HabitInsightInput, type SystemContext } from './aiContext';
 import {
   detectIntent,
+  getDailyBriefing,
+  getHabitInsight,
   getInterjectionTone,
+  getRankUpLine,
   getSystemGreeting,
   getSystemInterjection,
   getSystemReply,
@@ -202,5 +205,103 @@ describe('getSystemInterjection', () => {
     expect(asKeyReply(getSystemInterjection(ctx, 'comeback')).key).toBe(
       asKeyReply(getSystemInterjection(ctx, 'comeback')).key,
     );
+  });
+});
+
+describe('getDailyBriefing', () => {
+  it('points at the weak link when one is known', () => {
+    const reply = asKeyReply(
+      getDailyBriefing(makeContext({ pendientesHoy: 3, eslabonDebil: { nombre: 'Leer', ratio: 0.4 } })),
+    );
+    expect(reply.key).toMatch(/^sys_briefing_[12]$/);
+    expect(reply.params?.n).toBe(3);
+    expect(reply.params?.eslabon).toBe('Leer');
+    expect(reply.params?.ratioEslabon).toBe(40);
+  });
+
+  it('falls back to the generic pending push when there is no weak link', () => {
+    const reply = asKeyReply(getDailyBriefing(makeContext({ pendientesHoy: 2 })));
+    expect(reply.key).toMatch(/^sys_pending_[12]$/);
+    expect(reply.params?.n).toBe(2);
+  });
+});
+
+describe('getSystemGreeting briefing integration', () => {
+  it('uses the actionable briefing when pending and a weak link exists', () => {
+    const reply = asKeyReply(
+      getSystemGreeting(makeContext({ pendientesHoy: 2, eslabonDebil: { nombre: 'Meditar', ratio: 0.3 } })),
+    );
+    expect(reply.key).toMatch(/^sys_briefing_[12]$/);
+    expect(reply.params?.eslabon).toBe('Meditar');
+  });
+
+  it('still degrades to the generic pending greeting without a weak link', () => {
+    const reply = asKeyReply(getSystemGreeting(makeContext({ pendientesHoy: 2 })));
+    expect(reply.key).toMatch(/^sys_pending_[12]$/);
+  });
+});
+
+describe('getRankUpLine', () => {
+  it('uses the generic rank-up line for a non-S ascent and passes from/to params', () => {
+    const reply = asKeyReply(getRankUpLine('E', 'D'));
+    expect(reply.key).toMatch(/^sys_rankup_[12]$/);
+    expect(reply.params?.from).toBe('E');
+    expect(reply.params?.to).toBe('D');
+  });
+
+  it('uses the special climax line when reaching rank S', () => {
+    const reply = asKeyReply(getRankUpLine('A', 'S'));
+    expect(reply.key).toMatch(/^sys_rankup_s_[12]$/);
+    expect(reply.params?.to).toBe('S');
+  });
+
+  it('is deterministic: same from/to produce the same key', () => {
+    expect(asKeyReply(getRankUpLine('C', 'B')).key).toBe(asKeyReply(getRankUpLine('C', 'B')).key);
+  });
+});
+
+function makeHabit(overrides: Partial<HabitInsightInput> = {}) {
+  return buildHabitContext({
+    nombre: 'Correr',
+    consistency30: 0.7,
+    currentStreak: 4,
+    mejorRachaHabito: 12,
+    importancia: 3,
+    atributos: ['vitalidad'],
+    last7: ['completado', 'completado', 'no_programado', 'completado', 'pendiente', 'completado', 'completado'],
+    ...overrides,
+  });
+}
+
+describe('getHabitInsight', () => {
+  it('acknowledges high consistency (>=0.8) with a dry recognition', () => {
+    const reply = asKeyReply(getHabitInsight(makeHabit({ consistency30: 0.9, last7: ['completado'] })));
+    expect(reply.key).toMatch(/^sys_habit_high_[12]$/);
+    expect(reply.params?.consistencia).toBe(90);
+    expect(reply.params?.habito).toBe('Correr');
+  });
+
+  it('is neutral and demanding for mid consistency', () => {
+    const reply = asKeyReply(getHabitInsight(makeHabit({ consistency30: 0.6, last7: ['completado'] })));
+    expect(reply.key).toMatch(/^sys_habit_mid_[12]$/);
+  });
+
+  it('corrects low consistency (<0.5)', () => {
+    const reply = asKeyReply(getHabitInsight(makeHabit({ consistency30: 0.3, last7: ['completado'] })));
+    expect(reply.key).toMatch(/^sys_habit_low_[12]$/);
+  });
+
+  it('flags a clear failure pattern (>=2 failures in last 7) over the 30d average', () => {
+    // Consistencia alta, pero 2 fallos recientes: el patrón de fallos gana por prioridad.
+    const reply = asKeyReply(
+      getHabitInsight(makeHabit({ consistency30: 0.9, last7: ['fallado', 'fallado', 'completado'] })),
+    );
+    expect(reply.key).toMatch(/^sys_habit_failpattern_[12]$/);
+    expect(reply.params?.fallos).toBe(2);
+  });
+
+  it('is deterministic: same habit produces the same key', () => {
+    const habit = makeHabit({ consistency30: 0.65 });
+    expect(asKeyReply(getHabitInsight(habit)).key).toBe(asKeyReply(getHabitInsight(habit)).key);
   });
 });

@@ -10,11 +10,13 @@ import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 
 // URL pública (redirige a la CDN de Hugging Face) y nombre del fichero. Modelo Gemma 4 E2B (~3,1 GB).
-export const MODEL_URL =
+// Uso interno del módulo (la descarga y la ruta del fichero); no se exportan.
+const MODEL_URL =
   'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf';
-export const MODEL_NAME = 'gemma-4-E2B-it-Q4_K_M.gguf';
-// Tamaño aproximado en MB, para mostrarlo en la UI sin hardcodear el número en la pantalla.
-export const MODEL_SIZE_MB = 3106;
+const MODEL_NAME = 'gemma-4-E2B-it-Q4_K_M.gguf';
+// Tamaño aproximado en MB, para mostrarlo en la UI sin hardcodear el número en la pantalla. Interno:
+// la UI consume formatModelSize, no este número crudo.
+const MODEL_SIZE_MB = 3106;
 // Nombre legible del modelo, para mostrarlo en la UI sin acoplar el texto al ID del fichero.
 export const MODEL_DISPLAY_NAME = 'Gemma 4 E2B';
 
@@ -46,8 +48,9 @@ function ensureModelsDir(): void {
   }
 }
 
-// Referencia al fichero del modelo (exista o no en disco).
-export function getModelFile(): File {
+// Referencia al fichero del modelo (exista o no en disco). Interno: solo lo usan modelExists,
+// downloadModel y deleteModel dentro de este módulo.
+function getModelFile(): File {
   return new File(Paths.document, MODELS_DIR, MODEL_NAME);
 }
 
@@ -55,14 +58,6 @@ export function getModelFile(): File {
 export function modelExists(): boolean {
   if (!isNative) return false;
   return getModelFile().exists;
-}
-
-// URI del modelo si existe, null si no (o en web). Es lo que consume resolveEngine para construir el
-// llamaEngine (necesita la ruta del .gguf).
-export function getModelUri(): string | null {
-  if (!isNative) return null;
-  const file = getModelFile();
-  return file.exists ? file.uri : null;
 }
 
 // Descarga el modelo con progreso (ratio 0..1) y soporte de cancelación vía AbortSignal.
