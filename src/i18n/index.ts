@@ -328,18 +328,18 @@ const dictionary = {
     // Pantalla y accesos del Chat con el Sistema (UI, no la voz del Sistema).
     systemChatTitle: 'El Sistema',
     systemChatSubtitle: 'Canal directo · IA local',
-    systemChatLabel: 'EL SISTEMA',
+    systemChatLabel: 'NYX',
     systemChatRowCopy: 'Habla con el Sistema sobre tu progreso',
     systemChatCardTitle: 'Hablar con el Sistema',
     systemChatCardCopy: 'Consulta tu estado y recibe órdenes del Sistema.',
-    systemChatInputPlaceholder: 'Escribe al Sistema…',
+    systemChatInputPlaceholder: 'Escribe a NYX…',
     systemChatSend: 'Enviar',
     systemChatClear: 'Limpiar conversación',
     systemChatClearConfirmTitle: 'Limpiar conversación',
     systemChatClearConfirmCopy: 'Se borrará todo el historial con el Sistema. Esta acción no se puede deshacer.',
     systemChatError: 'El Sistema no responde. Inténtalo de nuevo.',
     // Banner "mensaje del día" del Sistema en la pantalla Hoy (SystemMessageCard).
-    systemMessageTapHint: 'Toca para hablar con el Sistema',
+    systemMessageTapHint: 'Toca para hablar con NYX',
     systemMessageAiBadge: 'IA',
     open: 'Abrir',
     // Aparición del Sistema (SystemInterjectionOverlay) y su preferencia en Ajustes.
@@ -754,18 +754,18 @@ const dictionary = {
     // System Chat screen and entry points (UI, not the System's voice).
     systemChatTitle: 'The System',
     systemChatSubtitle: 'Direct channel · local AI',
-    systemChatLabel: 'THE SYSTEM',
+    systemChatLabel: 'NYX',
     systemChatRowCopy: 'Talk to the System about your progress',
     systemChatCardTitle: 'Talk to the System',
     systemChatCardCopy: 'Check your status and receive orders from the System.',
-    systemChatInputPlaceholder: 'Message the System…',
+    systemChatInputPlaceholder: 'Message NYX…',
     systemChatSend: 'Send',
     systemChatClear: 'Clear chat',
     systemChatClearConfirmTitle: 'Clear chat',
     systemChatClearConfirmCopy: 'The entire history with the System will be deleted. This action cannot be undone.',
     systemChatError: 'The System is unresponsive. Try again.',
     // System "message of the day" banner on the Today screen (SystemMessageCard).
-    systemMessageTapHint: 'Tap to talk to the System',
+    systemMessageTapHint: 'Tap to talk to NYX',
     systemMessageAiBadge: 'AI',
     open: 'Open',
     // System apparition (SystemInterjectionOverlay) and its preference in Settings.
