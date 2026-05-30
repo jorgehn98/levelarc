@@ -107,13 +107,14 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 
 Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hecha; esto es el LLM real on-device.
 
-- [ ] Instalar `llama.rn` + `expo-build-properties`.
-- [ ] Configurar el config plugin (resolver gotcha de pnpm, issue mybigday/llama.rn#243).
-- [ ] Implementar descarga de modelo (NEW File API de `expo-file-system`) + pantalla de gestión con progreso/reanudación.
-- [ ] Implementar `llamaEngine` real con streaming sobre la interface `SystemChatEngine`.
-- [ ] `expo prebuild` + EAS Build nativo (preview y luego production).
-- [ ] Bump de `runtimeVersion` (corta OTA: requiere reinstalar binario desde store).
-- [ ] Validar en Android real (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Instalar `llama.rn` 0.12.4 + `expo-file-system` 56.0.7 + `expo-build-properties` 56.0.16.
+- [x] Configurar el config plugin (`app.json` con newArch + plugins, `pnpm-workspace` allowBuilds `llama.rn`).
+- [x] Implementar descarga de modelo (NEW File API de `expo-file-system`, `src/ai/modelManager.ts`) + pantalla de gestión `app/system-ai.tsx` con progreso/cancelación.
+- [x] Implementar `llamaEngine` real (`initLlama` + `completion`, carga perezosa) sobre la interface `SystemChatEngine`.
+- [x] Bump de `runtimeVersion` a `1.1.0` (corta OTA: requiere instalar el build nativo nuevo).
+- [ ] Build nativo validado en device real (instalar APK, descargar modelo, probar conversación; RAM/batería/calor, toggle de IA obligatorio).
+- [ ] Reactivar OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
+- [ ] EAS Build production.
 
 ## Datos / lógica
 

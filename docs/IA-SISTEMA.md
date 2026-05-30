@@ -26,76 +26,87 @@ Funciona **OFFLINE con un motor determinista por plantillas (reglas)**, no un LL
 - `src/ai/engine.ts` — interface `SystemChatEngine`.
 - `src/ai/index.ts` — selector de motor.
 - `src/ai/templateEngine.ts` — motor de plantillas activo.
-- `src/ai/llamaEngine.ts` — adapter STUB del LLM (delega en plantillas).
+- `src/ai/llamaEngine.ts` — motor LLM real (`initLlama` + `completion`), con carga perezosa de `llama.rn`.
 - `src/core/aiContext.ts` — `SystemContext` + serialización desde SQLite.
 - `src/core/systemVoice.ts` — voz por reglas (greeting proactivo + respuestas por intención).
 - `src/stores/aiStore.ts` — store, traducción i18n y persistencia del texto resuelto.
 - Tablas `ai_profile` y `ai_messages` (migración 0010), banco de frases `sys_*` en `src/i18n/index.ts`.
 
-## Fase 5B — LLM local real (pendiente, requiere build nativo)
+## Fase 5B — LLM local real (implementada en código, commit `3d5d509`; build nativo en marcha)
 
-Plan para enchufar un modelo de lenguaje on-device manteniendo la misma interface `SystemChatEngine`.
+El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. Falta solo **validar en device real** y el build de production. Se ha lanzado un build nativo EAS (runtime `1.1.0`).
 
-### Librería
+### Librería y dependencias
 
-- **`llama.rn`**: binding de llama.cpp, MIT, soporta GGUF. Opción principal.
-- Alternativa: **`react-native-executorch`** (Software Mansion, formato `.pte`).
+- **`llama.rn` 0.12.4**: binding de llama.cpp, módulo nativo, New Architecture, soporta GGUF.
+- **`expo-file-system` 56.0.7**: NEW File API para la descarga del modelo.
+- **`expo-build-properties` 56.0.16**: config nativa del build.
 
 ### Modelo
 
-- **Gemma 3 1B GGUF Q4_K_M (~720 MB)**: el único que corre digno en Android de gama media (4 GB RAM).
-- Plan B: Llama 3.2 1B o Qwen 2.5 1.5B.
+- **Gemma 3 1B GGUF Q4_K_M (~806 MB)** desde `unsloth/gemma-3-1b-it-GGUF`: el único que corre digno en Android de gama media (4 GB RAM).
+- Plan B (no usado): Llama 3.2 1B o Qwen 2.5 1.5B.
 
 ### CRÍTICO — esto NO es OTA
 
-`llama.rn` requiere **New Architecture + módulo nativo** → development build + **nuevo build EAS** + bump de `runtimeVersion`.
+`llama.rn` requiere **New Architecture + módulo nativo** → requiere el **build nativo nuevo (runtime `1.1.0`)** + instalar el APK.
 
 - NO funciona en Expo Go.
-- NO se puede entregar por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
-- Los usuarios necesitarían **instalar el nuevo binario desde la store**, no recibirlo por OTA.
+- NO se entrega por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
+- El LLM solo llega instalando el build nativo nuevo; el modelo se descarga on-device desde la pantalla de gestión.
+- El chat por plantillas (runtime `1.0.2`) sigue funcionando por OTA para quien no instale el build nuevo.
 
-### Gotcha conocido (pnpm)
+### Aislamiento de `llama.rn` (triple barrera)
 
-El config plugin de `llama.rn` peta con `require() of ES Module not supported` (issue [mybigday/llama.rn#243](https://github.com/mybigday/llama.rn/issues/243)), frecuente con pnpm.
+`llamaEngine` carga `llama.rn` con **dynamic import perezoso**: ni la web ni el motor de plantillas importan el módulo nativo. Solo se carga cuando se resuelve el motor `llama` en native con el modelo `ready`.
 
-Mitigación: probar el prebuild en rama aislada; hoist en pnpm o `patch-package` del `app.plugin.js`.
+### `SystemReply` como union
 
-### Build en la nube
-
-Compilar nativo en Windows es frágil (C++/CMake/OpenCL). Usar **EAS Build** (los perfiles `preview`/`production` ya existen), no build local.
+`SystemReply` pasó a `{kind:'key'} | {kind:'text'}`: el LLM devuelve **texto directo**; las plantillas siguen devolviendo clave i18n (`{kind:'key'}`). El store traduce solo las de clave.
 
 ### Descarga del modelo
 
-El modelo no cabe en el APK; se descarga bajo demanda.
+`src/ai/modelManager.ts` descarga el GGUF con la **NEW File API de `expo-file-system`**:
 
-- Usar la **NEW File API de `expo-file-system`**: `File.createDownloadTask` con `onProgress` / `pause` / `resume`.
-- Guardar en `Paths.document`, **NO en cache** (cache puede vaciarse).
-- Verificar tamaño y carga del fichero descargado.
-- UX "Descargar el Sistema" con progreso y reanudación.
-- Toggle "activar IA del Sistema" **OBLIGATORIO**: la generación consume RAM y batería y produce throttling térmico tras 60-90s de generación.
+- `File.createDownloadTask` con progreso y cancelación.
+- Guardado en `Paths.document` (NO en cache, que puede vaciarse).
+- Solo native; en web no aplica.
 
-### Implementación
+### Pantalla de gestión
 
-- Rellenar `src/ai/llamaEngine.ts` (`initLlama` con `modelPath`, `completion` con streaming) implementando la misma interface `SystemChatEngine`.
-- `ai_profile.engine` pasa a `'llama'` cuando el modelo está `ready`.
-- Reusar `buildSystemContextText` (de `src/core/aiContext.ts`) como prompt de sistema: el tono ya está definido.
+`app/system-ai.tsx`: descargar / progreso / activar IA avanzada / eliminar modelo, con estados `none` → `downloading` → `ready` → `error` y aviso en web. Accesible desde Ajustes (sección Sistema → "IA avanzada") y desde la cabecera del chat.
+
+El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y batería y produce throttling térmico en generaciones largas.
+
+### Store (`aiStore`)
+
+- `downloadModel` / `deleteModel` / `cancelDownload`.
+- Reconciliación del estado del modelo en `loadAi`: limpia descargas huérfanas y estados `ready` sin fichero en disco.
+- Selección de motor vía `resolveEngine`: usa `llama` solo si `engine='llama'` + `modelStatus='ready'` + `modelPath` + native; en cualquier otro caso cae a plantillas.
+
+### Motor (`llamaEngine`)
+
+- `src/ai/llamaEngine.ts`: `initLlama` con `modelPath` + `completion`, implementando la misma interface `SystemChatEngine`.
+- Reusa `buildSystemContextText` (de `src/core/aiContext.ts`) como prompt de sistema: el tono ya está definido.
+
+### Config nativa
+
+- `app.json`: `newArchEnabled`, plugins `llama.rn` + `expo-build-properties`, version `1.1.0` / versionCode `5`.
+- `eas.json`: node `22.15.1` en los 3 perfiles.
+- `pnpm-workspace`: `allowBuilds` con `llama.rn: true` (postinstall que descarga los artefactos nativos).
+- **Primer build CPU-only** (sin `enableOpenCL`, `n_gpu_layers=0`) por estabilidad. Tras validar en device se puede reactivar OpenCL / `n_gpu_layers`.
 
 ### Prompt de sistema
 
 Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar datos, usa solo el estado proporcionado.
 
-## Pasos concretos para 5B (checklist)
+## Cómo validar 5B (pendiente)
 
-1. Crear rama aislada para el prebuild.
-2. Instalar `llama.rn` + `expo-build-properties`.
-3. Configurar el config plugin (resolver el gotcha de pnpm).
-4. `expo prebuild`.
-5. Implementar descarga de modelo (NEW File API) + pantalla de gestión "Descargar el Sistema" (progreso, pausa, reanudación, verificación).
-6. Implementar el `llamaEngine` real con streaming sobre la interface `SystemChatEngine`.
-7. Bump de `runtimeVersion` (rompe OTA con builds anteriores, es esperado).
-8. EAS Build `preview` nativo.
-9. Validar en Android real (gama media, RAM/batería/calor).
-10. EAS Build `production`.
+1. Instalar el APK del build nativo nuevo (runtime `1.1.0`) en Android real.
+2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el modelo.
+3. Activar la IA avanzada y probar conversación; verificar RAM/batería/calor en gama media.
+4. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
+5. EAS Build `production`.
 
 ## Riesgos
 
@@ -107,4 +118,4 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 
 ## Resumen de la decisión
 
-Motor de plantillas entregado por OTA **ahora** (Fase 5A, hecho). El LLM real es un build nativo posterior, bien acotado (Fase 5B), con su mayor riesgo en que no es OTA: requiere nueva instalación desde store.
+Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con build nativo EAS en marcha (runtime `1.1.0`). Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo. Queda pendiente la validación en device real y el build de production.

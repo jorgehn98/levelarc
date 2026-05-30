@@ -186,7 +186,9 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Contexto determinista armado desde SQLite en `src/core/aiContext.ts` (`SystemContext` + serialización) y voz por reglas en `src/core/systemVoice.ts` (greeting proactivo según estado y respuestas por intención), ambos puros y testeados.
 - Bilingüe sin acoplar el motor al idioma: el motor devuelve `{key, params}` y el store `src/stores/aiStore.ts` traduce con i18n y guarda el texto resuelto. Banco de frases `sys_*` en ES/EN.
 - Persistencia en tablas `ai_profile` (singleton: enabled, engine `'template'|'llama'`, modelStatus, modelPath) y `ai_messages` (historial), migración 0010. Export/import y reset cubren ambas.
-- Entregado por OTA (es JS puro). El LLM local real (Fase 5B) queda documentado en `docs/IA-SISTEMA.md` como build nativo pendiente.
+- Entregado por OTA (es JS puro). El motor de plantillas funciona en runtime `1.0.2`.
+- LLM local real (Fase 5B) implementado en código (commit `3d5d509`) detrás de la misma arquitectura enchufable: `llama.rn` 0.12.4 + Gemma 3 1B GGUF Q4_K_M (~806 MB) en `src/ai/llamaEngine.ts` (motor real con carga perezosa), descarga del modelo on-device (`src/ai/modelManager.ts`, NEW File API) y pantalla de gestión `app/system-ai.tsx` (Ajustes → Sistema → "IA avanzada" y cabecera del chat).
+- El LLM NO llega por OTA: solo por el build nativo nuevo (runtime `1.1.0`). Pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
 ### Persistencia
 
@@ -585,9 +587,11 @@ MVP listo para publicar: no por decisión de producto, no por bloqueo técnico p
 
 Gamificación avanzada (v2.0): en marcha. El primer bloque (economía de Esencia + Tienda del Sistema con títulos y auras) está implementado, con lógica pura testeada en `src/core/economy.ts` y `src/core/shop.ts` y migraciones 0006-0008. El segundo bloque (logros + feedback/celebraciones) también está implementado: 21 logros con catálogo puro testeado en `src/core/achievements.ts` y migración 0009, overlay global de celebración, rank-up automático al subir de rango jugando y lectura de progreso por atributos en Progreso.
 
-El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. El LLM local real queda documentado en `docs/IA-SISTEMA.md` como build nativo pendiente (Fase 5B).
+El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. Además, el LLM local real (Fase 5B) ya está implementado en código (commit `3d5d509`) detrás de la misma interface enchufable: `llama.rn` 0.12.4 + Gemma 3 1B GGUF Q4_K_M, descarga del modelo on-device y pantalla de gestión. Solo se entrega por build nativo (runtime `1.1.0`), no por OTA, y queda pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
-Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3.
+Build nativo EAS con LLM: pendiente de registrar ID.
+
+Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código y entra en validación en device con el build nativo `1.1.0`.
 
 Update `preview` con el chat del Sistema (IA base por reglas):
 
