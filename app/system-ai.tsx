@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { MODEL_SIZE_MB } from '@/ai/modelManager';
+import { MODEL_DISPLAY_NAME, formatModelSize } from '@/ai/modelManager';
 import { t, type Language } from '@/i18n';
 import { confirmAction } from '@/lib/confirm';
 import { useAiStore } from '@/stores/aiStore';
@@ -38,7 +38,10 @@ export default function SystemAiScreen() {
   function handleDownload() {
     confirmAction({
       title: t(language, 'aiDownloadConfirmTitle'),
-      message: t(language, 'aiDownloadConfirmCopy', { mb: MODEL_SIZE_MB }),
+      message: t(language, 'aiDownloadConfirmCopy', {
+        size: formatModelSize(language),
+        model: MODEL_DISPLAY_NAME,
+      }),
       cancelText: t(language, 'cancel'),
       confirmText: t(language, 'aiDownloadModel'),
       onConfirm: () => void downloadModel(),
@@ -74,7 +77,9 @@ export default function SystemAiScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.intro}>{t(language, 'aiIntro', { mb: MODEL_SIZE_MB })}</Text>
+        <Text style={styles.intro}>
+          {t(language, 'aiIntro', { size: formatModelSize(language), model: MODEL_DISPLAY_NAME })}
+        </Text>
 
         {isWeb ? (
           <View style={styles.noticeCard}>

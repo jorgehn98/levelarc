@@ -1,6 +1,6 @@
 // Gestión del fichero del modelo LLM local (descarga / borrado / existencia). Usa la API NUEVA de
 // expo-file-system SDK 56 (File / Directory / Paths). Todo esto es SOLO nativo: en web no hay sistema
-// de ficheros persistente para un GGUF de ~806 MB ni motor llama.rn, así que las funciones devuelven
+// de ficheros persistente para un GGUF de ~3,1 GB ni motor llama.rn, así que las funciones devuelven
 // valores seguros (sin existencia, sin descarga) y nunca rompen el bundle web.
 //
 // El import de expo-file-system es seguro en cualquier plataforma (tiene implementación web), pero la
@@ -9,12 +9,23 @@
 import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 
-// URL pública (redirige a la CDN de Hugging Face) y nombre del fichero. El modelo pesa ~806 MB.
+// URL pública (redirige a la CDN de Hugging Face) y nombre del fichero. Modelo Gemma 4 E2B (~3,1 GB).
 export const MODEL_URL =
-  'https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf';
-export const MODEL_NAME = 'gemma-3-1b-it-Q4_K_M.gguf';
+  'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf';
+export const MODEL_NAME = 'gemma-4-E2B-it-Q4_K_M.gguf';
 // Tamaño aproximado en MB, para mostrarlo en la UI sin hardcodear el número en la pantalla.
-export const MODEL_SIZE_MB = 806;
+export const MODEL_SIZE_MB = 3106;
+// Nombre legible del modelo, para mostrarlo en la UI sin acoplar el texto al ID del fichero.
+export const MODEL_DISPLAY_NAME = 'Gemma 4 E2B';
+
+// Tamaño formateado para la UI. A partir de ~1 GB lo mostramos en GB con un decimal (es: "3,1 GB",
+// en: "3.1 GB"); por debajo, en MB. Evita mostrar "3106 MB", que es poco legible.
+export function formatModelSize(language: 'es' | 'en'): string {
+  if (MODEL_SIZE_MB < 1024) return `${MODEL_SIZE_MB} MB`;
+  const gb = (MODEL_SIZE_MB / 1024).toFixed(1);
+  const decimal = language === 'es' ? gb.replace('.', ',') : gb;
+  return `${decimal} GB`;
+}
 
 // Subcarpeta dentro del directorio de documentos (persistente, no la borra el sistema).
 const MODELS_DIR = 'models';

@@ -25,11 +25,13 @@ const N_CTX = 2048;
 const N_GPU_LAYERS = 0;
 const N_THREADS = 4;
 
-// Parámetros de inferencia: respuestas cortas (la voz del Sistema es seca), con penalización de
-// repetición y tokens de parada de Gemma/genéricos para cortar limpio.
-const N_PREDICT = 80;
+// Parámetros de inferencia para Gemma 4 E2B: respuestas cortas (la voz del Sistema es seca), con
+// penalización de repetición y tokens de parada de Gemma/genéricos para cortar limpio. Sampling
+// recomendado para Gemma 4 (temperature baja para el tono seco, top_p/top_k del modelo).
+const N_PREDICT = 120;
 const TEMPERATURE = 0.7;
 const TOP_P = 0.95;
+const TOP_K = 64;
 const PENALTY_REPEAT = 1.1;
 const STOP = ['<end_of_turn>', '<eos>', '</s>'];
 
@@ -122,6 +124,7 @@ async function generate(ctx: SystemContext, userMessage: string, language: Langu
     n_predict: N_PREDICT,
     temperature: TEMPERATURE,
     top_p: TOP_P,
+    top_k: TOP_K,
     penalty_repeat: PENALTY_REPEAT,
     stop: STOP,
   });

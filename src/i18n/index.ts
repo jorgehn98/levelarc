@@ -346,7 +346,7 @@ const dictionary = {
     aiManageRowCopy: 'Descarga el modelo local y gestiona la IA avanzada',
     aiManageOpen: 'Gestionar',
     aiIntro:
-      'El Sistema puede usar un modelo de lenguaje LOCAL para conversar de verdad. Son ~{mb} MB, se descarga una vez, funciona sin conexión y es 100% privado: nada sale del móvil. Recomendado WiFi. Requiere bastante RAM.',
+      'El Sistema puede usar {model}, un modelo de lenguaje LOCAL, para conversar de verdad. Ocupa ~{size} (bastante espacio), se descarga una vez, funciona sin conexión y es 100% privado: nada sale del móvil. Usa WiFi: es una descarga grande. Requiere bastante RAM.',
     aiNoneCopy: 'Aún no hay modelo descargado. El Sistema responde con plantillas.',
     aiDownloadModel: 'Descargar modelo',
     aiDownloading: 'Descargando…',
@@ -360,7 +360,7 @@ const dictionary = {
     aiWebNotice: 'La IA avanzada solo está disponible en la app nativa (iOS / Android).',
     aiDownloadConfirmTitle: 'Descargar modelo',
     aiDownloadConfirmCopy:
-      'Se descargarán ~{mb} MB. Usa WiFi para evitar gastar datos. La descarga puede tardar varios minutos.',
+      'Se descargarán ~{size} ({model}). Es una descarga grande: usa WiFi para evitar gastar datos y asegúrate de tener espacio. Puede tardar varios minutos.',
     aiDeleteConfirmTitle: 'Eliminar modelo',
     aiDeleteConfirmCopy:
       'Se borrará el modelo local del dispositivo y el Sistema volverá a las respuestas por plantillas. Podrás descargarlo de nuevo más tarde.',
@@ -737,7 +737,7 @@ const dictionary = {
     aiManageRowCopy: 'Download the local model and manage the advanced AI',
     aiManageOpen: 'Manage',
     aiIntro:
-      'The System can use a LOCAL language model for real conversation. It is ~{mb} MB, downloaded once, works offline and is 100% private: nothing leaves your phone. WiFi recommended. Requires a fair amount of RAM.',
+      'The System can use {model}, a LOCAL language model, for real conversation. It takes ~{size} (a fair bit of space), is downloaded once, works offline and is 100% private: nothing leaves your phone. Use WiFi: it is a large download. Requires a fair amount of RAM.',
     aiNoneCopy: 'No model downloaded yet. The System replies with templates.',
     aiDownloadModel: 'Download model',
     aiDownloading: 'Downloading…',
@@ -751,7 +751,7 @@ const dictionary = {
     aiWebNotice: 'Advanced AI is only available in the native app (iOS / Android).',
     aiDownloadConfirmTitle: 'Download model',
     aiDownloadConfirmCopy:
-      'About {mb} MB will be downloaded. Use WiFi to avoid data charges. The download may take several minutes.',
+      'About {size} will be downloaded ({model}). It is a large download: use WiFi to avoid data charges and make sure you have free space. It may take several minutes.',
     aiDeleteConfirmTitle: 'Delete model',
     aiDeleteConfirmCopy:
       'The local model will be removed from the device and the System will fall back to template responses. You can download it again later.',
