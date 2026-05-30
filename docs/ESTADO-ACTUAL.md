@@ -120,6 +120,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Los niveles de atributo usan la misma curva que el nivel de jugador: `30 * (nivel - 1)^1.6`.
 - Los eventos guardan `attribute_delta` para que deshacer/recalcular no dependa de cambios futuros en el hábito.
 - Pantalla Progreso muestra radar chart y barras por atributo; el radar visual escala hasta nivel 20 para no saturarse demasiado pronto.
+- Debajo del radar, una lectura por atributos (`AttributeRow`) con icono, nombre, nivel y barra de progreso al siguiente nivel para los 6 atributos.
 - Pantalla Progreso incluye actividad de los últimos 7 días y mapa de calor de 12 semanas basado en eventos completados.
 - Multiplicador de racha por hábito capado a `x1.50`: 4+ días `x1.10`, 8+ `x1.20`, 15+ `x1.35`, 31+ `x1.50`.
 - La racha por hábito cuenta ocurrencias programadas consecutivas, no días naturales: un hábito lunes/miércoles no se rompe por el martes, y uno solo de domingo avanza una vez por semana.
@@ -159,6 +160,23 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - El título equipado se muestra junto al nombre del jugador en onboarding (modo retorno) y Progreso. El aura equipada tiñe el glow del emblema en onboarding; el cian por defecto mantiene el look actual.
 - Catálogo y reglas puras en `src/core/shop.ts` con tests. Migración 0008 (`player_rewards` + columnas de `player`).
 - Backup export/import cubre las tablas y columnas nuevas y restaura backups antiguos con defaults seguros.
+
+### Logros
+
+- 21 logros en 6 categorías: Primeros pasos, Constancia, Progresión, Misiones, Atributos y Colección.
+- Catálogo puro en `src/core/achievements.ts`: cada logro tiene su condición `isUnlocked(ctx)`; evaluador testeado.
+- Se evalúan tras cada acción y al arrancar. Al desbloquear otorgan Esencia (de 10 a 300 según dificultad).
+- Persistencia en tabla `achievements_unlocked` (migración 0009) con `INSERT OR IGNORE` para idempotencia: la Esencia solo se otorga si la fila se inserta de verdad.
+- En el primer arranque tras actualizar, los logros ya cumplidos se desbloquean en silencio (sin avalancha de avisos) y se otorga su Esencia de golpe; a partir de ahí cada nuevo logro se celebra.
+- Pantalla `app/achievements.tsx` (ruta `/achievements`), accesible desde Progreso y Ajustes, con desglose por categoría, contador "X/21" y estado bloqueado/desbloqueado. Los bloqueados se ven igual, como meta aspiracional.
+
+### Feedback y celebraciones
+
+- Overlay global de celebración `CelebrationOverlay` (sustituye al toast solo-logros): una cola que celebra tres tipos de evento con tarjeta flotante animada — logro desbloqueado, subida de nivel del jugador y subida de nivel de atributo.
+- Detección automática de subidas tras las acciones que dan XP: si el jugador sube de nivel se celebra (salvo que coincida con un cambio de rango, que lo cubre la cinemática); si sube el nivel de un atributo, se celebra ese atributo.
+- La cinemática de ascenso de rango se dispara sola al subir de rango jugando (antes solo existía el botón demo de Ajustes). Recibe rango origen/destino para narrar "E → D" y está protegida contra abrir dos veces.
+- Micro-feedback al completar un hábito: un destello sutil en la tarjeta.
+- Mejor lectura de progreso por atributos en Progreso: componente `AttributeRow` con icono, nombre, nivel y barra de progreso al siguiente nivel para los 6 atributos, debajo del radar.
 
 ### Persistencia
 
@@ -555,9 +573,17 @@ Backup import/export: implementado, pero queda como comprobación menor pendient
 
 MVP listo para publicar: no por decisión de producto, no por bloqueo técnico principal.
 
-Gamificación avanzada (v2.0): iniciada. El primer bloque (economía de Esencia + Tienda del Sistema con títulos y auras) está implementado, con lógica pura testeada en `src/core/economy.ts` y `src/core/shop.ts` y migraciones 0006-0008.
+Gamificación avanzada (v2.0): en marcha. El primer bloque (economía de Esencia + Tienda del Sistema con títulos y auras) está implementado, con lógica pura testeada en `src/core/economy.ts` y `src/core/shop.ts` y migraciones 0006-0008. El segundo bloque (logros + feedback/celebraciones) también está implementado: 21 logros con catálogo puro testeado en `src/core/achievements.ts` y migración 0009, overlay global de celebración, rank-up automático al subir de rango jugando y lectura de progreso por atributos en Progreso.
 
-Fase actual: gamificación avanzada v2.0 en marcha; primer bloque (economía + tienda) implementado sobre la base de producto v1.3.
+Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda y bloque de logros + feedback/celebraciones implementados sobre la base de producto v1.3.
+
+Update `preview` con logros, celebraciones y rank-up automático:
+
+- Update group: `7e4d12a2-c1d6-4a7c-ba69-999952e61c9c`
+- Runtime: `1.0.2`
+- Mensaje: `Add achievements, progress celebrations and auto rank-up`
+- Commit: `f9f763ba6a260a6def216f98ae0a398bac4756a0`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/7e4d12a2-c1d6-4a7c-ba69-999952e61c9c>
 
 Update `preview` con economía de Esencia y Tienda del Sistema:
 
@@ -567,4 +593,4 @@ Update `preview` con economía de Esencia y Tienda del Sistema:
 - Commit: `7869bd0f51167dfa6e6ae2e19852fab07d101d6f`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/960b7e0a-7f53-41f1-817b-b6ebf9f73997>
 
-Siguiente paso recomendado: seguir usando la app con datos reales, validar la economía/tienda en Android y avanzar con el resto de v2.0 (logros, celebraciones de recompensa, lectura de progreso por atributos). IA local queda como futuro opcional, después de validar que la app base tiene suficiente valor y uso real.
+Siguiente paso recomendado: seguir usando la app con datos reales, validar en Android la economía/tienda y el nuevo bloque de logros + feedback/celebraciones, y publicar el update OTA correspondiente. Dentro de v2.0 queda pendiente las estadísticas avanzadas; la IA local "el Sistema" va en su propia fase v2.x, como futuro opcional tras validar que la app base tiene suficiente valor y uso real.

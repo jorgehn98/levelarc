@@ -134,10 +134,14 @@ Implementado (primer bloque):
 - Tienda del Sistema (`/shop`, accesible desde Ajustes y Progreso): se gasta Esencia en cosméticos que no afectan al motor de XP.
 - Títulos de Jugador (5) y auras del emblema (6), con requisitos de nivel/rango y compra atómica. Catálogo y reglas en `src/core/shop.ts`, migración 0008.
 
+Implementado (segundo bloque):
+
+- Logros / medallas: 21 logros en 6 categorías, catálogo puro con condición por logro en `src/core/achievements.ts`, evaluación tras cada acción y al arrancar, Esencia al desbloquear y persistencia idempotente en `achievements_unlocked` (migración 0009). Pantalla `/achievements` accesible desde Progreso y Ajustes.
+- Celebraciones de rango (rank-up automático): la cinemática de ascenso se dispara sola al subir de rango jugando, con rango origen/destino.
+- Feedback de recompensa: overlay global de celebración (logro, subida de nivel del jugador y subida de nivel de atributo), micro-feedback al completar un hábito y lectura de progreso por atributos en Progreso (`AttributeRow`).
+
 Pendiente dentro de v2.0:
 
-- Logros / medallas.
-- Celebraciones de rango y feedback de recompensa.
 - Más misiones, no generativas.
 - Estadísticas avanzadas.
 - Evolución del sistema de rachas si los datos reales lo piden.
