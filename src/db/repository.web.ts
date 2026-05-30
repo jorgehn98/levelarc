@@ -348,7 +348,10 @@ export async function markHabitFailed(habitId: string, dateKey = toDateKey()) {
   const nextXp = applyXpDelta(db.player.xpTotal, xpDelta);
   progress.estado = 'fallado';
   progress.actualizadoEn = toIsoTimestamp();
-  db.events.push(createEvent(habit, dateKey, 'fallado', nextXp - db.player.xpTotal));
+  // Persistimos la penalización NOMINAL (no el delta ya recortado por el suelo de nivel). El suelo
+  // se aplica solo al proyectar el total (applyXpDelta), aquí y en recalculatePlayerFromLedger, así
+  // reconstruir desde el ledger es idempotente y reproduce el mismo total que el jugador ve en vivo.
+  db.events.push(createEvent(habit, dateKey, 'fallado', xpDelta));
   db.player.xpTotal = nextXp;
   syncPlayer(db);
   await saveDb(db);

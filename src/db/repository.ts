@@ -425,7 +425,10 @@ export async function markHabitFailed(habitId: string, dateKey = toDateKey()) {
     'UPDATE habit_daily_progress SET estado = ?, actualizado_en = ? WHERE id = ?',
     ['fallado', toIsoTimestamp(), progress.id],
   );
-  await createEvent(habit.id, dateKey, 'fallado', nextXp - player.xpTotal);
+  // Persistimos la penalización NOMINAL (no el delta ya recortado por el suelo de nivel). El suelo
+  // se aplica solo al proyectar el total (applyXpDelta), aquí y en recalculatePlayerFromEvents, así
+  // reconstruir desde el ledger es idempotente y reproduce el mismo total que el jugador ve en vivo.
+  await createEvent(habit.id, dateKey, 'fallado', xpDelta);
   await setPlayerProgress(nextXp);
 }
 
@@ -691,9 +694,16 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
   const diaPerfecto = habitosHoyTotal > 0 && completadosHoy === habitosHoyTotal;
 
   // Mejor racha actual entre los hábitos activos (incluye la de hoy si ya está completado).
+  // Cargamos en UNA query todas las fechas de completados previos y calculamos las rachas en
+  // memoria, evitando un query por hábito (N+1). El resultado es idéntico a getHabitCompletionStreak.
+  const completedDatesByHabit = await getCompletedDatesByHabit(dateKey);
   let mejorRachaHabito = 0;
   for (const habit of todayHabits) {
-    const priorStreak = await getHabitCompletionStreak(habit.id, dateKey, habit.diasSemana);
+    const priorStreak = getScheduledCompletionStreak(
+      completedDatesByHabit.get(habit.id) ?? [],
+      dateKey,
+      habit.diasSemana,
+    );
     const streak = habit.estado === 'completado' ? priorStreak + 1 : priorStreak;
     if (streak > mejorRachaHabito) mejorRachaHabito = streak;
   }
@@ -757,14 +767,23 @@ export async function buildAchievementContext(): Promise<AchievementContext> {
   const rewardsCount = await sqlite.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM player_rewards');
 
   const activeHabits = await listHabits(false);
+  // Cargamos en DOS queries todas las fechas de completados previos y los hábitos completados HOY,
+  // y calculamos las rachas en memoria, evitando 2 queries por hábito (N+1). El resultado es
+  // idéntico al cálculo original por hábito.
+  const completedDatesByHabit = await getCompletedDatesByHabit(dateKey);
+  const completedTodayRows = await sqlite.getAllAsync<{ habit_id: string }>(
+    "SELECT habit_id FROM habit_daily_progress WHERE fecha = ? AND estado = 'completado'",
+    [dateKey],
+  );
+  const completedTodayHabitIds = new Set(completedTodayRows.map((row) => row.habit_id));
   let maxRachaHabitoActual = 0;
   for (const habit of activeHabits) {
-    const streak = await getHabitCompletionStreak(habit.id, dateKey, habit.diasSemana);
-    const todayCompleted = await sqlite.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM habit_daily_progress WHERE habit_id = ? AND fecha = ? AND estado = 'completado'",
-      [habit.id, dateKey],
+    const streak = getScheduledCompletionStreak(
+      completedDatesByHabit.get(habit.id) ?? [],
+      dateKey,
+      habit.diasSemana,
     );
-    const currentStreak = (todayCompleted?.count ?? 0) > 0 ? streak + 1 : streak;
+    const currentStreak = completedTodayHabitIds.has(habit.id) ? streak + 1 : streak;
     if (currentStreak > maxRachaHabitoActual) maxRachaHabitoActual = currentStreak;
   }
 
@@ -1023,7 +1042,10 @@ async function markHabitComplete(habit: HabitRecord, dateKey: string, amount: nu
     'UPDATE habit_daily_progress SET cantidad = ?, estado = ?, actualizado_en = ? WHERE id = ?',
     [amount, 'completado', toIsoTimestamp(), progress.id],
   );
-  await createEvent(habit.id, dateKey, 'completado', nextXp - player.xpTotal, attributeDelta, esenciaOtorgada);
+  // Persistimos el delta NOMINAL (coherente con attributeDelta, que también se deriva del nominal).
+  // El suelo de nivel se aplica solo al proyectar; para completados el suelo nunca recorta, así que
+  // el valor observable no cambia, pero el ledger queda fiel para la reconstrucción.
+  await createEvent(habit.id, dateKey, 'completado', xpDelta, attributeDelta, esenciaOtorgada);
   await setPlayerProgress(nextXp, undefined, nextAttributeXp);
   await grantEssence(esenciaOtorgada);
   await syncDailyMission(dateKey);
@@ -1329,6 +1351,31 @@ async function getHabitCompletionStreak(habitId: string, dateKey: string, weekda
     dateKey,
     weekdaysCsv,
   );
+}
+
+// Versión batch de la consulta de getHabitCompletionStreak: en UNA query trae las fechas de todos
+// los eventos 'completado' anteriores a dateKey y las agrupa por hábito, para calcular rachas en
+// memoria sin un query por hábito (N+1). Mismo filtro y misma fuente que getHabitCompletionStreak.
+async function getCompletedDatesByHabit(dateKey: string): Promise<Map<string, string[]>> {
+  const rows = await sqlite.getAllAsync<{ habit_id: string; fecha: string }>(
+    `
+      SELECT habit_id, fecha
+      FROM events
+      WHERE tipo_evento = 'completado' AND fecha < ?
+      ORDER BY fecha DESC
+    `,
+    [dateKey],
+  );
+  const byHabit = new Map<string, string[]>();
+  for (const row of rows) {
+    const list = byHabit.get(row.habit_id);
+    if (list) {
+      list.push(row.fecha);
+    } else {
+      byHabit.set(row.habit_id, [row.fecha]);
+    }
+  }
+  return byHabit;
 }
 
 async function getCurrentHabitStreak(habit: HabitRecord, today: HabitInsightDay) {
