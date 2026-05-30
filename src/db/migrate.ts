@@ -54,8 +54,20 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       atributos_xp text DEFAULT '{}' NOT NULL,
       esencia integer DEFAULT 0 NOT NULL,
       nivel_esencia_otorgado integer DEFAULT 1 NOT NULL,
+      titulo_equipado text,
+      aura_equipada text DEFAULT 'aura_cyan' NOT NULL,
       actualizado_en text NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS player_rewards (
+      id text PRIMARY KEY NOT NULL,
+      reward_id text NOT NULL,
+      kind text NOT NULL,
+      adquirido_en text NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS player_rewards_reward_id_unique
+      ON player_rewards (reward_id);
 
     CREATE TABLE IF NOT EXISTS daily_missions (
       fecha text PRIMARY KEY NOT NULL,
@@ -125,6 +137,18 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
     // esencia retroactiva por niveles ya alcanzados. En instalación nueva la tabla se crea con
     // la columna, el ALTER falla y este UPDATE no llega a ejecutarse, dejando al jugador en 1.
     await sqlite.execAsync('UPDATE player SET nivel_esencia_otorgado = nivel;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE player ADD COLUMN titulo_equipado text;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync("ALTER TABLE player ADD COLUMN aura_equipada text DEFAULT 'aura_cyan' NOT NULL;");
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }

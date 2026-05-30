@@ -11,6 +11,7 @@ import {
   claimPerfectWeekMission as claimPerfectWeekMissionRepo,
   closeDay,
   createHabit,
+  equipReward,
   exportAllData,
   getDailyMission,
   getHabit,
@@ -21,19 +22,24 @@ import {
   initializeDatabase,
   importAllData,
   listHabits,
+  listOwnedRewardIds,
   listTodayHabits,
   markHabitFailed,
+  purchaseReward,
   resetAllData,
   undoTodayHabit,
   unarchiveHabit,
+  unequipTitle,
   updateHabit,
   updatePlayerName,
   type DailyMissionRecord,
+  type EquipResult,
   type EventRecord,
   type HabitInput,
   type HabitInsightRecord,
   type HabitRecord,
   type PlayerRecord,
+  type PurchaseResult,
   type TodayHabit,
 } from '@/db/repository';
 
@@ -46,6 +52,7 @@ type AppState = {
   player: PlayerRecord | null;
   dailyMission: DailyMissionRecord | null;
   events: EventRecord[];
+  ownedRewards: string[];
   boot: () => Promise<void>;
   refresh: () => Promise<void>;
   saveHabit: (input: HabitInput, id?: string) => Promise<void>;
@@ -62,6 +69,9 @@ type AppState = {
   closeToday: () => Promise<void>;
   setLanguage: (language: Language) => Promise<void>;
   setPlayerName: (name: string) => Promise<void>;
+  purchaseReward: (id: string) => Promise<PurchaseResult>;
+  equipReward: (id: string) => Promise<EquipResult>;
+  unequipTitle: () => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (rawBackup: string) => Promise<void>;
   resetAll: () => Promise<void>;
@@ -79,6 +89,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   player: null,
   dailyMission: null,
   events: [],
+  ownedRewards: [],
   boot: async () => {
     set({ isBusy: true });
     await initializeDatabase();
@@ -91,14 +102,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isReady: true, isBusy: false });
   },
   refresh: async () => {
-    const [habits, todayHabits, player, dailyMission, events] = await Promise.all([
+    const [habits, todayHabits, player, dailyMission, events, ownedRewards] = await Promise.all([
       listHabits(true),
       listTodayHabits(),
       getPlayer(),
       getDailyMission(),
       getRecentEvents(250),
+      listOwnedRewardIds(),
     ]);
-    set({ habits, todayHabits, player, dailyMission, events });
+    set({ habits, todayHabits, player, dailyMission, events, ownedRewards });
   },
   saveHabit: async (input, id) => {
     set({ isBusy: true });
@@ -169,6 +181,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isBusy: true });
     try {
       await updatePlayerName(name);
+      await get().refresh();
+    } finally {
+      set({ isBusy: false });
+    }
+  },
+  purchaseReward: async (id) => {
+    set({ isBusy: true });
+    try {
+      const result = await purchaseReward(id);
+      await get().refresh();
+      return result;
+    } finally {
+      set({ isBusy: false });
+    }
+  },
+  equipReward: async (id) => {
+    set({ isBusy: true });
+    try {
+      const result = await equipReward(id);
+      await get().refresh();
+      return result;
+    } finally {
+      set({ isBusy: false });
+    }
+  },
+  unequipTitle: async () => {
+    set({ isBusy: true });
+    try {
+      await unequipTitle();
       await get().refresh();
     } finally {
       set({ isBusy: false });

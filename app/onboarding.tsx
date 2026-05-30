@@ -10,7 +10,9 @@ import { BrandMark } from '@/components/BrandMark';
 import { ProgressBar } from '@/components/ProgressBar';
 import { RankBadge } from '@/components/RankBadge';
 import { getLevelProgress } from '@/core/ranks';
+import { getAuraColor } from '@/core/shop';
 import { t } from '@/i18n';
+import { getEquippedTitle } from '@/lib/equippedTitle';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
@@ -26,6 +28,10 @@ export default function OnboardingScreen() {
   const isFirstRun = !player?.nombre?.trim();
   const progress = getLevelProgress(player?.xpTotal ?? 0);
   const accent = isFirstRun ? colors.brand.cyanCore : getRankAccent(progress.rank);
+  // El aura equipada tiñe el glow del emblema. El default 'aura_cyan' devuelve el cian de marca,
+  // así que en primer arranque (sin aura) el glow se mantiene cian como antes.
+  const auraGlow = getAuraColor(player?.auraEquipada ?? 'aura_cyan');
+  const equippedTitle = getEquippedTitle(player?.tituloEquipado ?? null, language);
   const [name, setName] = useState(player?.nombre ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isValid = name.trim().length >= 2;
@@ -56,7 +62,7 @@ export default function OnboardingScreen() {
         style={styles.scroll}
       >
         <AnimatedIntro>
-          <LogoOrbit accent={accent} compact={!isFirstRun} />
+          <LogoOrbit accent={accent} compact={!isFirstRun} glowColor={auraGlow} />
 
           <FlickerWordmark accent={accent} compact={!isFirstRun} />
           <Text style={[styles.systemLabel, { color: accent }]}>[ {isFirstRun ? t(language, 'systemActivated') : t(language, 'systemOnlineShort')} ]</Text>
@@ -67,6 +73,7 @@ export default function OnboardingScreen() {
             <ReturnPanel
               accent={accent}
               activeHabits={activeHabits}
+              equippedTitle={equippedTitle}
               language={language}
               name={player?.nombre ?? t(language, 'playerId')}
               progress={progress}
@@ -136,7 +143,7 @@ function CornerTicks({ accent }: { accent: string }) {
   );
 }
 
-function LogoOrbit({ accent, compact }: { accent: string; compact: boolean }) {
+function LogoOrbit({ accent, compact, glowColor }: { accent: string; compact: boolean; glowColor: string }) {
   const size = compact ? 156 : 180;
   const markSize = compact ? 108 : 124;
   const spin = useRef(new Animated.Value(0)).current;
@@ -196,9 +203,9 @@ function LogoOrbit({ accent, compact }: { accent: string; compact: boolean }) {
     <View style={[styles.logoOrbit, { height: size, width: size }]}>
       <Animated.View style={[styles.logoRingDashed, { borderColor: `${accent}88`, transform: [{ rotate }] }]} />
       <View style={[styles.logoRingInner, { borderColor: `${accent}55` }]} />
-      <Animated.View style={[styles.logoPulse, { borderColor: accent }, pulseStyle(pulseA)]} />
-      <Animated.View style={[styles.logoPulse, { borderColor: accent }, pulseStyle(pulseB)]} />
-      <View style={[styles.logoMark, { shadowColor: accent }]}>
+      <Animated.View style={[styles.logoPulse, { borderColor: glowColor }, pulseStyle(pulseA)]} />
+      <Animated.View style={[styles.logoPulse, { borderColor: glowColor }, pulseStyle(pulseB)]} />
+      <View style={[styles.logoMark, { shadowColor: glowColor }]}>
         <BrandMark size={markSize} variant="transparent" />
       </View>
     </View>
@@ -326,6 +333,7 @@ function IdentityPreview({ accent, language, name }: { accent: string; language:
 type ReturnPanelProps = {
   accent: string;
   activeHabits: number;
+  equippedTitle: string | null;
   language: ReturnType<typeof useAppStore.getState>['language'];
   name: string;
   progress: ReturnType<typeof getLevelProgress>;
@@ -333,7 +341,7 @@ type ReturnPanelProps = {
   totalXp: number;
 };
 
-function ReturnPanel({ accent, activeHabits, language, name, progress, streak, totalXp }: ReturnPanelProps) {
+function ReturnPanel({ accent, activeHabits, equippedTitle, language, name, progress, streak, totalXp }: ReturnPanelProps) {
   const currentRankIndex = RANK_SEQUENCE.indexOf(progress.rank);
   const nextRank = RANK_SEQUENCE[Math.min(RANK_SEQUENCE.length - 1, currentRankIndex + 1)];
   const isMaxRank = progress.rank === 'S';
@@ -343,6 +351,7 @@ function ReturnPanel({ accent, activeHabits, language, name, progress, streak, t
       <View style={styles.welcome}>
         <Text style={styles.miniLabel}>◇ {t(language, 'welcomeBackPlayer')}</Text>
         <Text numberOfLines={1} style={[styles.returnName, { textShadowColor: `${accent}88` }]}>{name.toUpperCase()}</Text>
+        {equippedTitle ? <Text style={[styles.equippedTitle, { color: accent }]}>◆ {equippedTitle}</Text> : null}
       </View>
 
       <View style={[styles.rankPanel, { borderColor: `${accent}88`, shadowColor: accent }]}>
@@ -638,6 +647,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textShadowOffset: { height: 0, width: 0 },
     textShadowRadius: 14,
+  },
+  equippedTitle: {
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    marginTop: 6,
+    textTransform: 'uppercase',
   },
   rankPanel: {
     backgroundColor: colors.background.surface,

@@ -53,7 +53,16 @@ export const player = sqliteTable('player', {
   atributosXp: text('atributos_xp').notNull().default('{}'),
   esencia: integer('esencia').notNull().default(0),
   nivelEsenciaOtorgado: integer('nivel_esencia_otorgado').notNull().default(1),
+  tituloEquipado: text('titulo_equipado'),
+  auraEquipada: text('aura_equipada').notNull().default('aura_cyan'),
   actualizadoEn: text('actualizado_en').notNull(),
+});
+
+export const playerRewards = sqliteTable('player_rewards', {
+  id: text('id').primaryKey(),
+  rewardId: text('reward_id').notNull().unique(),
+  kind: text('kind').notNull(),
+  adquiridoEn: text('adquirido_en').notNull(),
 });
 
 export const dailyMissions = sqliteTable('daily_missions', {

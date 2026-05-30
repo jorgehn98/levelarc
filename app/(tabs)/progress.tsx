@@ -1,7 +1,9 @@
-import { BarChart3, CalendarDays, Check, Clock, Flame, Gem, Shield, Sparkles, Target, Trophy, X } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { BarChart3, CalendarDays, Check, Clock, Flame, Gem, Shield, Sparkles, Store, Target, Trophy, X } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AttributeRadar } from '@/components/AttributeRadar';
+import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import { RankBadge } from '@/components/RankBadge';
 import { Screen } from '@/components/Screen';
@@ -11,6 +13,7 @@ import { StatTile } from '@/components/StatTile';
 import { getLevelProgress } from '@/core/ranks';
 import type { EventRecord, HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { getEquippedTitle } from '@/lib/equippedTitle';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
@@ -26,6 +29,7 @@ export default function ProgressScreen() {
   const language = useAppStore((state) => state.language);
   const progress = getLevelProgress(player?.xpTotal ?? 0);
   const accent = getRankAccent(progress.rank);
+  const equippedTitle = getEquippedTitle(player?.tituloEquipado ?? null, language);
   const activeHabits = habits.filter((habit) => !habit.archivado).length;
   const weekActivity = getWeekActivity(events, habits);
   const heatMap = getHeatMap(events);
@@ -41,6 +45,7 @@ export default function ProgressScreen() {
             <Text style={[styles.kicker, { color: accent }]}>{t(language, 'currentRank')}</Text>
             <Text style={styles.rankTitle}>{t(language, 'rank', { rank: progress.rank }).toUpperCase()}</Text>
             <Text style={styles.rankMeta}>{t(language, 'level', { level: progress.level })} · {player?.xpTotal ?? 0} XP</Text>
+            {equippedTitle ? <Text style={[styles.equippedTitle, { color: accent }]}>◆ {equippedTitle}</Text> : null}
           </View>
           <View style={styles.heroProgress}>
             <ProgressBar ratio={progress.ratio} color={accent} />
@@ -137,7 +142,12 @@ export default function ProgressScreen() {
             <StatTile color={colors.rank.S} icon={Sparkles} label={t(language, 'totalXp')} unit="XP" value={player?.xpTotal ?? 0} />
           </View>
           <View style={styles.statsRow}>
-            <StatTile color={colors.brand.cyanCore} icon={Gem} label={t(language, 'essence')} unit="ES" value={player?.esencia ?? 0} />
+            <Pressable onPress={() => router.push('/shop')} style={styles.essenceTile}>
+              <StatTile color={colors.brand.cyanCore} icon={Gem} label={t(language, 'essence')} unit="ES" value={player?.esencia ?? 0} />
+            </Pressable>
+            <View style={styles.shopAction}>
+              <Button icon={Store} label={t(language, 'shop')} onPress={() => router.push('/shop')} variant="selected" />
+            </View>
           </View>
         </View>
 
@@ -306,6 +316,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 3,
   },
+  equippedTitle: {
+    fontFamily: typography.font.displayMedium,
+    fontSize: 11,
+    marginTop: 5,
+    textTransform: 'uppercase',
+  },
   heroProgress: {
     flexBasis: '100%',
     gap: 7,
@@ -456,6 +472,12 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  essenceTile: {
+    flex: 1,
+  },
+  shopAction: {
+    justifyContent: 'center',
   },
   events: {
     gap: 8,

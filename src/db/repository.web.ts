@@ -13,6 +13,7 @@ import {
   getPerfectWeekEssence,
 } from '@/core/economy';
 import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
+import { DEFAULT_AURA_ID, getShopItem, meetsRequirement } from '@/core/shop';
 import { getScheduledCompletionStreak } from '@/core/streaks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import {
@@ -73,7 +74,19 @@ export type PlayerRecord = {
   atributosXp: AttributeXp;
   esencia: number;
   nivelEsenciaOtorgado: number;
+  tituloEquipado: string | null;
+  auraEquipada: string;
   actualizadoEn: string;
+};
+
+export type PurchaseResult = { ok: boolean; reason?: 'unknown' | 'owned' | 'locked' | 'insufficient' };
+export type EquipResult = { ok: boolean; reason?: 'unknown' | 'notOwned' };
+
+type RewardRecord = {
+  id: string;
+  rewardId: string;
+  kind: string;
+  adquiridoEn: string;
 };
 
 export type DailyMissionRecord = {
@@ -138,6 +151,7 @@ type WebDb = {
   progress: DailyProgressRecord[];
   player: PlayerRecord;
   missions: DailyMissionRecord[];
+  rewards: RewardRecord[];
 };
 
 const KEY = 'levelarc.webdb.v1';
@@ -378,6 +392,56 @@ export async function getPlayer() {
 export async function updatePlayerName(name: string) {
   const db = await loadDb();
   db.player.nombre = normalizePlayerName(name);
+  db.player.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
+// IDs de cosméticos poseídos. La aura cian (default) siempre está incluida aunque no tenga fila,
+// porque es gratis y todo jugador la posee de inicio.
+export async function listOwnedRewardIds(): Promise<string[]> {
+  const db = await loadDb();
+  const owned = new Set(db.rewards.map((reward) => reward.rewardId));
+  owned.add(DEFAULT_AURA_ID);
+  return [...owned];
+}
+
+export async function purchaseReward(rewardId: string): Promise<PurchaseResult> {
+  const item = getShopItem(rewardId);
+  if (!item) return { ok: false, reason: 'unknown' };
+  if (rewardId === DEFAULT_AURA_ID) return { ok: false, reason: 'owned' };
+
+  const db = await loadDb();
+  if (db.rewards.some((reward) => reward.rewardId === rewardId)) return { ok: false, reason: 'owned' };
+  if (!meetsRequirement(item, db.player.nivel, db.player.rango)) return { ok: false, reason: 'locked' };
+  if (db.player.esencia < item.cost) return { ok: false, reason: 'insufficient' };
+
+  grantEssence(db, -item.cost);
+  db.rewards.push({ id: createId(), rewardId, kind: item.kind, adquiridoEn: toIsoTimestamp() });
+  await saveDb(db);
+  return { ok: true };
+}
+
+export async function equipReward(rewardId: string): Promise<EquipResult> {
+  const item = getShopItem(rewardId);
+  if (!item) return { ok: false, reason: 'unknown' };
+
+  const db = await loadDb();
+  const owned = rewardId === DEFAULT_AURA_ID || db.rewards.some((reward) => reward.rewardId === rewardId);
+  if (!owned) return { ok: false, reason: 'notOwned' };
+
+  if (item.kind === 'title') {
+    db.player.tituloEquipado = rewardId;
+  } else {
+    db.player.auraEquipada = rewardId;
+  }
+  db.player.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+  return { ok: true };
+}
+
+export async function unequipTitle(): Promise<void> {
+  const db = await loadDb();
+  db.player.tituloEquipado = null;
   db.player.actualizadoEn = toIsoTimestamp();
   await saveDb(db);
 }
@@ -674,6 +738,10 @@ async function loadDb(): Promise<WebDb> {
     esenciaOtorgada: Math.max(0, Math.floor(Number(event.esenciaOtorgada ?? 0))),
   }));
   db.player.atributosXp = normalizeAttributeXp(db.player.atributosXp);
+  // Player antiguo sin cosméticos: defaults seguros (aura cian, sin título).
+  db.player.auraEquipada = db.player.auraEquipada ?? DEFAULT_AURA_ID;
+  db.player.tituloEquipado = db.player.tituloEquipado ?? null;
+  db.rewards = Array.isArray(db.rewards) ? db.rewards : [];
   db.missions = db.missions.map((mission) => ({
     ...mission,
     perfectStreakDays: Math.max(0, Math.floor(Number(mission.perfectStreakDays ?? 0))),
@@ -703,9 +771,12 @@ function createEmptyDb(): WebDb {
       atributosXp: createEmptyAttributeXp(),
       esencia: 0,
       nivelEsenciaOtorgado: 1,
+      tituloEquipado: null,
+      auraEquipada: DEFAULT_AURA_ID,
       actualizadoEn: toIsoTimestamp(),
     },
     missions: [],
+    rewards: [],
   };
 }
 
@@ -717,8 +788,9 @@ function normalizeBackupData(data: unknown): WebDb {
   const progress = asArray(data.habitDailyProgress ?? data.progress).map(normalizeProgress);
   const player = normalizePlayer(asArray(data.player)[0] ?? data.player) ?? empty.player;
   const missions = asArray(data.dailyMissions ?? data.missions).map(normalizeMission);
+  const rewards = asArray(data.playerRewards ?? data.rewards).map(normalizeReward);
 
-  return { habits, events, progress, player, missions };
+  return { habits, events, progress, player, missions, rewards };
 }
 
 function normalizeHabit(row: unknown): HabitRecord {
@@ -796,7 +868,19 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
     atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
     esencia: Math.max(0, Math.floor(asNumber(row.esencia ?? 0))),
     nivelEsenciaOtorgado: Math.max(1, Math.floor(asNumber(row.nivel_esencia_otorgado ?? row.nivelEsenciaOtorgado ?? nivel))),
+    tituloEquipado: nullableString(row.titulo_equipado ?? row.tituloEquipado),
+    auraEquipada: nullableString(row.aura_equipada ?? row.auraEquipada) ?? DEFAULT_AURA_ID,
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
+  };
+}
+
+function normalizeReward(row: unknown): RewardRecord {
+  if (!isRecord(row)) throw new Error('Invalid reward row');
+  return {
+    id: asString(row.id),
+    rewardId: asString(row.reward_id ?? row.rewardId),
+    kind: asString(row.kind),
+    adquiridoEn: asString((row.adquirido_en ?? row.adquiridoEn) || toIsoTimestamp()),
   };
 }
 

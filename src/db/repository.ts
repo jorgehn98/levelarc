@@ -8,6 +8,7 @@ import {
   getPerfectWeekEssence,
 } from '@/core/economy';
 import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
+import { DEFAULT_AURA_ID, getShopItem, meetsRequirement } from '@/core/shop';
 import {
   DAILY_MISSION_BONUS_XP,
   PERFECT_WEEK_BONUS_XP,
@@ -74,8 +75,13 @@ export type PlayerRecord = {
   atributosXp: AttributeXp;
   esencia: number;
   nivelEsenciaOtorgado: number;
+  tituloEquipado: string | null;
+  auraEquipada: string;
   actualizadoEn: string;
 };
+
+export type PurchaseResult = { ok: boolean; reason?: 'unknown' | 'owned' | 'locked' | 'insufficient' };
+export type EquipResult = { ok: boolean; reason?: 'unknown' | 'notOwned' };
 
 export type DailyMissionRecord = {
   fecha: string;
@@ -153,6 +159,8 @@ type PlayerRow = {
   atributos_xp: string | null;
   esencia: number;
   nivel_esencia_otorgado: number;
+  titulo_equipado: string | null;
+  aura_equipada: string | null;
   actualizado_en: string;
 };
 
@@ -193,6 +201,7 @@ export async function resetAllData() {
     DELETE FROM events;
     DELETE FROM habit_daily_progress;
     DELETE FROM daily_missions;
+    DELETE FROM player_rewards;
     DELETE FROM habits;
     DELETE FROM player;
   `);
@@ -421,6 +430,68 @@ export async function updatePlayerName(name: string) {
   await sqlite.runAsync('UPDATE player SET nombre = ?, actualizado_en = ? WHERE id = 1', [trimmed, toIsoTimestamp()]);
 }
 
+// IDs de cosméticos poseídos. La aura cian (default) siempre está incluida aunque no tenga fila,
+// porque es gratis y todo jugador la posee de inicio.
+export async function listOwnedRewardIds(): Promise<string[]> {
+  const rows = await sqlite.getAllAsync<{ reward_id: string }>('SELECT reward_id FROM player_rewards');
+  const owned = new Set(rows.map((row) => row.reward_id));
+  owned.add(DEFAULT_AURA_ID);
+  return [...owned];
+}
+
+export async function purchaseReward(rewardId: string): Promise<PurchaseResult> {
+  const item = getShopItem(rewardId);
+  if (!item) return { ok: false, reason: 'unknown' };
+
+  if (rewardId === DEFAULT_AURA_ID) return { ok: false, reason: 'owned' };
+  const existing = await sqlite.getFirstAsync<{ reward_id: string }>(
+    'SELECT reward_id FROM player_rewards WHERE reward_id = ?',
+    [rewardId],
+  );
+  if (existing) return { ok: false, reason: 'owned' };
+
+  const player = await ensurePlayer();
+  if (!meetsRequirement(item, player.nivel, player.rango)) return { ok: false, reason: 'locked' };
+  if (player.esencia < item.cost) return { ok: false, reason: 'insufficient' };
+
+  await sqlite.withExclusiveTransactionAsync(async (tx) => {
+    await tx.runAsync('UPDATE player SET esencia = MAX(0, esencia + ?) WHERE id = 1', [-item.cost]);
+    await tx.runAsync(
+      'INSERT INTO player_rewards (id, reward_id, kind, adquirido_en) VALUES (?, ?, ?, ?)',
+      [createId(), rewardId, item.kind, toIsoTimestamp()],
+    );
+  });
+
+  return { ok: true };
+}
+
+export async function equipReward(rewardId: string): Promise<EquipResult> {
+  const item = getShopItem(rewardId);
+  if (!item) return { ok: false, reason: 'unknown' };
+
+  if (rewardId !== DEFAULT_AURA_ID) {
+    const owned = await sqlite.getFirstAsync<{ reward_id: string }>(
+      'SELECT reward_id FROM player_rewards WHERE reward_id = ?',
+      [rewardId],
+    );
+    if (!owned) return { ok: false, reason: 'notOwned' };
+  }
+
+  await ensurePlayer();
+  if (item.kind === 'title') {
+    await sqlite.runAsync('UPDATE player SET titulo_equipado = ?, actualizado_en = ? WHERE id = 1', [rewardId, toIsoTimestamp()]);
+  } else {
+    await sqlite.runAsync('UPDATE player SET aura_equipada = ?, actualizado_en = ? WHERE id = 1', [rewardId, toIsoTimestamp()]);
+  }
+
+  return { ok: true };
+}
+
+export async function unequipTitle(): Promise<void> {
+  await ensurePlayer();
+  await sqlite.runAsync('UPDATE player SET titulo_equipado = NULL, actualizado_en = ? WHERE id = 1', [toIsoTimestamp()]);
+}
+
 export async function getDailyMission(dateKey = toDateKey()): Promise<DailyMissionRecord> {
   await ensureDailyMission(dateKey);
   await syncDailyMission(dateKey);
@@ -485,12 +556,13 @@ async function getHabitEvents(habitId: string, limit = 10): Promise<EventRecord[
 }
 
 export async function exportAllData() {
-  const [allHabits, allEvents, progress, playerRows, missions] = await Promise.all([
+  const [allHabits, allEvents, progress, playerRows, missions, rewards] = await Promise.all([
     sqlite.getAllAsync('SELECT * FROM habits ORDER BY creado_en ASC'),
     sqlite.getAllAsync('SELECT * FROM events ORDER BY registrado_en ASC'),
     sqlite.getAllAsync('SELECT * FROM habit_daily_progress ORDER BY fecha ASC'),
     sqlite.getAllAsync('SELECT * FROM player'),
     sqlite.getAllAsync('SELECT * FROM daily_missions ORDER BY fecha ASC'),
+    sqlite.getAllAsync('SELECT * FROM player_rewards ORDER BY adquirido_en ASC'),
   ]);
 
   return {
@@ -500,6 +572,7 @@ export async function exportAllData() {
     habitDailyProgress: progress,
     player: playerRows,
     dailyMissions: missions,
+    playerRewards: rewards,
   };
 }
 
@@ -522,6 +595,7 @@ export async function importAllData(data: unknown) {
       await tx.runAsync('DELETE FROM habit_daily_progress');
       await tx.runAsync('DELETE FROM events');
       await tx.runAsync('DELETE FROM daily_missions');
+      await tx.runAsync('DELETE FROM player_rewards');
       await tx.runAsync('DELETE FROM habits');
       await tx.runAsync('DELETE FROM player');
 
@@ -589,7 +663,7 @@ export async function importAllData(data: unknown) {
       }
 
       await tx.runAsync(
-        'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, esencia, nivel_esencia_otorgado, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, esencia, nivel_esencia_otorgado, titulo_equipado, aura_equipada, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           'nombre' in player ? player.nombre : null,
           'xpTotal' in player ? player.xpTotal : 0,
@@ -599,9 +673,18 @@ export async function importAllData(data: unknown) {
           'atributosXp' in player ? serializeAttributeXp(player.atributosXp) : '{}',
           'esencia' in player ? player.esencia : 0,
           'nivelEsenciaOtorgado' in player ? player.nivelEsenciaOtorgado : 1,
+          'tituloEquipado' in player ? player.tituloEquipado : null,
+          'auraEquipada' in player ? player.auraEquipada : DEFAULT_AURA_ID,
           'actualizadoEn' in player ? player.actualizadoEn : toIsoTimestamp(),
         ],
       );
+
+      for (const reward of backup.playerRewards) {
+        await tx.runAsync(
+          'INSERT INTO player_rewards (id, reward_id, kind, adquirido_en) VALUES (?, ?, ?, ?)',
+          [reward.id, reward.rewardId, reward.kind, reward.adquiridoEn],
+        );
+      }
     });
   } catch (error) {
     await Promise.all(restoredHabits.map((habit) => cancelHabitReminder(habit.notificationId)));
@@ -679,8 +762,8 @@ async function ensurePlayer(): Promise<PlayerRecord> {
 
   const now = toIsoTimestamp();
   await sqlite.runAsync(
-    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, esencia, nivel_esencia_otorgado, actualizado_en) VALUES (1, null, 0, 1, ?, 0, ?, 0, 1, ?)',
-    ['E', '{}', now],
+    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, esencia, nivel_esencia_otorgado, titulo_equipado, aura_equipada, actualizado_en) VALUES (1, null, 0, 1, ?, 0, ?, 0, 1, null, ?, ?)',
+    ['E', '{}', DEFAULT_AURA_ID, now],
   );
   return {
     nombre: null,
@@ -691,6 +774,8 @@ async function ensurePlayer(): Promise<PlayerRecord> {
     atributosXp: createEmptyAttributeXp(),
     esencia: 0,
     nivelEsenciaOtorgado: 1,
+    tituloEquipado: null,
+    auraEquipada: DEFAULT_AURA_ID,
     actualizadoEn: now,
   };
 }
@@ -1014,6 +1099,8 @@ function mapPlayer(row: PlayerRow): PlayerRecord {
     atributosXp: normalizeAttributeXp(row.atributos_xp),
     esencia: Math.max(0, Math.floor(row.esencia ?? 0)),
     nivelEsenciaOtorgado: Math.max(1, Math.floor(row.nivel_esencia_otorgado ?? 1)),
+    tituloEquipado: row.titulo_equipado ?? null,
+    auraEquipada: row.aura_equipada ?? DEFAULT_AURA_ID,
     actualizadoEn: row.actualizado_en,
   };
 }
@@ -1065,6 +1152,7 @@ type NormalizedBackupData = {
   }>;
   player: PlayerRecord | null;
   dailyMissions: DailyMissionRecord[];
+  playerRewards: Array<{ id: string; rewardId: string; kind: string; adquiridoEn: string }>;
 };
 
 function normalizeBackupData(data: unknown): NormalizedBackupData {
@@ -1076,6 +1164,17 @@ function normalizeBackupData(data: unknown): NormalizedBackupData {
     habitDailyProgress: asArray(data.habitDailyProgress ?? data.progress).map(normalizeProgress),
     player: normalizePlayer(asArray(data.player)[0] ?? data.player),
     dailyMissions: asArray(data.dailyMissions ?? data.missions).map(normalizeMission),
+    playerRewards: asArray(data.playerRewards ?? data.rewards).map(normalizeReward),
+  };
+}
+
+function normalizeReward(row: unknown) {
+  if (!isRecord(row)) throw new Error('Invalid reward row');
+  return {
+    id: asString(row.id),
+    rewardId: asString(row.reward_id ?? row.rewardId),
+    kind: asString(row.kind),
+    adquiridoEn: asString((row.adquirido_en ?? row.adquiridoEn) || toIsoTimestamp()),
   };
 }
 
@@ -1152,6 +1251,8 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
     atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
     esencia: Math.max(0, Math.floor(asNumber(row.esencia ?? 0))),
     nivelEsenciaOtorgado: Math.max(1, Math.floor(asNumber(row.nivel_esencia_otorgado ?? row.nivelEsenciaOtorgado ?? nivel))),
+    tituloEquipado: nullableString(row.titulo_equipado ?? row.tituloEquipado),
+    auraEquipada: nullableString(row.aura_equipada ?? row.auraEquipada) ?? DEFAULT_AURA_ID,
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
   };
 }

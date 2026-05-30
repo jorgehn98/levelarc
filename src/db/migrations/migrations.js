@@ -9,6 +9,7 @@ import m0004 from './0004_striped_punisher.sql';
 import m0005 from './0005_parched_living_lightning.sql';
 import m0006 from './0006_curly_inertia.sql';
 import m0007 from './0007_nifty_wonder_man.sql';
+import m0008 from './0008_closed_grey_gargoyle.sql';
 
   export default {
     journal,
@@ -20,7 +21,8 @@ m0003,
 m0004,
 m0005,
 m0006,
-m0007
+m0007,
+m0008
     }
   }
   

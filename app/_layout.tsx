@@ -135,6 +135,7 @@ export default function RootLayout() {
         <Stack.Screen name="habit/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="onboarding" options={{ presentation: 'modal' }} />
         <Stack.Screen name="rank-up" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="shop" />
       </Stack>
     </>
   );

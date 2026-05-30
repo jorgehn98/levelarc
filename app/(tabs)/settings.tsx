@@ -16,6 +16,7 @@ import {
   Skull,
   Snowflake,
   Sparkles,
+  Store,
   Upload,
   User,
   X,
@@ -354,6 +355,14 @@ export default function SettingsScreen() {
 
           <SettingRow compact icon={Music} title={t(language, 'sound')} value={t(language, 'soundCopy')}>
             <Toggle active={soundEnabled} onPress={() => void handleToggleSound()} />
+          </SettingRow>
+        </SettingsSection>
+
+        <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'system')}>
+          <SettingRow icon={Store} title={t(language, 'systemShop')} value={t(language, 'shopRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Store} label={t(language, 'openShop')} onPress={() => router.push('/shop')} variant="selected" />
+            </View>
           </SettingRow>
         </SettingsSection>
 
