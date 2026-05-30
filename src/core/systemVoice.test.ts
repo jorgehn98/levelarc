@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import type { SystemContext } from './aiContext';
-import { detectIntent, getSystemGreeting, getSystemReply, normalizeMessage } from './systemVoice';
+import { detectIntent, getSystemGreeting, getSystemReply, normalizeMessage, type SystemReply } from './systemVoice';
+
+// Tras el cambio a union, el core siempre devuelve la variante 'key'. Esta narrowing helper falla
+// el test si alguna vez devolviera 'text', y de paso da acceso tipado a key/params.
+function asKeyReply(reply: SystemReply): { key: string; params?: Record<string, string | number> } {
+  expect(reply.kind).toBe('key');
+  if (reply.kind !== 'key') throw new Error('expected a key reply');
+  return reply;
+}
 
 function makeContext(overrides: Partial<SystemContext> = {}): SystemContext {
   return {
@@ -27,35 +35,35 @@ function makeContext(overrides: Partial<SystemContext> = {}): SystemContext {
 describe('getSystemGreeting priority', () => {
   it('pushes when there are pending missions (highest priority)', () => {
     // Pendientes gana incluso con día perfecto/fallos en el mismo contexto.
-    const reply = getSystemGreeting(makeContext({ pendientesHoy: 3, falladosHoy: 1, ratioNivel: 0.95 }));
+    const reply = asKeyReply(getSystemGreeting(makeContext({ pendientesHoy: 3, falladosHoy: 1, ratioNivel: 0.95 })));
     expect(reply.key).toMatch(/^sys_pending_[12]$/);
     expect(reply.params?.n).toBe(3);
   });
 
   it('acknowledges a perfect day when nothing is pending', () => {
-    const reply = getSystemGreeting(makeContext({ habitosHoyTotal: 4, completadosHoy: 4, diaPerfecto: true }));
+    const reply = asKeyReply(getSystemGreeting(makeContext({ habitosHoyTotal: 4, completadosHoy: 4, diaPerfecto: true })));
     expect(reply.key).toMatch(/^sys_perfect_[12]$/);
   });
 
   it('flags a failure without drama', () => {
-    const reply = getSystemGreeting(makeContext({ falladosHoy: 2 }));
+    const reply = asKeyReply(getSystemGreeting(makeContext({ falladosHoy: 2 })));
     expect(reply.key).toMatch(/^sys_failed_[12]$/);
   });
 
   it('motivates when close to leveling up', () => {
-    const reply = getSystemGreeting(makeContext({ ratioNivel: 0.85, faltaParaNivel: 15 }));
+    const reply = asKeyReply(getSystemGreeting(makeContext({ ratioNivel: 0.85, faltaParaNivel: 15 })));
     expect(reply.key).toMatch(/^sys_near_level_[12]$/);
     expect(reply.params?.falta).toBe(15);
   });
 
   it('congratulates a high mission streak', () => {
-    const reply = getSystemGreeting(makeContext({ rachaMisiones: 5 }));
+    const reply = asKeyReply(getSystemGreeting(makeContext({ rachaMisiones: 5 })));
     expect(reply.key).toMatch(/^sys_streak_[12]$/);
     expect(reply.params?.racha).toBe(5);
   });
 
   it('falls back to a state greeting when nothing stands out', () => {
-    const reply = getSystemGreeting(makeContext());
+    const reply = asKeyReply(getSystemGreeting(makeContext()));
     expect(reply.key).toMatch(/^sys_greet_state_[12]$/);
     expect(reply.params?.nivel).toBe(10);
     expect(reply.params?.rango).toBe('D');
@@ -113,35 +121,35 @@ describe('normalizeMessage', () => {
 
 describe('getSystemReply', () => {
   it('routes a greeting to a hello reply', () => {
-    const reply = getSystemReply(makeContext(), 'hola');
+    const reply = asKeyReply(getSystemReply(makeContext(), 'hola'));
     expect(reply.key).toMatch(/^sys_reply_hello_[12]$/);
   });
 
   it('routes a status question to a status reply with progress params', () => {
-    const reply = getSystemReply(makeContext({ completadosHoy: 2, faltaParaNivel: 30 }), 'como voy');
+    const reply = asKeyReply(getSystemReply(makeContext({ completadosHoy: 2, faltaParaNivel: 30 }), 'como voy'));
     expect(reply.key).toMatch(/^sys_reply_status_[12]$/);
     expect(reply.params?.completados).toBe(2);
     expect(reply.params?.falta).toBe(30);
   });
 
   it('routes help and thanks intents', () => {
-    expect(getSystemReply(makeContext(), 'ayuda').key).toMatch(/^sys_reply_help_[12]$/);
-    expect(getSystemReply(makeContext(), 'gracias').key).toMatch(/^sys_reply_thanks_[12]$/);
+    expect(asKeyReply(getSystemReply(makeContext(), 'ayuda')).key).toMatch(/^sys_reply_help_[12]$/);
+    expect(asKeyReply(getSystemReply(makeContext(), 'gracias')).key).toMatch(/^sys_reply_thanks_[12]$/);
   });
 
   it('falls back to the greeting when the message is unknown but something stands out', () => {
     // Sin intención reconocida pero con pendientes → reutiliza el saludo proactivo.
-    const reply = getSystemReply(makeContext({ pendientesHoy: 2 }), 'blah blah');
+    const reply = asKeyReply(getSystemReply(makeContext({ pendientesHoy: 2 }), 'blah blah'));
     expect(reply.key).toMatch(/^sys_pending_[12]$/);
   });
 
   it('uses the unknown reply when the message is unknown and nothing stands out', () => {
-    const reply = getSystemReply(makeContext(), 'blah blah');
+    const reply = asKeyReply(getSystemReply(makeContext(), 'blah blah'));
     expect(reply.key).toMatch(/^sys_reply_unknown_[12]$/);
   });
 
   it('is deterministic: same context and message produce the same key', () => {
     const ctx = makeContext({ pendientesHoy: 1 });
-    expect(getSystemReply(ctx, 'hola').key).toBe(getSystemReply(ctx, 'hola').key);
+    expect(asKeyReply(getSystemReply(ctx, 'hola')).key).toBe(asKeyReply(getSystemReply(ctx, 'hola')).key);
   });
 });

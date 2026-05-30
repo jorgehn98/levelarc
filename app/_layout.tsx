@@ -154,6 +154,7 @@ export default function RootLayout() {
         <Stack.Screen name="shop" />
         <Stack.Screen name="achievements" />
         <Stack.Screen name="system-chat" />
+        <Stack.Screen name="system-ai" />
       </Stack>
       <CelebrationOverlay />
     </>

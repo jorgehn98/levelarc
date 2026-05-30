@@ -2,7 +2,8 @@
   "expo": {
     "name": "LevelArc",
     "slug": "levelarc",
-    "version": "1.0.2",
+    "version": "1.1.0",
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "levelarc",
@@ -12,7 +13,7 @@
     },
     "android": {
       "package": "app.levelarc",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -41,6 +42,14 @@
             "image": "./assets/splash-icon.png"
           }
         }
+      ],
+      [
+        "llama.rn",
+        { "enableEntitlements": true, "forceCxx20": true }
+      ],
+      [
+        "expo-build-properties",
+        { "android": { "minSdkVersion": 24 }, "ios": { "deploymentTarget": "16.4" } }
       ]
     ],
     "extra": {

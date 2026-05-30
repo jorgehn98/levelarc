@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronLeft, Send, Terminal, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Cpu, Send, Terminal, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -96,6 +96,14 @@ export default function SystemChatScreen() {
           </View>
           <Text style={styles.headerTitle}>{t(language, 'systemChatTitle')}</Text>
         </View>
+        <Pressable
+          accessibilityLabel={t(language, 'aiManageTitle')}
+          accessibilityRole="button"
+          onPress={() => router.push('/system-ai')}
+          style={styles.iconButton}
+        >
+          <Cpu color={colors.brand.cyanCore} size={18} />
+        </Pressable>
         <Pressable
           accessibilityLabel={t(language, 'systemChatClear')}
           accessibilityRole="button"

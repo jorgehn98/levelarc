@@ -337,10 +337,33 @@ const dictionary = {
     systemChatClear: 'Limpiar conversación',
     systemChatClearConfirmTitle: 'Limpiar conversación',
     systemChatClearConfirmCopy: 'Se borrará todo el historial con el Sistema. Esta acción no se puede deshacer.',
-    systemChatEngineLabel: 'Motor del Sistema',
-    systemChatEngineNote: 'Respuestas locales del Sistema · IA con modelo local en una próxima versión.',
     systemChatError: 'El Sistema no responde. Inténtalo de nuevo.',
     open: 'Abrir',
+    // Gestión de la IA avanzada del Sistema (pantalla /system-ai y sus accesos).
+    systemAiTitle: 'IA del Sistema',
+    aiManageTitle: 'IA avanzada',
+    aiManageSubtitle: 'Sistema · modelo local',
+    aiManageRowCopy: 'Descarga el modelo local y gestiona la IA avanzada',
+    aiManageOpen: 'Gestionar',
+    aiIntro:
+      'El Sistema puede usar un modelo de lenguaje LOCAL para conversar de verdad. Son ~{mb} MB, se descarga una vez, funciona sin conexión y es 100% privado: nada sale del móvil. Recomendado WiFi. Requiere bastante RAM.',
+    aiNoneCopy: 'Aún no hay modelo descargado. El Sistema responde con plantillas.',
+    aiDownloadModel: 'Descargar modelo',
+    aiDownloading: 'Descargando…',
+    aiPercent: '{pct}%',
+    aiModelReady: 'Modelo listo',
+    aiUseAdvanced: 'Usar IA avanzada',
+    aiUseAdvancedHint: 'Activa el modelo local para las respuestas del Sistema.',
+    aiDeleteModel: 'Eliminar modelo',
+    aiRetry: 'Reintentar',
+    aiDownloadError: 'La descarga falló. Inténtalo de nuevo.',
+    aiWebNotice: 'La IA avanzada solo está disponible en la app nativa (iOS / Android).',
+    aiDownloadConfirmTitle: 'Descargar modelo',
+    aiDownloadConfirmCopy:
+      'Se descargarán ~{mb} MB. Usa WiFi para evitar gastar datos. La descarga puede tardar varios minutos.',
+    aiDeleteConfirmTitle: 'Eliminar modelo',
+    aiDeleteConfirmCopy:
+      'Se borrará el modelo local del dispositivo y el Sistema volverá a las respuestas por plantillas. Podrás descargarlo de nuevo más tarde.',
     // Chat con el Sistema — voz del Sistema (seca, imperativa, breve, sin emojis ni disculpas).
     // Saludo proactivo por situación:
     sys_pending_1: 'Nivel {nivel}, rango {rango}. Te quedan {n} misiones hoy. No las dejes.',
@@ -705,10 +728,33 @@ const dictionary = {
     systemChatClear: 'Clear chat',
     systemChatClearConfirmTitle: 'Clear chat',
     systemChatClearConfirmCopy: 'The entire history with the System will be deleted. This action cannot be undone.',
-    systemChatEngineLabel: 'System engine',
-    systemChatEngineNote: 'Local System responses · on-device AI model in a future version.',
     systemChatError: 'The System is unresponsive. Try again.',
     open: 'Open',
+    // Advanced System AI management (the /system-ai screen and its entry points).
+    systemAiTitle: 'System AI',
+    aiManageTitle: 'Advanced AI',
+    aiManageSubtitle: 'System · local model',
+    aiManageRowCopy: 'Download the local model and manage the advanced AI',
+    aiManageOpen: 'Manage',
+    aiIntro:
+      'The System can use a LOCAL language model for real conversation. It is ~{mb} MB, downloaded once, works offline and is 100% private: nothing leaves your phone. WiFi recommended. Requires a fair amount of RAM.',
+    aiNoneCopy: 'No model downloaded yet. The System replies with templates.',
+    aiDownloadModel: 'Download model',
+    aiDownloading: 'Downloading…',
+    aiPercent: '{pct}%',
+    aiModelReady: 'Model ready',
+    aiUseAdvanced: 'Use advanced AI',
+    aiUseAdvancedHint: 'Enable the local model for the System responses.',
+    aiDeleteModel: 'Delete model',
+    aiRetry: 'Retry',
+    aiDownloadError: 'The download failed. Try again.',
+    aiWebNotice: 'Advanced AI is only available in the native app (iOS / Android).',
+    aiDownloadConfirmTitle: 'Download model',
+    aiDownloadConfirmCopy:
+      'About {mb} MB will be downloaded. Use WiFi to avoid data charges. The download may take several minutes.',
+    aiDeleteConfirmTitle: 'Delete model',
+    aiDeleteConfirmCopy:
+      'The local model will be removed from the device and the System will fall back to template responses. You can download it again later.',
     // System Chat — the System's voice (terse, imperative, brief, no emojis or apologies).
     // Proactive greeting by situation:
     sys_pending_1: 'Level {nivel}, rank {rango}. You have {n} missions left today. Do not skip them.',

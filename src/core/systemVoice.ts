@@ -5,7 +5,14 @@
 
 import type { SystemContext } from './aiContext';
 
-export type SystemReply = { key: string; params?: Record<string, string | number> };
+// Respuesta de un motor del chat. Union discriminada por `kind`:
+// - 'key': clave i18n abstracta + params, que el store resuelve con t(language, key, params). La usa
+//   el motor por plantillas (determinista, bilingüe vía i18n).
+// - 'text': texto libre ya en el idioma correcto, que el store usa tal cual. La usa el motor LLM, que
+//   genera lenguaje natural y no claves abstractas.
+export type SystemReply =
+  | { kind: 'key'; key: string; params?: Record<string, string | number> }
+  | { kind: 'text'; text: string };
 
 // Params comunes del estado, reutilizados por casi todas las frases.
 function statusParams(ctx: SystemContext): Record<string, string | number> {
@@ -32,6 +39,11 @@ function pick(prefix: string, total: number, ctx: SystemContext, extra = 0): str
   return `${prefix}_${variantIndex(ctx, total, extra) + 1}`;
 }
 
+// Envuelve clave + params en la variante 'key' del union SystemReply.
+function keyReply(key: string, params?: Record<string, string | number>): SystemReply {
+  return { kind: 'key', key, params };
+}
+
 // Saludo proactivo de apertura del chat, por prioridad de reglas. La primera condición que se
 // cumple gana, de mayor a menor urgencia.
 export function getSystemGreeting(ctx: SystemContext): SystemReply {
@@ -39,31 +51,31 @@ export function getSystemGreeting(ctx: SystemContext): SystemReply {
 
   // 1) Hay misiones pendientes hoy → empuja.
   if (ctx.pendientesHoy > 0) {
-    return { key: pick('sys_pending', 2, ctx), params };
+    return keyReply(pick('sys_pending', 2, ctx), params);
   }
 
   // 2) Día perfecto (hay hábitos hoy y todos completados, sin fallos) → reconoce.
   if (ctx.diaPerfecto) {
-    return { key: pick('sys_perfect', 2, ctx), params };
+    return keyReply(pick('sys_perfect', 2, ctx), params);
   }
 
   // 3) Falló algo hoy → señala sin dramatizar.
   if (ctx.falladosHoy > 0) {
-    return { key: pick('sys_failed', 2, ctx), params };
+    return keyReply(pick('sys_failed', 2, ctx), params);
   }
 
   // 4) Cerca de subir de nivel → motiva.
   if (ctx.ratioNivel >= 0.8) {
-    return { key: pick('sys_near_level', 2, ctx), params: { ...params, falta: ctx.faltaParaNivel } };
+    return keyReply(pick('sys_near_level', 2, ctx), { ...params, falta: ctx.faltaParaNivel });
   }
 
   // 5) Racha de misiones alta → felicita en frío.
   if (ctx.rachaMisiones >= 3) {
-    return { key: pick('sys_streak', 2, ctx), params };
+    return keyReply(pick('sys_streak', 2, ctx), params);
   }
 
   // 6) Nada destacable → saludo de estado con nivel/rango.
-  return { key: pick('sys_greet_state', 2, ctx), params };
+  return keyReply(pick('sys_greet_state', 2, ctx), params);
 }
 
 type Intent = 'hello' | 'status' | 'help' | 'thanks' | 'motivate' | 'unknown';
@@ -114,15 +126,15 @@ export function getSystemReply(ctx: SystemContext, userMessage: string): SystemR
 
   switch (intent) {
     case 'hello':
-      return { key: pick('sys_reply_hello', 2, ctx, extra), params };
+      return keyReply(pick('sys_reply_hello', 2, ctx, extra), params);
     case 'status':
-      return { key: pick('sys_reply_status', 2, ctx, extra), params: { ...params, completados: ctx.completadosHoy, falta: ctx.faltaParaNivel } };
+      return keyReply(pick('sys_reply_status', 2, ctx, extra), { ...params, completados: ctx.completadosHoy, falta: ctx.faltaParaNivel });
     case 'help':
-      return { key: pick('sys_reply_help', 2, ctx, extra), params };
+      return keyReply(pick('sys_reply_help', 2, ctx, extra), params);
     case 'thanks':
-      return { key: pick('sys_reply_thanks', 2, ctx, extra), params };
+      return keyReply(pick('sys_reply_thanks', 2, ctx, extra), params);
     case 'motivate':
-      return { key: pick('sys_reply_motivate', 2, ctx, extra), params };
+      return keyReply(pick('sys_reply_motivate', 2, ctx, extra), params);
     case 'unknown':
     default:
       // No reconoce intención: comenta el estado. Si hay algo destacable, reutiliza el saludo
@@ -130,6 +142,6 @@ export function getSystemReply(ctx: SystemContext, userMessage: string): SystemR
       if (ctx.pendientesHoy > 0 || ctx.diaPerfecto || ctx.falladosHoy > 0) {
         return getSystemGreeting(ctx);
       }
-      return { key: pick('sys_reply_unknown', 2, ctx, extra), params };
+      return keyReply(pick('sys_reply_unknown', 2, ctx, extra), params);
   }
 }

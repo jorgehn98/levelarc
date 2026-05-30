@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import {
   Bell,
   ChevronLeft,
+  Cpu,
   Download,
   Eye,
   Globe,
@@ -367,7 +368,11 @@ export default function SettingsScreen() {
             </View>
           </SettingRow>
 
-          <SettingRow compact icon={Info} iconColor={colors.state.pending} title={t(language, 'systemChatEngineLabel')} value={t(language, 'systemChatEngineNote')} />
+          <SettingRow icon={Cpu} title={t(language, 'aiManageTitle')} value={t(language, 'aiManageRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Cpu} label={t(language, 'aiManageOpen')} onPress={() => router.push('/system-ai')} variant="selected" />
+            </View>
+          </SettingRow>
 
           <SettingRow icon={Store} title={t(language, 'systemShop')} value={t(language, 'shopRowCopy')}>
             <View style={styles.inlineActions}>
