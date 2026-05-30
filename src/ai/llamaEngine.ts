@@ -25,15 +25,20 @@ const N_CTX = 2048;
 const N_GPU_LAYERS = 0;
 const N_THREADS = 4;
 
-// Parámetros de inferencia para Gemma 4 E2B: respuestas cortas (la voz del Sistema es seca), con
-// penalización de repetición y tokens de parada de Gemma/genéricos para cortar limpio. Sampling
-// recomendado para Gemma 4 (temperature baja para el tono seco, top_p/top_k del modelo).
+// Parámetros de inferencia para gemma-4 E2B: respuestas cortas (la voz del Sistema es seca), con
+// penalización de repetición. Sampling recomendado para gemma-4 (temperature baja para el tono seco).
 const N_PREDICT = 120;
 const TEMPERATURE = 0.7;
 const TOP_P = 0.95;
 const TOP_K = 64;
 const PENALTY_REPEAT = 1.1;
-const STOP = ['<end_of_turn>', '<eos>', '</s>'];
+// Delimitadores de turno REALES de gemma-4 (ver buildGemmaPrompt). El modelo abre un turno con
+// `<|turn>` y lo cierra con `<turn|>` (que además es su token EOS). Los usamos como tokens de parada.
+// OJO: NO son los de Gemma estándar (`<start_of_turn>`/`<end_of_turn>`); este modelo no los emite, por
+// eso el código anterior (STOP=['<end_of_turn>','<eos>','</s>']) no cortaba nunca por stop.
+const TURN_START = '<|turn>';
+const TURN_END = '<turn|>';
+const STOP = [TURN_END, TURN_START];
 
 // Timeouts de seguridad para device: si el modelo se atasca, sin esto el chat queda con el spinner
 // colgado para siempre (isGenerating nunca se resetea). COMPLETION_TIMEOUT_MS corta una inferencia
@@ -231,6 +236,21 @@ async function ensureContext(modelPath: string): Promise<LlamaContext> {
   }
 }
 
+// Construye el prompt en el formato de TURNOS de gemma-4 a partir del contenido de sistema y de
+// usuario, y deja abierto el turno del modelo para que continúe. NO usamos la plantilla de chat
+// embebida del GGUF (la ruta completion({messages})): es enorme (tool-calling, "thinking", macros
+// recursivas) y llama.rn la renderiza con minja con enable_thinking=true por defecto — puede fallar al
+// renderizar (y romper TODA la inferencia) o ensuciar la salida con un bloque de razonamiento. Con el
+// prompt a mano controlamos el formato exacto; el tokenizador nativo añade el BOS solo (add_bos del
+// GGUF, parse_special=true). Atado al modelo configurado en modelManager: si cambia, revisa el formato.
+function buildGemmaPrompt(systemContent: string, userContent: string): string {
+  return (
+    `${TURN_START}system\n${systemContent.trim()}${TURN_END}\n` +
+    `${TURN_START}user\n${userContent.trim()}${TURN_END}\n` +
+    `${TURN_START}model\n`
+  );
+}
+
 // Genera una respuesta del Sistema a partir del system prompt y el mensaje del usuario. `systemNote`
 // opcional se añade al final del system prompt (lo usa el chat heredado de una aparición).
 async function generate(
@@ -244,14 +264,12 @@ async function generate(
   const systemContent = systemNote
     ? `${buildSystemPrompt(ctx, language)}\n\n${systemNote}`
     : buildSystemPrompt(ctx, language);
-  // Timeout de inferencia: si la generación se atasca, al vencer abortamos la generación nativa con
-  // stopCompletion (corta de verdad, libera CPU) y rechazamos para que el store degrade/avise.
+  // Prompt a mano en formato gemma-4 + `prompt` directo (no `messages`): esta ruta de completion NO
+  // pasa por minja, así que ninguna rareza de la plantilla embebida puede romper la inferencia.
+  // Timeout: si se atasca, al vencer abortamos con stopCompletion (corta de verdad, libera CPU).
   const result = await withTimeout(
     llama.completion({
-      messages: [
-        { role: 'system', content: systemContent },
-        { role: 'user', content: userMessage },
-      ],
+      prompt: buildGemmaPrompt(systemContent, userMessage),
       n_predict: N_PREDICT,
       temperature: TEMPERATURE,
       top_p: TOP_P,
@@ -318,10 +336,7 @@ export async function generateHabitInsight(
   const llama = await ensureContext(modelPath);
   const result = await withTimeout(
     llama.completion({
-      messages: [
-        { role: 'system', content: buildHabitInsightPrompt(ctx, language) },
-        { role: 'user', content: HABIT_INSIGHT_PROMPT[language] },
-      ],
+      prompt: buildGemmaPrompt(buildHabitInsightPrompt(ctx, language), HABIT_INSIGHT_PROMPT[language]),
       n_predict: N_PREDICT,
       temperature: TEMPERATURE,
       top_p: TOP_P,
