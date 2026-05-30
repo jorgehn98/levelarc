@@ -19,15 +19,15 @@ import { colors } from '@/theme/colors';
 //   celebrate → verde (logro), serious → rojo (corrección), neutral → cian (identidad de marca).
 export const CHARACTER_POSES: Record<InterjectionTone, { source?: ImageSourcePropType; accent: string }> = {
   celebrate: {
-    // source: require('../../assets/character/celebrate.png'),
+    source: require('../../assets/character/celebrate.png'),
     accent: colors.state.completed,
   },
   serious: {
-    // source: require('../../assets/character/serious.png'),
+    source: require('../../assets/character/serious.png'),
     accent: colors.state.failed,
   },
   neutral: {
-    // source: require('../../assets/character/neutral.png'),
+    source: require('../../assets/character/neutral.png'),
     accent: colors.brand.cyanCore,
   },
 };

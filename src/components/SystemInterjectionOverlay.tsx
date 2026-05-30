@@ -110,9 +110,10 @@ export function SystemInterjectionOverlay() {
 
       <View pointerEvents="box-none" style={[styles.dock, { paddingBottom: insets.bottom + 16 }]}>
         <Animated.View style={[styles.row, panelStyle]}>
-          {/* Personaje: avatar circular (emblema placeholder o sprite) con glow del tono. */}
-          <View style={[styles.avatar, { borderColor: accent }, shadows.rankGlow(accent)]}>
-            <Image accessibilityIgnoresInvertColors resizeMode="contain" source={pose.source} style={styles.avatarImage} />
+          {/* Personaje del Sistema: asoma grande desde abajo con un aura del tono. */}
+          <View style={styles.character}>
+            <View style={[styles.characterAura, { backgroundColor: accent }, shadows.rankGlow(accent)]} />
+            <Image accessibilityIgnoresInvertColors resizeMode="contain" source={pose.source} style={styles.characterImage} />
           </View>
 
           {/* Bocadillo con colita apuntando al personaje. */}
@@ -156,8 +157,6 @@ export function SystemInterjectionOverlay() {
   );
 }
 
-const AVATAR_SIZE = 64;
-
 const styles = StyleSheet.create({
   scrim: {
     backgroundColor: colors.background.voidDeep,
@@ -172,24 +171,28 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'flex-end',
     flexDirection: 'row',
-    gap: 8,
-    maxWidth: 460,
+    gap: 4,
+    maxWidth: 480,
     width: '100%',
   },
-  avatar: {
+  character: {
     alignItems: 'center',
-    backgroundColor: colors.background.surfaceRaised,
-    borderRadius: AVATAR_SIZE / 2,
-    borderWidth: 1.5,
-    height: AVATAR_SIZE,
-    justifyContent: 'center',
-    marginBottom: 6,
-    overflow: 'hidden',
-    width: AVATAR_SIZE,
+    height: 150,
+    justifyContent: 'flex-end',
+    marginBottom: 2,
+    width: 120,
   },
-  avatarImage: {
-    height: '78%',
-    width: '78%',
+  characterAura: {
+    borderRadius: 44,
+    bottom: 10,
+    height: 88,
+    opacity: 0.22,
+    position: 'absolute',
+    width: 88,
+  },
+  characterImage: {
+    height: '100%',
+    width: '100%',
   },
   bubbleWrap: {
     flex: 1,
