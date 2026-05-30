@@ -1,4 +1,4 @@
-import { ChevronRight, Cpu, MessageCircle, X } from 'lucide-react-native';
+import { Cpu, MessageCircle, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -18,14 +18,19 @@ import { useAiStore } from '@/stores/aiStore';
 import { colors, radii, shadows, typography } from '@/theme/colors';
 import { getCharacterPose } from '@/components/systemCharacter';
 
-const ENTER_MS = 360;
-const EXIT_MS = 220;
+const ENTER_MS = 340;
+const EXIT_MS = 200;
 
-// Overlay global de las "Apariciones del Sistema": el Sistema "asoma" por la parte INFERIOR de la
-// pantalla con su personaje (placeholder = emblema) y un bocadillo, y el usuario decide Continuar
-// (abre el chat con contexto) o Cerrar. Lee `interjection` del aiStore: si es null no renderiza nada.
-// Se monta una sola vez en app/_layout.tsx, encima del Stack. Va ABAJO para no chocar con la
-// CelebrationOverlay (toast arriba).
+// Tiempo que NYX permanece visible si el jugador no interactúa. Es un "peek" efímero: aparece en la
+// esquina, dice lo suyo y se retira sola para no estorbar. Suficiente para leer 1-2 frases.
+const AUTO_DISMISS_MS = 14_000;
+
+// Overlay global de las apariciones de NYX. CLAVE de diseño: NO es un modal. Asoma en la ESQUINA
+// inferior derecha, SIN scrim y SIN capturar los toques de fuera (pointerEvents="box-none" en todos
+// los contenedores), así que el jugador puede seguir usando la app mientras NYX está en pantalla.
+// Toda la tarjeta lleva al chat (con contexto); la X la cierra; y si no haces nada, se va sola tras
+// AUTO_DISMISS_MS. Se monta una vez en app/_layout.tsx, encima del Stack. Lee `interjection` del
+// aiStore: si es null no renderiza nada.
 export function SystemInterjectionOverlay() {
   const language = useAppStore((state) => state.language);
   const interjection = useAiStore((state) => state.interjection);
@@ -40,18 +45,19 @@ export function SystemInterjectionOverlay() {
   const [shown, setShown] = useState<typeof interjection>(null);
 
   const progress = useSharedValue(0);
-  // Guard contra doble disparo (toque rápido en Continuar/Cerrar mientras anima la salida).
+  // Guard contra doble disparo (toque rápido en la tarjeta/X o auto-cierre solapado con un toque).
   const isClosing = useRef(false);
 
-  // Sincroniza la aparición del store con la copia local y dispara la animación de entrada.
+  // Sincroniza la aparición del store con la copia local y dispara la animación de entrada (desliza
+  // desde la esquina con un leve rebote).
   useEffect(() => {
     if (!interjection) return;
     isClosing.current = false;
     setShown(interjection);
     progress.value = 0;
     progress.value = withSequence(
-      withTiming(1.04, { duration: ENTER_MS, easing: Easing.out(Easing.cubic) }),
-      withTiming(1, { duration: 140, easing: Easing.out(Easing.quad) }),
+      withTiming(1.03, { duration: ENTER_MS, easing: Easing.out(Easing.cubic) }),
+      withTiming(1, { duration: 130, easing: Easing.out(Easing.quad) }),
     );
   }, [interjection, progress]);
 
@@ -88,13 +94,20 @@ export function SystemInterjectionOverlay() {
     });
   }, [animateOut, continueFromInterjection, router]);
 
-  const scrimStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(progress.value, 1) * 0.5,
-  }));
+  // Auto-cierre: mientras haya una aparición visible y el jugador no actúe, se retira sola. Si toca la
+  // tarjeta o la X, animateOut marca isClosing y este timer (al vencer) cae en el guard, sin efecto.
+  useEffect(() => {
+    if (!shown) return;
+    const timer = setTimeout(handleClose, AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [shown, handleClose]);
 
   const panelStyle = useAnimatedStyle(() => ({
     opacity: Math.min(progress.value, 1),
-    transform: [{ translateY: (1 - Math.min(progress.value, 1)) * 40 }, { scale: progress.value }],
+    transform: [
+      { translateY: (1 - Math.min(progress.value, 1)) * 28 },
+      { scale: 0.96 + Math.min(progress.value, 1) * 0.04 },
+    ],
   }));
 
   if (!shown) return null;
@@ -104,53 +117,54 @@ export function SystemInterjectionOverlay() {
 
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      {/* Scrim ligero: oscurece un poco el fondo y cierra al tocar fuera del panel. */}
-      <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]} />
-      <Pressable accessibilityLabel={t(language, 'close')} onPress={handleClose} style={StyleSheet.absoluteFill} />
-
-      <View pointerEvents="box-none" style={[styles.dock, { paddingBottom: insets.bottom + 16 }]}>
-        <Animated.View style={[styles.row, panelStyle]}>
-          {/* Personaje del Sistema: asoma grande desde abajo con un aura del tono. */}
-          <View style={styles.character}>
-            <View style={[styles.characterAura, { backgroundColor: accent }, shadows.rankGlow(accent)]} />
-            <Image accessibilityIgnoresInvertColors resizeMode="contain" source={pose.source} style={styles.characterImage} />
-          </View>
-
-          {/* Bocadillo con colita apuntando al personaje. */}
-          <View style={styles.bubbleWrap}>
-            <View style={[styles.tail, { borderRightColor: accent }]} />
-            <View style={[styles.bubble, { borderColor: accent }]}>
-              <Pressable accessibilityLabel={t(language, 'close')} hitSlop={8} onPress={handleClose} style={styles.closeButton}>
-                <X color={colors.brand.boneMuted} size={16} />
-              </Pressable>
-
-              <View style={styles.bubbleHeader}>
-                <Text style={[styles.kicker, { color: accent }]}>{t(language, 'systemChatLabel')}</Text>
-                {shown.fromAi ? (
-                  <View style={[styles.aiBadge, { borderColor: accent }]}>
-                    <Cpu color={accent} size={11} />
-                    <Text style={[styles.aiBadgeText, { color: accent }]}>{t(language, 'systemMessageAiBadge')}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              <Text style={styles.text}>{shown.text}</Text>
-
-              <View style={styles.actions}>
+      {/* Sin scrim ni capa de cierre: los toques de fuera de la tarjeta pasan a la app (no bloquea). */}
+      <View pointerEvents="box-none" style={[styles.dock, { paddingBottom: insets.bottom + 14 }]}>
+        <Animated.View style={panelStyle}>
+          <Pressable
+            accessibilityHint={t(language, 'systemChatTapToReply')}
+            accessibilityLabel={t(language, 'systemChatLabel')}
+            accessibilityRole="button"
+            onPress={handleContinue}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+          >
+            {/* Bocadillo compacto a la izquierda, con colita apuntando a la derecha (al personaje). */}
+            <View style={styles.bubbleWrap}>
+              <View style={[styles.bubble, { borderColor: accent }]}>
                 <Pressable
-                  onPress={handleContinue}
-                  style={({ pressed }) => [styles.primaryButton, { borderColor: accent }, pressed && styles.pressed]}
+                  accessibilityLabel={t(language, 'close')}
+                  hitSlop={10}
+                  onPress={handleClose}
+                  style={styles.closeButton}
                 >
-                  <MessageCircle color={accent} size={16} />
-                  <Text style={[styles.primaryLabel, { color: accent }]}>{t(language, 'continue')}</Text>
-                  <ChevronRight color={accent} size={16} />
+                  <X color={colors.brand.boneMuted} size={15} />
                 </Pressable>
-                <Pressable onPress={handleClose} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                  <Text style={styles.secondaryLabel}>{t(language, 'close')}</Text>
-                </Pressable>
+
+                <View style={styles.bubbleHeader}>
+                  <Text style={[styles.kicker, { color: accent }]}>{t(language, 'systemChatLabel')}</Text>
+                  {shown.fromAi ? (
+                    <View style={[styles.aiBadge, { borderColor: accent }]}>
+                      <Cpu color={accent} size={10} />
+                      <Text style={[styles.aiBadgeText, { color: accent }]}>{t(language, 'systemMessageAiBadge')}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <Text style={styles.text}>{shown.text}</Text>
+
+                <View style={styles.hintRow}>
+                  <MessageCircle color={colors.brand.boneMuted} size={12} />
+                  <Text style={styles.hint}>{t(language, 'systemChatTapToReply')}</Text>
+                </View>
               </View>
+              <View style={[styles.tail, { borderLeftColor: accent }]} />
             </View>
-          </View>
+
+            {/* Personaje de NYX: asoma en la esquina derecha con un aura del tono. */}
+            <View style={styles.character}>
+              <View style={[styles.characterAura, { backgroundColor: accent }, shadows.rankGlow(accent)]} />
+              <Image accessibilityIgnoresInvertColors resizeMode="contain" source={pose.source} style={styles.characterImage} />
+            </View>
+          </Pressable>
         </Animated.View>
       </View>
     </View>
@@ -158,78 +172,53 @@ export function SystemInterjectionOverlay() {
 }
 
 const styles = StyleSheet.create({
-  scrim: {
-    backgroundColor: colors.background.voidDeep,
-  },
+  // Anclado abajo a la DERECHA: la tarjeta es un peek de esquina, no un panel centrado.
   dock: {
     bottom: 0,
-    left: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     position: 'absolute',
     right: 0,
   },
   row: {
     alignItems: 'flex-end',
+    alignSelf: 'flex-end',
     flexDirection: 'row',
-    gap: 4,
-    maxWidth: 480,
-    width: '100%',
+    gap: 2,
+    maxWidth: 340,
   },
-  character: {
-    alignItems: 'center',
-    height: 150,
-    justifyContent: 'flex-end',
-    marginBottom: 2,
-    width: 120,
-  },
-  characterAura: {
-    borderRadius: 44,
-    bottom: 10,
-    height: 88,
-    opacity: 0.22,
-    position: 'absolute',
-    width: 88,
-  },
-  characterImage: {
-    height: '100%',
-    width: '100%',
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
   bubbleWrap: {
-    flex: 1,
+    alignItems: 'flex-end',
     flexDirection: 'row',
+    flexShrink: 1,
     minWidth: 0,
-  },
-  tail: {
-    alignSelf: 'flex-end',
-    borderBottomColor: 'transparent',
-    borderBottomWidth: 8,
-    borderRightWidth: 10,
-    borderTopColor: 'transparent',
-    borderTopWidth: 8,
-    marginBottom: 18,
   },
   bubble: {
     backgroundColor: colors.background.surfaceRaised,
     borderRadius: radii.md,
     borderWidth: 1,
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
-    padding: 14,
-    paddingRight: 30,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    paddingRight: 26,
   },
   closeButton: {
     position: 'absolute',
-    right: 8,
-    top: 8,
+    right: 7,
+    top: 7,
   },
   bubbleHeader: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
   },
   kicker: {
     fontFamily: typography.font.displayMedium,
-    fontSize: 11,
+    fontSize: 10,
     textTransform: 'uppercase',
   },
   aiBadge: {
@@ -238,7 +227,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 3,
-    paddingHorizontal: 5,
+    paddingHorizontal: 4,
     paddingVertical: 1,
   },
   aiBadgeText: {
@@ -248,46 +237,48 @@ const styles = StyleSheet.create({
   text: {
     color: colors.brand.bone,
     fontFamily: typography.font.bodyRegular,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  hintRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
     marginTop: 8,
   },
-  actions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 14,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.background.card,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 40,
-    paddingHorizontal: 14,
-  },
-  primaryLabel: {
-    fontFamily: typography.font.bodyMedium,
-    fontSize: 14,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: colors.background.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 40,
-    paddingHorizontal: 14,
-  },
-  secondaryLabel: {
+  hint: {
     color: colors.brand.boneMuted,
-    fontFamily: typography.font.bodyMedium,
-    fontSize: 14,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+    textTransform: 'uppercase',
   },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.97 }],
+  // Colita del bocadillo apuntando a la derecha (hacia el personaje).
+  tail: {
+    alignSelf: 'center',
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 7,
+    borderLeftWidth: 9,
+    borderTopColor: 'transparent',
+    borderTopWidth: 7,
+  },
+  character: {
+    alignItems: 'center',
+    height: 116,
+    justifyContent: 'flex-end',
+    marginBottom: 2,
+    width: 92,
+  },
+  characterAura: {
+    borderRadius: 38,
+    bottom: 8,
+    height: 70,
+    opacity: 0.22,
+    position: 'absolute',
+    width: 70,
+  },
+  characterImage: {
+    height: '100%',
+    width: '100%',
   },
 });

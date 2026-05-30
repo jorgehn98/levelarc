@@ -75,8 +75,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeou
   });
 }
 
-// Mensaje interno que dispara el saludo proactivo (el LLM no recibe texto del usuario al abrir el
-// chat). En el idioma del jugador para que la respuesta salga en ese idioma.
+// ============================================================================
+// PROMPT EN DOS CAPAS
+// ----------------------------------------------------------------------------
+// CAPA 1 — BASE: NYX_PERSONA (definida más abajo, junto a buildSystemPrompt).
+//   Identidad + carácter + reglas globales de NYX. SIEMPRE se inserta como
+//   system prompt, en cualquier acción/momento.
+// CAPA 2 — ACCIÓN: las constantes de esta sección. La instrucción CONCRETA del
+//   momento (saludo del chat, parte del día, comentario de hábito, o cada una de
+//   las apariciones). Se inyecta como turno de USUARIO sobre la base: NYX (capa 1)
+//   interpreta ese encargo (capa 2) con su voz.
+// Para integrar un momento nuevo basta con añadir su instrucción de CAPA 2 aquí;
+// la CAPA 1 nunca se toca.
+// ============================================================================
+
+// Capa 2 · saludo proactivo del chat (el LLM no recibe texto del usuario al abrir el chat). En el
+// idioma del jugador para que la respuesta salga en ese idioma.
 const GREETING_PROMPT: Record<Language, string> = {
   es: 'Saluda al jugador y comenta brevemente su estado.',
   en: 'Greet the player and briefly comment on their status.',
@@ -104,7 +118,7 @@ const HABIT_INSIGHT_PROMPT: Record<Language, string> = {
   en: 'Comment on this habit\'s performance in ONE short, terse sentence: read its consistency, streak and recent failures. No filler.',
 };
 
-// Descripción del evento que dispara cada aparición del Sistema, por idioma. Se inyecta como
+// Capa 2 · descripción del evento que dispara cada aparición de NYX, por idioma. Se inyecta como
 // "mensaje de usuario" interno para que el LLM genere 1-2 frases comentando ese evento concreto.
 const INTERJECTION_DESCRIPTION: Record<InterjectionTrigger, Record<Language, string>> = {
   mission_complete: {
@@ -126,6 +140,14 @@ const INTERJECTION_DESCRIPTION: Record<InterjectionTrigger, Record<Language, str
   mission_failed: {
     es: 'El jugador cerró el día sin completar su misión diaria. Señálalo sin hundirlo y dile que lo recupere.',
     en: 'The player closed the day without completing their daily mission. Point it out without crushing them and tell them to recover.',
+  },
+  level_up: {
+    es: 'El jugador acaba de subir de nivel. Reconoce el ascenso con frialdad y recuérdale que el siguiente nivel ya le espera.',
+    en: 'The player just leveled up. Acknowledge the ascent coldly and remind them the next level already awaits.',
+  },
+  streak_broken: {
+    es: 'El jugador acaba de romper una racha de un hábito que mantenía. Señala la pérdida sin clemencia pero sin hundirlo, y exígele reconstruirla desde hoy.',
+    en: 'The player just broke a habit streak they were keeping. Point out the loss without mercy but without crushing them, and demand they rebuild it from today.',
   },
 };
 
