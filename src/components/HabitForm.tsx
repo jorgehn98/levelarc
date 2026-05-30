@@ -583,11 +583,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     marginTop: 2,
   },
-  segmentRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
   typeGrid: {
     flexDirection: 'row',
     gap: 10,

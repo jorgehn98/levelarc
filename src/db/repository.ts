@@ -664,6 +664,24 @@ export async function clearAiMessages(): Promise<void> {
 // Arma el SystemContext leyendo el estado actual: jugador, hábitos de hoy, misión diaria y la mayor
 // racha perfecta vista. Reutiliza helpers existentes (getLevelProgress, getAttributeLevelProgress)
 // para no duplicar la lógica de nivel/atributos.
+// Proxy normalizada 0..1 de la racha programada, usada como `ratio` del eslabón débil cuando no hay
+// consistencia 30d barata a mano: 0 con racha 0, satura a 1 a la semana. Misma lógica en web.
+function streakToRatio(streak: number): number {
+  return Math.min(Math.max(streak, 0), 7) / 7;
+}
+
+// ¿Es `habit` (pendiente, racha `streak`) peor eslabón que el actual? Menor racha gana; en empate,
+// mayor importancia. Determinista y compartido por nativo y web para paridad.
+function isWeakerLink(
+  current: { habit: TodayHabit; streak: number } | null,
+  habit: TodayHabit,
+  streak: number,
+): boolean {
+  if (!current) return true;
+  if (streak !== current.streak) return streak < current.streak;
+  return habit.importancia > current.habit.importancia;
+}
+
 export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemContext> {
   const player = await ensurePlayer();
   const todayHabits = await listTodayHabits(dateKey);
@@ -698,6 +716,11 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
   // memoria, evitando un query por hábito (N+1). El resultado es idéntico a getHabitCompletionStreak.
   const completedDatesByHabit = await getCompletedDatesByHabit(dateKey);
   let mejorRachaHabito = 0;
+  // Eslabón débil del día: de los hábitos AÚN pendientes, el de peor racha programada (la señal más
+  // barata, ya calculada aquí para mejorRachaHabito; no añade queries). Empate -> mayor importancia.
+  // El ratio es una proxy normalizada de la racha (satura a la semana), sin consistencia 30d (que
+  // sería N+1). null si no hay pendientes; el briefing degrada solo.
+  let eslabonDebil: { habit: TodayHabit; streak: number } | null = null;
   for (const habit of todayHabits) {
     const priorStreak = getScheduledCompletionStreak(
       completedDatesByHabit.get(habit.id) ?? [],
@@ -706,6 +729,9 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
     );
     const streak = habit.estado === 'completado' ? priorStreak + 1 : priorStreak;
     if (streak > mejorRachaHabito) mejorRachaHabito = streak;
+    if (habit.estado === 'pendiente' && isWeakerLink(eslabonDebil, habit, priorStreak)) {
+      eslabonDebil = { habit, streak: priorStreak };
+    }
   }
 
   // Mayor racha perfecta vista (max de daily_missions.perfect_streak_days).
@@ -729,6 +755,9 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
     diaPerfecto,
     mejorRachaHabito,
     rachaPerfecta: Math.max(perfectStreakToday, perfectRow?.max ?? 0),
+    eslabonDebil: eslabonDebil
+      ? { nombre: eslabonDebil.habit.nombre, ratio: streakToRatio(eslabonDebil.streak) }
+      : null,
   };
 }
 

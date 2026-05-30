@@ -46,14 +46,23 @@ describe('xp ledger idempotence', () => {
     // El delta NOMINAL almacenado sigue siendo la penalización completa, no el recorte (que sería 0).
     expect(fail).toBe(-16);
 
-    // Reconstruir desde un ledger que lleva al jugador al suelo y luego falla reproduce el suelo.
+    // Invariante real del fix: reconstruir desde un ledger que sube al jugador, lo mantiene cerca del
+    // suelo y luego falla reproduce EXACTAMENTE el total que ve en vivo aplicando esa misma secuencia
+    // paso a paso (no basta con asertar >= 0; el suelo recorta el fallo, no lo lleva a cero).
     const toFloor = getCompletionXp(5, 1); // sube algo
-    const reconstructed = projectFromLedger([toFloor, fail, ...buildToFloor(floorL2 - toFloor)]);
-    // El total reconstruido nunca cae por debajo de 0 ni del suelo del nivel alcanzado.
-    expect(reconstructed).toBeGreaterThanOrEqual(0);
+    const sequence = [toFloor, fail, ...buildToFloor(floorL2 - toFloor)];
+
+    let liveTotal = 0;
+    for (const delta of sequence) {
+      liveTotal = applyXpDelta(liveTotal, delta);
+    }
+
+    expect(projectFromLedger(sequence)).toBe(liveTotal);
+    // Y nunca cae por debajo de 0 (el suelo del nivel base es 0).
+    expect(projectFromLedger(sequence)).toBeGreaterThanOrEqual(0);
   });
 
-  it('is order-stable: the same nominal multiset reconstructs to the same live total', () => {
+  it('reconstructing in ledger order matches the live total', () => {
     const deltas = [
       getCompletionXp(2, 1),
       getCompletionXp(4, 5),

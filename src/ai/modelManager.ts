@@ -60,14 +60,6 @@ export function modelExists(): boolean {
   return getModelFile().exists;
 }
 
-// URI del modelo si existe, null si no (o en web). No se exporta: la ruta del modelo que consume
-// resolveEngine/llamaEngine llega vía el perfil (modelPath persistido al descargar), no por aquí.
-function getModelUri(): string | null {
-  if (!isNative) return null;
-  const file = getModelFile();
-  return file.exists ? file.uri : null;
-}
-
 // Descarga el modelo con progreso (ratio 0..1) y soporte de cancelación vía AbortSignal.
 // Devuelve la uri del fichero descargado. En web lanza: la IA avanzada no aplica ahí.
 // Si ya existe un fichero (posible descarga parcial/corrupta previa), lo borra antes de redescargar.
