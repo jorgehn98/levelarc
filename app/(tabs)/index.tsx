@@ -3,6 +3,7 @@ import { Check, Flame, Gift, Plus, Target } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
+import { EssenceBadge } from '@/components/EssenceBadge';
 import { HabitCard } from '@/components/HabitCard';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -15,6 +16,7 @@ import { colors, radii, typography } from '@/theme/colors';
 
 export default function TodayScreen() {
   const todayHabits = useAppStore((state) => state.todayHabits);
+  const player = useAppStore((state) => state.player);
   const dailyMission = useAppStore((state) => state.dailyMission);
   const incrementHabit = useAppStore((state) => state.incrementHabit);
   const failHabit = useAppStore((state) => state.failHabit);
@@ -37,11 +39,14 @@ export default function TodayScreen() {
         subtitle={t(language, 'habitsToday')}
         title={t(language, 'today')}
         action={(
-          <Link href="/habit/new" asChild>
-            <Pressable style={styles.addButton}>
-              <Plus color={colors.background.void} size={22} />
-            </Pressable>
-          </Link>
+          <View style={styles.headerActions}>
+            <EssenceBadge value={player?.esencia ?? 0} />
+            <Link href="/habit/new" asChild>
+              <Pressable style={styles.addButton}>
+                <Plus color={colors.background.void} size={22} />
+              </Pressable>
+            </Link>
+          </View>
         )}
       />
 
@@ -211,6 +216,11 @@ const styles = StyleSheet.create({
   scroll: {
     gap: 16,
     paddingBottom: 24,
+  },
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
   },
   addButton: {
     alignItems: 'center',

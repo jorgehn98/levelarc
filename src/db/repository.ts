@@ -1,7 +1,13 @@
 import { sqlite } from './client';
 import { migrateDb } from './migrate';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
-import { getLevelProgress } from '@/core/ranks';
+import {
+  getCompletionEssence,
+  getLevelUpEssenceBetween,
+  getMissionEssence,
+  getPerfectWeekEssence,
+} from '@/core/economy';
+import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
 import {
   DAILY_MISSION_BONUS_XP,
   PERFECT_WEEK_BONUS_XP,
@@ -66,6 +72,8 @@ export type PlayerRecord = {
   rango: Rank;
   rachaMisiones: number;
   atributosXp: AttributeXp;
+  esencia: number;
+  nivelEsenciaOtorgado: number;
   actualizadoEn: string;
 };
 
@@ -78,6 +86,7 @@ export type DailyMissionRecord = {
   perfectStreakDays: number;
   streakBonusClaimed: boolean;
   streakBonusXp: number;
+  esenciaOtorgada: number;
 };
 
 export type EventRecord = {
@@ -87,6 +96,7 @@ export type EventRecord = {
   tipoEvento: EventType;
   xpDelta: number;
   attributeDelta: AttributeXp;
+  esenciaOtorgada: number;
   registradoEn: string;
   habitName?: string;
 };
@@ -141,6 +151,8 @@ type PlayerRow = {
   rango: Rank;
   racha_misiones: number;
   atributos_xp: string | null;
+  esencia: number;
+  nivel_esencia_otorgado: number;
   actualizado_en: string;
 };
 
@@ -153,6 +165,7 @@ type DailyMissionRow = {
   perfect_streak_days: number;
   streak_bonus_claimed: number;
   streak_bonus_xp: number;
+  esencia_otorgada: number;
 };
 
 type EventRow = {
@@ -162,6 +175,7 @@ type EventRow = {
   tipo_evento: EventType;
   xp_delta: number;
   attribute_delta: string | null;
+  esencia_otorgada: number;
   registrado_en: string;
   nombre?: string;
 };
@@ -378,6 +392,19 @@ export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
   );
   if (!progress) return;
 
+  // Revertimos exactamente la esencia que se concedió al registrar los eventos (persistida en
+  // esencia_otorgada), no la recomputada desde la importancia actual: si la importancia cambió
+  // entre completar y deshacer, recomputar descuadraría el saldo. El nivel no baja, así que la
+  // esencia de nivel no se toca.
+  const revertable = await sqlite.getFirstAsync<{ total: number }>(
+    'SELECT COALESCE(SUM(esencia_otorgada), 0) as total FROM events WHERE habit_id = ? AND fecha = ?',
+    [habitId, dateKey],
+  );
+  const esenciaRevertida = revertable?.total ?? 0;
+  if (esenciaRevertida !== 0) {
+    await grantEssence(-esenciaRevertida);
+  }
+
   await sqlite.runAsync('DELETE FROM events WHERE habit_id = ? AND fecha = ?', [habitId, dateKey]);
   await sqlite.runAsync('DELETE FROM habit_daily_progress WHERE id = ?', [progress.id]);
   await syncDailyMission(dateKey);
@@ -410,8 +437,12 @@ export async function claimDailyMission(dateKey = toDateKey()) {
   const player = await ensurePlayer();
   const nextXp = applyXpDelta(player.xpTotal, mission.xpBonus);
   const nextMissionStreak = await getPreviousClaimedMissionStreak(dateKey) + 1;
-  await sqlite.runAsync('UPDATE daily_missions SET reclamada = 1 WHERE fecha = ?', [dateKey]);
+  // Persistimos la esencia concedida en el claim para revertir ese valor exacto si la misión
+  // deja de estar completa, en vez de recomputarla desde un objetivo que pudo cambiar.
+  const esenciaOtorgada = getMissionEssence(mission.objetivo);
+  await sqlite.runAsync('UPDATE daily_missions SET reclamada = 1, esencia_otorgada = ? WHERE fecha = ?', [esenciaOtorgada, dateKey]);
   await setPlayerProgress(nextXp, nextMissionStreak);
+  await grantEssence(esenciaOtorgada);
 }
 
 export async function claimPerfectWeekMission(dateKey = toDateKey()) {
@@ -421,6 +452,7 @@ export async function claimPerfectWeekMission(dateKey = toDateKey()) {
   const nextXp = applyXpDelta(player.xpTotal, mission.streakBonusXp);
   await sqlite.runAsync('UPDATE daily_missions SET streak_bonus_claimed = 1 WHERE fecha = ?', [dateKey]);
   await setPlayerProgress(nextXp);
+  await grantEssence(getPerfectWeekEssence());
 }
 
 export async function getRecentEvents(limit = 25): Promise<EventRecord[]> {
@@ -529,18 +561,18 @@ export async function importAllData(data: unknown) {
       for (const event of backup.events) {
         await tx.runAsync(
           `
-            INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, registrado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, esencia_otorgada, registrado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `,
-          [event.id, event.habitId, event.fecha, event.tipoEvento, event.xpDelta, serializeAttributeXp(event.attributeDelta), event.registradoEn],
+          [event.id, event.habitId, event.fecha, event.tipoEvento, event.xpDelta, serializeAttributeXp(event.attributeDelta), event.esenciaOtorgada, event.registradoEn],
         );
       }
 
       for (const mission of backup.dailyMissions) {
         await tx.runAsync(
           `
-            INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus, perfect_streak_days, streak_bonus_claimed, streak_bonus_xp)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO daily_missions (fecha, objetivo, completados, reclamada, xp_bonus, perfect_streak_days, streak_bonus_claimed, streak_bonus_xp, esencia_otorgada)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             mission.fecha,
@@ -551,12 +583,13 @@ export async function importAllData(data: unknown) {
             mission.perfectStreakDays,
             mission.streakBonusClaimed ? 1 : 0,
             mission.streakBonusXp,
+            mission.esenciaOtorgada,
           ],
         );
       }
 
       await tx.runAsync(
-        'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, esencia, nivel_esencia_otorgado, actualizado_en) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           'nombre' in player ? player.nombre : null,
           'xpTotal' in player ? player.xpTotal : 0,
@@ -564,6 +597,8 @@ export async function importAllData(data: unknown) {
           'rango' in player ? player.rango : 'E',
           'rachaMisiones' in player ? player.rachaMisiones : 0,
           'atributosXp' in player ? serializeAttributeXp(player.atributosXp) : '{}',
+          'esencia' in player ? player.esencia : 0,
+          'nivelEsenciaOtorgado' in player ? player.nivelEsenciaOtorgado : 1,
           'actualizadoEn' in player ? player.actualizadoEn : toIsoTimestamp(),
         ],
       );
@@ -588,22 +623,32 @@ async function markHabitComplete(habit: HabitRecord, dateKey: string, amount: nu
   const attributeDelta = getAttributeDeltas(xpDelta, habit.atributos);
   const nextAttributeXp = applyAttributeDeltas(player.atributosXp, attributeDelta);
 
+  const esenciaOtorgada = getCompletionEssence(habit.importancia);
+
   await sqlite.runAsync(
     'UPDATE habit_daily_progress SET cantidad = ?, estado = ?, actualizado_en = ? WHERE id = ?',
     [amount, 'completado', toIsoTimestamp(), progress.id],
   );
-  await createEvent(habit.id, dateKey, 'completado', nextXp - player.xpTotal, attributeDelta);
+  await createEvent(habit.id, dateKey, 'completado', nextXp - player.xpTotal, attributeDelta, esenciaOtorgada);
   await setPlayerProgress(nextXp, undefined, nextAttributeXp);
+  await grantEssence(esenciaOtorgada);
   await syncDailyMission(dateKey);
 }
 
-async function createEvent(habitId: string, dateKey: string, type: EventType, xpDelta: number, attributeDelta = createEmptyAttributeXp()) {
+async function createEvent(
+  habitId: string,
+  dateKey: string,
+  type: EventType,
+  xpDelta: number,
+  attributeDelta = createEmptyAttributeXp(),
+  esenciaOtorgada = 0,
+) {
   await sqlite.runAsync(
     `
-      INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, registrado_en)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO events (id, habit_id, fecha, tipo_evento, xp_delta, attribute_delta, esencia_otorgada, registrado_en)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    [createId(), habitId, dateKey, type, xpDelta, serializeAttributeXp(attributeDelta), toIsoTimestamp()],
+    [createId(), habitId, dateKey, type, xpDelta, serializeAttributeXp(attributeDelta), esenciaOtorgada, toIsoTimestamp()],
   );
 }
 
@@ -634,10 +679,20 @@ async function ensurePlayer(): Promise<PlayerRecord> {
 
   const now = toIsoTimestamp();
   await sqlite.runAsync(
-    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, actualizado_en) VALUES (1, null, 0, 1, ?, 0, ?, ?)',
+    'INSERT INTO player (id, nombre, xp_total, nivel, rango, racha_misiones, atributos_xp, esencia, nivel_esencia_otorgado, actualizado_en) VALUES (1, null, 0, 1, ?, 0, ?, 0, 1, ?)',
     ['E', '{}', now],
   );
-  return { nombre: null, xpTotal: 0, nivel: 1, rango: 'E', rachaMisiones: 0, atributosXp: createEmptyAttributeXp(), actualizadoEn: now };
+  return {
+    nombre: null,
+    xpTotal: 0,
+    nivel: 1,
+    rango: 'E',
+    rachaMisiones: 0,
+    atributosXp: createEmptyAttributeXp(),
+    esencia: 0,
+    nivelEsenciaOtorgado: 1,
+    actualizadoEn: now,
+  };
 }
 
 async function ensureDailyMission(dateKey: string) {
@@ -679,8 +734,8 @@ async function syncDailyMission(dateKey: string) {
   const objective = target?.count ?? 0;
   const done = completed?.count ?? 0;
   const bonus = getDailyMissionBonus(objective);
-  const current = await sqlite.getFirstAsync<{ reclamada: number; streak_bonus_claimed: number }>(
-    'SELECT reclamada, streak_bonus_claimed FROM daily_missions WHERE fecha = ?',
+  const current = await sqlite.getFirstAsync<{ reclamada: number; streak_bonus_claimed: number; esencia_otorgada: number }>(
+    'SELECT reclamada, streak_bonus_claimed, esencia_otorgada FROM daily_missions WHERE fecha = ?',
     [dateKey],
   );
   const claimed = objective > 0 ? current?.reclamada ?? 0 : 0;
@@ -689,18 +744,30 @@ async function syncDailyMission(dateKey: string) {
   const perfectStreakDays = isPerfectToday ? previousPerfectStreak + 1 : previousPerfectStreak;
   const missionClaimed = isPerfectToday ? claimed : 0;
   const streakBonusClaimed = isPerfectToday ? current?.streak_bonus_claimed ?? 0 : 0;
-  const shouldRecalculate = Boolean((claimed && !missionClaimed) || (current?.streak_bonus_claimed && !streakBonusClaimed));
+  const missionRevoked = Boolean(claimed && !missionClaimed);
+  const streakBonusRevoked = Boolean(current?.streak_bonus_claimed && !streakBonusClaimed);
+  const shouldRecalculate = missionRevoked || streakBonusRevoked;
+  // Si la misión se revoca, devolvemos exactamente lo concedido en el claim (persistido) y lo
+  // ponemos a 0; recomputar desde el objetivo actual descuadraría si el set de hábitos cambió.
+  const esenciaConcedida = current?.esencia_otorgada ?? 0;
+  const nextEsenciaOtorgada = missionRevoked ? 0 : esenciaConcedida;
 
   await sqlite.runAsync(
     `
       UPDATE daily_missions
-      SET objetivo = ?, completados = ?, xp_bonus = ?, reclamada = ?, perfect_streak_days = ?, streak_bonus_claimed = ?, streak_bonus_xp = ?
+      SET objetivo = ?, completados = ?, xp_bonus = ?, reclamada = ?, perfect_streak_days = ?, streak_bonus_claimed = ?, streak_bonus_xp = ?, esencia_otorgada = ?
       WHERE fecha = ?
     `,
-    [objective, done, bonus, missionClaimed, perfectStreakDays, streakBonusClaimed, PERFECT_WEEK_BONUS_XP, dateKey],
+    [objective, done, bonus, missionClaimed, perfectStreakDays, streakBonusClaimed, PERFECT_WEEK_BONUS_XP, nextEsenciaOtorgada, dateKey],
   );
 
   if (shouldRecalculate) {
+    // El XP se reconstruye desde el ledger; la esencia es gastable, así que la revertimos a mano.
+    if (missionRevoked) await grantEssence(-esenciaConcedida);
+    // La racha perfecta usa una constante (PERFECT_WEEK_ESSENCE), así que conceder y revertir
+    // siempre cuadra; no necesita persistirse. Si algún día se hace variable, habría que
+    // persistir su esencia igual que la misión diaria.
+    if (streakBonusRevoked) await grantEssence(-getPerfectWeekEssence());
     await recalculatePlayerFromEvents();
   }
 }
@@ -768,9 +835,32 @@ async function setPlayerProgress(xpTotal: number, rachaMisiones?: number, atribu
       toIsoTimestamp(),
     ],
   );
+  // Cualquier ganancia de XP puede subir de nivel, así que comprobamos aquí la esencia de nivel.
+  await syncLevelUpEssence();
+}
+
+// Suma (o resta, con delta negativo) esencia gastable, con suelo en cero.
+async function grantEssence(deltaEsencia: number) {
+  if (deltaEsencia === 0) return;
+  await sqlite.runAsync('UPDATE player SET esencia = MAX(0, esencia + ?) WHERE id = 1', [deltaEsencia]);
+}
+
+// Otorga esencia por las subidas de nivel pendientes. Idempotente y monotónico:
+// el nivel tiene suelo y nunca baja, así que recalcular XP nunca resta esencia de nivel.
+async function syncLevelUpEssence() {
+  const player = await ensurePlayer();
+  const nivelActual = getLevelFromXp(player.xpTotal);
+  if (nivelActual <= player.nivelEsenciaOtorgado) return;
+
+  const reward = getLevelUpEssenceBetween(player.nivelEsenciaOtorgado, nivelActual);
+  await grantEssence(reward);
+  await sqlite.runAsync('UPDATE player SET nivel_esencia_otorgado = ? WHERE id = 1', [nivelActual]);
 }
 
 async function recalculatePlayerFromEvents() {
+  // Solo reconstruye XP y atributos desde el ledger. La esencia es gastable (no derivada de
+  // eventos), así que NO se recalcula aquí; su reversión se gestiona en cada acción. El
+  // setPlayerProgress final llama a syncLevelUpEssence, que es idempotente y nunca resta.
   const rows = await sqlite.getAllAsync<{ xp_delta: number; attribute_delta: string | null; registrado_en: string }>(
     'SELECT xp_delta, attribute_delta, registrado_en FROM events ORDER BY registrado_en ASC',
   );
@@ -922,6 +1012,8 @@ function mapPlayer(row: PlayerRow): PlayerRecord {
     rango: row.rango,
     rachaMisiones: row.racha_misiones,
     atributosXp: normalizeAttributeXp(row.atributos_xp),
+    esencia: Math.max(0, Math.floor(row.esencia ?? 0)),
+    nivelEsenciaOtorgado: Math.max(1, Math.floor(row.nivel_esencia_otorgado ?? 1)),
     actualizadoEn: row.actualizado_en,
   };
 }
@@ -936,6 +1028,7 @@ function mapDailyMission(row: DailyMissionRow): DailyMissionRecord {
     perfectStreakDays: row.perfect_streak_days,
     streakBonusClaimed: Boolean(row.streak_bonus_claimed),
     streakBonusXp: row.streak_bonus_xp,
+    esenciaOtorgada: Math.max(0, Math.floor(row.esencia_otorgada ?? 0)),
   };
 }
 
@@ -947,6 +1040,7 @@ function mapEvent(row: EventRow): EventRecord {
     tipoEvento: row.tipo_evento,
     xpDelta: row.xp_delta,
     attributeDelta: normalizeAttributeXp(row.attribute_delta),
+    esenciaOtorgada: Math.max(0, Math.floor(row.esencia_otorgada ?? 0)),
     registradoEn: row.registrado_en,
     habitName: row.nombre,
   };
@@ -1025,6 +1119,7 @@ function normalizeEvent(row: unknown): EventRecord {
     tipoEvento: row.tipo_evento === 'fallado' || row.tipoEvento === 'fallado' ? 'fallado' : 'completado',
     xpDelta: asNumber(row.xp_delta ?? row.xpDelta),
     attributeDelta: normalizeAttributeXp(row.attribute_delta ?? row.attributeDelta),
+    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
     registradoEn: asString((row.registrado_en ?? row.registradoEn) || toIsoTimestamp()),
   };
 }
@@ -1040,19 +1135,23 @@ function normalizeMission(row: unknown): DailyMissionRecord {
     perfectStreakDays: Math.max(0, Math.floor(asNumber(row.perfect_streak_days ?? row.perfectStreakDays ?? 0))),
     streakBonusClaimed: asBoolean(row.streak_bonus_claimed ?? row.streakBonusClaimed),
     streakBonusXp: Math.max(0, Math.floor(asNumber(row.streak_bonus_xp ?? row.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
+    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
   };
 }
 
 function normalizePlayer(row: unknown): PlayerRecord | null {
   if (!isRecord(row)) return null;
   const progress = getLevelProgress(asNumber(row.xp_total ?? row.xpTotal));
+  const nivel = Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level)));
   return {
     nombre: nullableString(row.nombre ?? row.name),
     xpTotal: asNumber(row.xp_total ?? row.xpTotal),
-    nivel: Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level))),
+    nivel,
     rango: isRank(row.rango) ? row.rango : progress.rank,
     rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
     atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
+    esencia: Math.max(0, Math.floor(asNumber(row.esencia ?? 0))),
+    nivelEsenciaOtorgado: Math.max(1, Math.floor(asNumber(row.nivel_esencia_otorgado ?? row.nivelEsenciaOtorgado ?? nivel))),
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
   };
 }

@@ -24,6 +24,7 @@ export const events = sqliteTable('events', {
   tipoEvento: text('tipo_evento', { enum: ['completado', 'fallado'] }).notNull(),
   xpDelta: integer('xp_delta').notNull(),
   attributeDelta: text('attribute_delta').notNull().default('{}'),
+  esenciaOtorgada: integer('esencia_otorgada').notNull().default(0),
   registradoEn: text('registrado_en').notNull(),
 });
 
@@ -50,6 +51,8 @@ export const player = sqliteTable('player', {
   rango: text('rango', { enum: ['E', 'D', 'C', 'B', 'A', 'S'] }).notNull().default('E'),
   rachaMisiones: integer('racha_misiones').notNull().default(0),
   atributosXp: text('atributos_xp').notNull().default('{}'),
+  esencia: integer('esencia').notNull().default(0),
+  nivelEsenciaOtorgado: integer('nivel_esencia_otorgado').notNull().default(1),
   actualizadoEn: text('actualizado_en').notNull(),
 });
 
@@ -62,4 +65,5 @@ export const dailyMissions = sqliteTable('daily_missions', {
   perfectStreakDays: integer('perfect_streak_days').notNull().default(0),
   streakBonusClaimed: integer('streak_bonus_claimed', { mode: 'boolean' }).notNull().default(false),
   streakBonusXp: integer('streak_bonus_xp').notNull().default(30),
+  esenciaOtorgada: integer('esencia_otorgada').notNull().default(0),
 });

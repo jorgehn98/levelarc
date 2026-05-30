@@ -6,7 +6,13 @@ import {
   getClaimedDailyMissionStreak,
   getDailyMissionBonus,
 } from '@/core/missions';
-import { getLevelProgress } from '@/core/ranks';
+import {
+  getCompletionEssence,
+  getLevelUpEssenceBetween,
+  getMissionEssence,
+  getPerfectWeekEssence,
+} from '@/core/economy';
+import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
 import { getScheduledCompletionStreak } from '@/core/streaks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import {
@@ -65,6 +71,8 @@ export type PlayerRecord = {
   rango: Rank;
   rachaMisiones: number;
   atributosXp: AttributeXp;
+  esencia: number;
+  nivelEsenciaOtorgado: number;
   actualizadoEn: string;
 };
 
@@ -77,6 +85,7 @@ export type DailyMissionRecord = {
   perfectStreakDays: number;
   streakBonusClaimed: boolean;
   streakBonusXp: number;
+  esenciaOtorgada: number;
 };
 
 export type EventRecord = {
@@ -86,6 +95,7 @@ export type EventRecord = {
   tipoEvento: EventType;
   xpDelta: number;
   attributeDelta: AttributeXp;
+  esenciaOtorgada: number;
   registradoEn: string;
   habitName?: string;
 };
@@ -268,11 +278,13 @@ export async function incrementHabitProgress(habitId: string, dateKey = toDateKe
     const streakDays = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
     const xpDelta = getCompletionXp(habit.importancia, streakDays + 1);
     const attributeDelta = getAttributeDeltas(xpDelta, habit.atributos);
+    const esenciaOtorgada = getCompletionEssence(habit.importancia);
     db.player.xpTotal = applyXpDelta(db.player.xpTotal, xpDelta);
     db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, attributeDelta);
     syncPlayer(db);
+    grantEssence(db, esenciaOtorgada);
     progress.estado = 'completado';
-    db.events.push(createEvent(habit, dateKey, 'completado', xpDelta, attributeDelta));
+    db.events.push(createEvent(habit, dateKey, 'completado', xpDelta, attributeDelta, esenciaOtorgada));
     syncMission(db, dateKey);
   }
   await saveDb(db);
@@ -302,10 +314,25 @@ export async function closeDay(dateKey = toDateKey()) {
       await markHabitFailed(habit.id, dateKey);
     }
   }
+  // Paridad con el nativo: sincronizamos la misión al cerrar el día. Aquí vive la revocación de
+  // esencia de misión, así que debe correr también en web.
+  const db = await loadDb();
+  if (syncMission(db, dateKey)) {
+    recalculatePlayerFromLedger(db);
+  }
+  await saveDb(db);
 }
 
 export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
   const db = await loadDb();
+  // Revertimos exactamente la esencia que se concedió al registrar los eventos (persistida en
+  // esenciaOtorgada), no la recomputada desde la importancia actual: si la importancia cambió
+  // entre completar y deshacer, recomputar descuadraría el saldo. El nivel no baja, así que la
+  // esencia de nivel no se toca.
+  const esenciaRevertida = db.events
+    .filter((event) => event.habitId === habitId && event.fecha === dateKey)
+    .reduce((total, event) => total + (event.esenciaOtorgada ?? 0), 0);
+  if (esenciaRevertida !== 0) grantEssence(db, -esenciaRevertida);
   db.events = db.events.filter((event) => !(event.habitId === habitId && event.fecha === dateKey));
   db.progress = db.progress.filter((progress) => !(progress.habitId === habitId && progress.fecha === dateKey));
   syncMission(db, dateKey);
@@ -314,6 +341,9 @@ export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
 }
 
 function recalculatePlayerFromLedger(db: WebDb) {
+  // Solo reconstruye XP y atributos desde el ledger. La esencia es gastable (no derivada de
+  // eventos), así que NO se recalcula aquí; su reversión se gestiona en cada acción. El
+  // syncPlayer final llama a syncLevelUpEssence, que es idempotente y nunca resta.
   db.player.xpTotal = 0;
   db.player.atributosXp = createEmptyAttributeXp();
   const ledger = [
@@ -369,10 +399,15 @@ export async function claimDailyMission(dateKey = toDateKey()) {
     recalculatePlayerFromLedger(db);
   }
   if (mission.reclamada || mission.completados < mission.objetivo) return;
+  // Persistimos la esencia concedida en el claim para revertir ese valor exacto si la misión
+  // deja de estar completa, en vez de recomputarla desde un objetivo que pudo cambiar.
+  const esenciaOtorgada = getMissionEssence(mission.objetivo);
   mission.reclamada = true;
+  mission.esenciaOtorgada = esenciaOtorgada;
   db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.xpBonus);
   db.player.rachaMisiones = getPreviousClaimedMissionStreak(db, dateKey) + 1;
   syncPlayer(db);
+  grantEssence(db, esenciaOtorgada);
   await saveDb(db);
 }
 
@@ -386,6 +421,7 @@ export async function claimPerfectWeekMission(dateKey = toDateKey()) {
   mission.streakBonusClaimed = true;
   db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.streakBonusXp);
   syncPlayer(db);
+  grantEssence(db, getPerfectWeekEssence());
   await saveDb(db);
 }
 
@@ -431,6 +467,7 @@ function ensureMission(db: WebDb, dateKey: string) {
       perfectStreakDays: 0,
       streakBonusClaimed: false,
       streakBonusXp: PERFECT_WEEK_BONUS_XP,
+      esenciaOtorgada: 0,
     };
     db.missions.push(mission);
   }
@@ -441,6 +478,7 @@ function syncMission(db: WebDb, dateKey: string) {
   const mission = ensureMission(db, dateKey);
   const wasClaimed = mission.reclamada;
   const wasStreakBonusClaimed = mission.streakBonusClaimed;
+  const claimedEssence = mission.esenciaOtorgada;
   const weekday = new Date(`${dateKey}T12:00:00`).getDay();
   const levelArcWeekday = weekday === 0 ? 7 : weekday;
   const scheduledHabitIds = new Set(
@@ -466,7 +504,22 @@ function syncMission(db: WebDb, dateKey: string) {
     mission.reclamada = false;
   }
 
-  return (wasClaimed && !mission.reclamada) || (wasStreakBonusClaimed && !mission.streakBonusClaimed);
+  const missionRevoked = wasClaimed && !mission.reclamada;
+  const streakBonusRevoked = wasStreakBonusClaimed && !mission.streakBonusClaimed;
+  // El XP se reconstruye desde el ledger en el llamador; la esencia es gastable, así que la
+  // revertimos aquí a mano para mantener coherencia con la concesión. Devolvemos exactamente lo
+  // concedido en el claim (persistido), no lo recomputado desde el objetivo actual, que pudo
+  // cambiar si el set de hábitos del día cambió; tras revocar lo ponemos a 0.
+  if (missionRevoked) {
+    grantEssence(db, -claimedEssence);
+    mission.esenciaOtorgada = 0;
+  }
+  // La racha perfecta usa una constante (PERFECT_WEEK_ESSENCE), así que conceder y revertir
+  // siempre cuadra; no necesita persistirse. Si algún día se hace variable, habría que persistir
+  // su esencia igual que la misión diaria.
+  if (streakBonusRevoked) grantEssence(db, -getPerfectWeekEssence());
+
+  return missionRevoked || streakBonusRevoked;
 }
 
 function getPreviousPerfectDayStreak(db: WebDb, dateKey: string) {
@@ -502,6 +555,21 @@ function syncPlayer(db: WebDb) {
   db.player.nivel = progress.level;
   db.player.rango = progress.rank;
   db.player.actualizadoEn = toIsoTimestamp();
+  syncLevelUpEssence(db);
+}
+
+// Suma (o resta, con delta negativo) esencia gastable, con suelo en cero.
+function grantEssence(db: WebDb, deltaEsencia: number) {
+  db.player.esencia = Math.max(0, db.player.esencia + deltaEsencia);
+}
+
+// Otorga esencia por las subidas de nivel pendientes. Idempotente y monotónico: el nivel
+// tiene suelo y nunca baja, así que recalcular XP nunca resta esencia de nivel.
+function syncLevelUpEssence(db: WebDb) {
+  const nivelActual = getLevelFromXp(db.player.xpTotal);
+  if (nivelActual <= db.player.nivelEsenciaOtorgado) return;
+  grantEssence(db, getLevelUpEssenceBetween(db.player.nivelEsenciaOtorgado, nivelActual));
+  db.player.nivelEsenciaOtorgado = nivelActual;
 }
 
 function getHabitCompletionStreak(db: WebDb, habitId: string, dateKey: string, weekdaysCsv: string) {
@@ -568,6 +636,7 @@ function createEvent(
   tipoEvento: EventType,
   xpDelta: number,
   attributeDelta = createEmptyAttributeXp(),
+  esenciaOtorgada = 0,
 ): EventRecord {
   return {
     id: createId(),
@@ -577,6 +646,7 @@ function createEvent(
     tipoEvento,
     xpDelta,
     attributeDelta,
+    esenciaOtorgada,
     registradoEn: toIsoTimestamp(),
   };
 }
@@ -587,18 +657,29 @@ async function loadDb(): Promise<WebDb> {
   const empty = createEmptyDb();
   const parsed = JSON.parse(raw) as Partial<WebDb>;
   const db = { ...empty, ...parsed, player: { ...empty.player, ...parsed.player } };
+  // Player antiguo sin esencia: anclamos el marcador de nivel al nivel actual para que la
+  // economía empiece a contar desde ahora y no regale esencia retroactiva por niveles ya
+  // alcanzados. Si ya trae el campo, lo respetamos.
+  if (parsed.player && parsed.player.nivelEsenciaOtorgado == null) {
+    db.player.nivelEsenciaOtorgado = db.player.nivel;
+  }
   db.habits = db.habits.map((habit) => ({
     ...habit,
     icono: normalizeHabitIcon(habit.icono),
     atributos: serializeHabitAttributes(habit.atributos),
   }));
-  db.events = db.events.map((event) => ({ ...event, attributeDelta: normalizeAttributeXp(event.attributeDelta) }));
+  db.events = db.events.map((event) => ({
+    ...event,
+    attributeDelta: normalizeAttributeXp(event.attributeDelta),
+    esenciaOtorgada: Math.max(0, Math.floor(Number(event.esenciaOtorgada ?? 0))),
+  }));
   db.player.atributosXp = normalizeAttributeXp(db.player.atributosXp);
   db.missions = db.missions.map((mission) => ({
     ...mission,
     perfectStreakDays: Math.max(0, Math.floor(Number(mission.perfectStreakDays ?? 0))),
     streakBonusClaimed: Boolean(mission.streakBonusClaimed),
     streakBonusXp: Math.max(0, Math.floor(Number(mission.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
+    esenciaOtorgada: Math.max(0, Math.floor(Number(mission.esenciaOtorgada ?? 0))),
   }));
   return db;
 }
@@ -620,6 +701,8 @@ function createEmptyDb(): WebDb {
       rango: progress.rank,
       rachaMisiones: 0,
       atributosXp: createEmptyAttributeXp(),
+      esencia: 0,
+      nivelEsenciaOtorgado: 1,
       actualizadoEn: toIsoTimestamp(),
     },
     missions: [],
@@ -679,6 +762,7 @@ function normalizeEvent(row: unknown): EventRecord {
     tipoEvento: row.tipo_evento === 'fallado' || row.tipoEvento === 'fallado' ? 'fallado' : 'completado',
     xpDelta: asNumber(row.xp_delta ?? row.xpDelta),
     attributeDelta: normalizeAttributeXp(row.attribute_delta ?? row.attributeDelta),
+    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
     registradoEn: asString((row.registrado_en ?? row.registradoEn) || toIsoTimestamp()),
   };
 }
@@ -694,6 +778,7 @@ function normalizeMission(row: unknown): DailyMissionRecord {
     perfectStreakDays: Math.max(0, Math.floor(asNumber(row.perfect_streak_days ?? row.perfectStreakDays ?? 0))),
     streakBonusClaimed: asBoolean(row.streak_bonus_claimed ?? row.streakBonusClaimed),
     streakBonusXp: Math.max(0, Math.floor(asNumber(row.streak_bonus_xp ?? row.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
+    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
   };
 }
 
@@ -701,13 +786,16 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
   if (!isRecord(row)) return null;
   const xpTotal = asNumber(row.xp_total ?? row.xpTotal);
   const progress = getLevelProgress(xpTotal);
+  const nivel = Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level)));
   return {
     nombre: nullableString(row.nombre ?? row.name),
     xpTotal,
-    nivel: Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level))),
+    nivel,
     rango: isRank(row.rango) ? row.rango : progress.rank,
     rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
     atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
+    esencia: Math.max(0, Math.floor(asNumber(row.esencia ?? 0))),
+    nivelEsenciaOtorgado: Math.max(1, Math.floor(asNumber(row.nivel_esencia_otorgado ?? row.nivelEsenciaOtorgado ?? nivel))),
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
   };
 }

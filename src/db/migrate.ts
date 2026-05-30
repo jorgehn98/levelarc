@@ -26,6 +26,7 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       tipo_evento text NOT NULL,
       xp_delta integer NOT NULL,
       attribute_delta text DEFAULT '{}' NOT NULL,
+      esencia_otorgada integer DEFAULT 0 NOT NULL,
       registrado_en text NOT NULL,
       FOREIGN KEY (habit_id) REFERENCES habits(id) ON UPDATE no action ON DELETE no action
     );
@@ -51,6 +52,8 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       rango text DEFAULT 'E' NOT NULL,
       racha_misiones integer DEFAULT 0 NOT NULL,
       atributos_xp text DEFAULT '{}' NOT NULL,
+      esencia integer DEFAULT 0 NOT NULL,
+      nivel_esencia_otorgado integer DEFAULT 1 NOT NULL,
       actualizado_en text NOT NULL
     );
 
@@ -62,7 +65,8 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       xp_bonus integer DEFAULT 10 NOT NULL,
       perfect_streak_days integer DEFAULT 0 NOT NULL,
       streak_bonus_claimed integer DEFAULT 0 NOT NULL,
-      streak_bonus_xp integer DEFAULT 30 NOT NULL
+      streak_bonus_xp integer DEFAULT 30 NOT NULL,
+      esencia_otorgada integer DEFAULT 0 NOT NULL
     );
   `);
 
@@ -91,6 +95,12 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
   }
 
   try {
+    await sqlite.execAsync('ALTER TABLE events ADD COLUMN esencia_otorgada integer DEFAULT 0 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
     await sqlite.execAsync('ALTER TABLE player ADD COLUMN nombre text;');
   } catch {
     // Column already exists in fresh databases and after the first migration.
@@ -98,6 +108,23 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
 
   try {
     await sqlite.execAsync("ALTER TABLE player ADD COLUMN atributos_xp text DEFAULT '{}' NOT NULL;");
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE player ADD COLUMN esencia integer DEFAULT 0 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE player ADD COLUMN nivel_esencia_otorgado integer DEFAULT 1 NOT NULL;');
+    // Solo corre la PRIMERA vez que se añade la columna (en bases existentes): anclamos el
+    // marcador al nivel actual para que la economía empiece a contar desde ahora y no regale
+    // esencia retroactiva por niveles ya alcanzados. En instalación nueva la tabla se crea con
+    // la columna, el ALTER falla y este UPDATE no llega a ejecutarse, dejando al jugador en 1.
+    await sqlite.execAsync('UPDATE player SET nivel_esencia_otorgado = nivel;');
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }
@@ -116,6 +143,12 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
 
   try {
     await sqlite.execAsync('ALTER TABLE daily_missions ADD COLUMN streak_bonus_xp integer DEFAULT 30 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE daily_missions ADD COLUMN esencia_otorgada integer DEFAULT 0 NOT NULL;');
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }

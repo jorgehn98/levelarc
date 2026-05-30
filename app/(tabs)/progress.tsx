@@ -1,4 +1,4 @@
-import { BarChart3, CalendarDays, Check, Clock, Flame, Shield, Sparkles, Target, Trophy, X } from 'lucide-react-native';
+import { BarChart3, CalendarDays, Check, Clock, Flame, Gem, Shield, Sparkles, Target, Trophy, X } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AttributeRadar } from '@/components/AttributeRadar';
@@ -135,6 +135,9 @@ export default function ProgressScreen() {
           <View style={styles.statsRow}>
             <StatTile color={colors.brand.cyanCore} icon={Target} label={t(language, 'activeHabits')} unit={t(language, 'missionsUnit')} value={activeHabits} />
             <StatTile color={colors.rank.S} icon={Sparkles} label={t(language, 'totalXp')} unit="XP" value={player?.xpTotal ?? 0} />
+          </View>
+          <View style={styles.statsRow}>
+            <StatTile color={colors.brand.cyanCore} icon={Gem} label={t(language, 'essence')} unit="ES" value={player?.esencia ?? 0} />
           </View>
         </View>
 
