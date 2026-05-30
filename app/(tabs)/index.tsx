@@ -1,5 +1,6 @@
-import { Link, router } from 'expo-router';
-import { Check, ChevronRight, Flame, Gift, Plus, Target, Terminal } from 'lucide-react-native';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { Check, Flame, Gift, Plus, Target } from 'lucide-react-native';
+import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -8,9 +9,11 @@ import { HabitCard } from '@/components/HabitCard';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
+import { SystemMessageCard } from '@/components/SystemMessageCard';
 import { getDailyMissionProgress, getPerfectWeekMissionProgress } from '@/core/missions';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
@@ -24,6 +27,17 @@ export default function TodayScreen() {
   const claimMission = useAppStore((state) => state.claimMission);
   const claimPerfectWeekMission = useAppStore((state) => state.claimPerfectWeekMission);
   const language = useAppStore((state) => state.language);
+  const ensureDailyMessage = useAiStore((state) => state.ensureDailyMessage);
+
+  // Recepción del Sistema: al enfocar Hoy aseguramos el mensaje del día. ensureDailyMessage es barato
+  // e idempotente (cachea por día), así que llamarlo en cada foco solo regenera si cambió el día o el
+  // mensaje no está fresco. Esto cubre también el rollover de día al volver a la pantalla.
+  useFocusEffect(
+    useCallback(() => {
+      void ensureDailyMessage();
+    }, [ensureDailyMessage]),
+  );
+
   const mission = getDailyMissionProgress(dailyMission?.completados ?? 0, dailyMission?.objetivo ?? todayHabits.length);
   const perfectWeekMission = getPerfectWeekMissionProgress(dailyMission?.perfectStreakDays ?? 0);
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
@@ -76,21 +90,7 @@ export default function TodayScreen() {
           ) : null}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/system-chat')}
-          style={styles.systemChatCard}
-        >
-          <View style={styles.systemChatIcon}>
-            <Terminal color={colors.brand.cyanCore} size={18} />
-          </View>
-          <View style={styles.systemChatCopy}>
-            <Text style={styles.kicker}>◆ {t(language, 'systemChatLabel')}</Text>
-            <Text style={styles.systemChatTitle}>{t(language, 'systemChatCardTitle')}</Text>
-            <Text style={styles.systemChatSub}>{t(language, 'systemChatCardCopy')}</Text>
-          </View>
-          <ChevronRight color={colors.brand.cyanCore} size={20} />
-        </Pressable>
+        <SystemMessageCard />
 
         {showPerfectWeekMission ? (
           <View style={[styles.missionPanel, styles.streakMissionPanel]}>
@@ -264,43 +264,6 @@ const styles = StyleSheet.create({
   },
   streakMissionPanel: {
     borderColor: `${colors.state.streak}88`,
-  },
-  systemChatCard: {
-    alignItems: 'center',
-    backgroundColor: colors.background.surface,
-    borderColor: colors.brand.cyanShadow,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-  },
-  systemChatIcon: {
-    alignItems: 'center',
-    backgroundColor: `${colors.brand.cyanCore}14`,
-    borderColor: colors.brand.cyanCore,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
-  systemChatCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  systemChatTitle: {
-    color: colors.brand.bone,
-    fontFamily: typography.font.bodyMedium,
-    fontSize: 15,
-    marginTop: 3,
-  },
-  systemChatSub: {
-    color: colors.state.pending,
-    fontFamily: typography.font.bodyRegular,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 2,
   },
   missionIcon: {
     alignItems: 'center',

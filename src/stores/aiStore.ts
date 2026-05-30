@@ -1,9 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
-import { resolveEngine } from '@/ai';
+import { resolveEngine, templateEngine } from '@/ai';
 import * as modelManager from '@/ai/modelManager';
 import { t } from '@/i18n';
+import { toDateKey } from '@/lib/date';
 import {
   addAiMessage,
   buildSystemContext,
@@ -28,6 +30,14 @@ type AiProfileState = {
   modelPath: string | null;
 };
 
+// Mensaje del día del Sistema que se muestra en la pantalla Hoy (SystemMessageCard). `fromAi` indica
+// si lo generó el LLM local (true) o el motor por plantillas (false), para mostrar el distintivo.
+type DailyMessage = {
+  date: string;
+  text: string;
+  fromAi: boolean;
+};
+
 type AiState = {
   messages: AiMessage[];
   profile: AiProfileState;
@@ -35,9 +45,15 @@ type AiState = {
   isReady: boolean;
   // Progreso de descarga del modelo (0..1). Lo rellenará la tarea de descarga; aquí es solo el gancho.
   modelProgress: number;
+  // Mensaje del día del Sistema para la pantalla Hoy. null hasta que ensureDailyMessage lo rellena.
+  dailyMessage: DailyMessage | null;
   loadAi: () => Promise<void>;
   openChat: () => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
+  // Genera el mensaje del día: plantilla al instante + LLM en background si está activo. Cachea por día.
+  ensureDailyMessage: () => Promise<void>;
+  // Fuerza regenerar el mensaje del día ignorando el cache de hoy (para un botón "actualizar").
+  refreshDailyMessage: () => Promise<void>;
   clearChat: () => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
   setEngine: (engine: AiEngine) => Promise<void>;
@@ -51,6 +67,37 @@ type AiState = {
 // AbortController de la descarga en curso (vive fuera del estado: no es UI, solo un handle de
 // cancelación). cancelDownload lo aborta; al terminar/fallar la descarga se limpia.
 let downloadController: AbortController | null = null;
+
+// Clave de AsyncStorage donde se cachea el mensaje del día (JSON DailyMessage). Persistir evita
+// regenerar al reabrir la app el mismo día y, sobre todo, evita reinferir con el LLM (lento) si ya
+// hay un mensaje fresco de IA para hoy.
+const DAILY_MESSAGE_KEY = 'levelarc.dailyMessage';
+
+// Lee el mensaje del día cacheado en AsyncStorage. Devuelve null si no hay nada o el JSON está
+// corrupto (no rompemos: simplemente se regenera).
+async function loadCachedDailyMessage(): Promise<DailyMessage | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_MESSAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DailyMessage;
+    if (typeof parsed?.date === 'string' && typeof parsed?.text === 'string' && typeof parsed?.fromAi === 'boolean') {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Persiste el mensaje del día. Si AsyncStorage falla, no rompemos: el estado en memoria ya está
+// seteado, solo se perderá el cache entre arranques.
+async function persistDailyMessage(message: DailyMessage): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DAILY_MESSAGE_KEY, JSON.stringify(message));
+  } catch {
+    // Cache best-effort: si no se puede escribir, seguimos con el estado en memoria.
+  }
+}
 
 // Resuelve un SystemReply del motor a texto en el idioma activo del appStore.
 // - kind 'key' (motor por plantillas): traduce la clave i18n con t(language, key, params). El
@@ -115,6 +162,7 @@ export const useAiStore = create<AiState>((set, get) => ({
   isGenerating: false,
   isReady: false,
   modelProgress: 0,
+  dailyMessage: null,
   loadAi: async () => {
     const [profile, messages] = await Promise.all([getAiProfile(), listAiMessages()]);
     // Normaliza divergencias del modelo (solo nativo) antes de proyectar al estado: 'downloading'
@@ -171,6 +219,76 @@ export const useAiStore = create<AiState>((set, get) => ({
     } finally {
       set({ isGenerating: false });
     }
+  },
+  // Asegura un mensaje del día del Sistema para la pantalla Hoy. Estrategia "instantáneo primero":
+  //  1) Si ya hay un mensaje en estado/cache de HOY y es suficientemente bueno (de IA, o el engine
+  //     activo no es llama), no regenera: no merece la pena reinferir con el LLM (lento).
+  //  2) Si no, genera SIEMPRE primero el texto de plantilla (síncrono, offline) y lo setea ya: Hoy
+  //     nunca se queda sin mensaje.
+  //  3) Si el engine activo es 'llama', regenera EN BACKGROUND con el LLM y, si tiene éxito, sustituye
+  //     el de plantilla por el de IA. Un fallo del LLM deja el de plantilla intacto (no rompe nada).
+  ensureDailyMessage: async () => {
+    // El perfil decide el motor (template/llama). Si todavía no se cargó (Hoy puede llamar antes de
+    // que nadie haya llamado a loadAi), lo cargamos: sin esto engine sería siempre 'template' y la IA
+    // nunca se usaría para el mensaje del día.
+    if (!get().isReady) await get().loadAi();
+
+    const today = toDateKey();
+    const isLlama = get().profile.engine === 'llama';
+
+    // ¿El mensaje de hoy ya es "lo bueno"? Lo es si viene de IA, o si el engine activo no es llama
+    // (en cuyo caso el de plantilla es lo máximo que vamos a tener).
+    const isFreshEnough = (message: DailyMessage | null): boolean =>
+      message?.date === today && (message.fromAi || !isLlama);
+
+    // 1) Estado en memoria ya fresco → nada que hacer.
+    if (isFreshEnough(get().dailyMessage)) return;
+
+    // 2) Cache de AsyncStorage: si es de hoy, úsalo como estado. Si además es "lo bueno", termina.
+    const cached = await loadCachedDailyMessage();
+    if (cached?.date === today) {
+      set({ dailyMessage: cached });
+      if (isFreshEnough(cached)) return;
+    }
+
+    // 3) Texto de plantilla SIEMPRE primero (instantáneo). Salvo que el cache de hoy ya traiga un
+    //    texto utilizable que estamos a punto de mejorar con IA: en ese caso no lo pisamos por uno
+    //    de plantilla mientras esperamos al LLM (evita parpadeo). Si no hay cache de hoy, generamos.
+    if (!cached || cached.date !== today) {
+      const language = useAppStore.getState().language;
+      const ctx = await buildSystemContext();
+      const text = resolveReply(await templateEngine.greeting(ctx, language));
+      const templateMessage: DailyMessage = { date: today, text, fromAi: false };
+      set({ dailyMessage: templateMessage });
+      await persistDailyMessage(templateMessage);
+    }
+
+    // 4) Si el engine activo NO es llama, ya hemos terminado: el de plantilla es definitivo.
+    if (!isLlama) return;
+
+    // 5) IA activa: regenera en background. El de plantilla ya está en pantalla; este lo sustituye al
+    //    terminar. Try/catch silencioso: si el LLM falla, dejamos el de plantilla (sin error en el
+    //    banner; el chat ya tiene su propio manejo de error).
+    try {
+      const language = useAppStore.getState().language;
+      const engine = await resolveEngine(get().profile);
+      if (engine.id !== 'llama') return;
+      const ctx = await buildSystemContext();
+      const text = resolveReply(await engine.greeting(ctx, language));
+      const aiMessage: DailyMessage = { date: today, text, fromAi: true };
+      set({ dailyMessage: aiMessage });
+      await persistDailyMessage(aiMessage);
+    } catch {
+      // El LLM falló (modelo ausente/OOM/inferencia): el mensaje de plantilla ya seteado sigue siendo
+      // válido. No mostramos error en el banner.
+    }
+  },
+  // Fuerza regenerar el mensaje del día ignorando el cache de hoy: borra el estado y delega en
+  // ensureDailyMessage, que volverá a generar plantilla + (si procede) IA.
+  refreshDailyMessage: async () => {
+    set({ dailyMessage: null });
+    await AsyncStorage.removeItem(DAILY_MESSAGE_KEY).catch(() => undefined);
+    await get().ensureDailyMessage();
   },
   clearChat: async () => {
     await clearAiMessages();

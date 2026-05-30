@@ -338,6 +338,9 @@ const dictionary = {
     systemChatClearConfirmTitle: 'Limpiar conversación',
     systemChatClearConfirmCopy: 'Se borrará todo el historial con el Sistema. Esta acción no se puede deshacer.',
     systemChatError: 'El Sistema no responde. Inténtalo de nuevo.',
+    // Banner "mensaje del día" del Sistema en la pantalla Hoy (SystemMessageCard).
+    systemMessageTapHint: 'Toca para hablar con el Sistema',
+    systemMessageAiBadge: 'IA',
     open: 'Abrir',
     // Gestión de la IA avanzada del Sistema (pantalla /system-ai y sus accesos).
     systemAiTitle: 'IA del Sistema',
@@ -729,6 +732,9 @@ const dictionary = {
     systemChatClearConfirmTitle: 'Clear chat',
     systemChatClearConfirmCopy: 'The entire history with the System will be deleted. This action cannot be undone.',
     systemChatError: 'The System is unresponsive. Try again.',
+    // System "message of the day" banner on the Today screen (SystemMessageCard).
+    systemMessageTapHint: 'Tap to talk to the System',
+    systemMessageAiBadge: 'AI',
     open: 'Open',
     // Advanced System AI management (the /system-ai screen and its entry points).
     systemAiTitle: 'System AI',
