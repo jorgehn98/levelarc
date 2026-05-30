@@ -101,7 +101,19 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Logros / medallas.
 - [x] Celebraciones y feedback de recompensa.
 - [x] Lectura de progreso por atributos mejorada.
-- [ ] IA local "el Sistema".
+- [x] IA local "el Sistema" (chat base por reglas, Fase 5A).
+
+## IA local — LLM on-device (5B, build nativo)
+
+Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hecha; esto es el LLM real on-device.
+
+- [ ] Instalar `llama.rn` + `expo-build-properties`.
+- [ ] Configurar el config plugin (resolver gotcha de pnpm, issue mybigday/llama.rn#243).
+- [ ] Implementar descarga de modelo (NEW File API de `expo-file-system`) + pantalla de gestión con progreso/reanudación.
+- [ ] Implementar `llamaEngine` real con streaming sobre la interface `SystemChatEngine`.
+- [ ] `expo prebuild` + EAS Build nativo (preview y luego production).
+- [ ] Bump de `runtimeVersion` (corta OTA: requiere reinstalar binario desde store).
+- [ ] Validar en Android real (RAM/batería/calor, toggle de IA obligatorio).
 
 ## Datos / lógica
 

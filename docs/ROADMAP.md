@@ -147,22 +147,31 @@ Pendiente dentro de v2.0:
 - Evolución del sistema de rachas si los datos reales lo piden.
 - Ajuste de curva XP si los datos reales lo piden.
 
-## v2.x — IA local opcional
+## v2.x — IA local "el Sistema"
 
-Estado: futuro documentado, no implementar aún.
+Estado: chat por reglas (Fase 5A) implementado; LLM on-device (Fase 5B) pendiente de build nativo.
 
-Objetivo: añadir personalidad del Sistema sin romper privacidad.
+Objetivo: añadir personalidad del Sistema sin romper privacidad. Referencia completa en `docs/IA-SISTEMA.md`.
 
-Según la biblia:
+Implementado (Fase 5A — chat del Sistema por reglas):
 
-- Modelo local descargable: Gemma 4 E2B GGUF Q4.
-- Integración probable: `llama.rn`.
-- Sin tool calling.
-- Sin subagentes.
-- Contexto determinista armado desde SQLite por TypeScript.
-- Tablas futuras: `AI_MESSAGES`, `AI_PROFILE`.
+- Chat "el Sistema" (tono Solo Leveling) accesible desde Hoy y Ajustes, pantalla `app/system-chat.tsx`.
+- Funciona offline con motor determinista por plantillas (reglas), no un LLM todavía.
+- Arquitectura enchufable: interface `SystemChatEngine` con adapters `templateEngine` (activo) y `llamaEngine` (STUB).
+- Contexto determinista desde SQLite (`src/core/aiContext.ts`) y voz por reglas (`src/core/systemVoice.ts`), puros y testeados.
+- Bilingüe vía `{key, params}` + i18n, tablas `ai_profile` y `ai_messages` (migración 0010).
+- Entregado por OTA (JS puro).
 
-No crear tablas IA hasta que se vaya a implementar la feature.
+Pendiente (Fase 5B — LLM on-device, build nativo):
+
+- Modelo local descargable: Gemma 3 1B GGUF Q4_K_M (~720 MB). Plan B: Llama 3.2 1B / Qwen 2.5 1.5B.
+- Integración con `llama.rn` (binding de llama.cpp, GGUF). Alternativa: `react-native-executorch`.
+- Sin tool calling. Sin subagentes.
+- Requiere New Architecture + módulo nativo: development build + nuevo EAS Build + bump de `runtimeVersion`. NO es OTA.
+- Descarga del modelo bajo demanda con la NEW File API de `expo-file-system`, toggle de IA obligatorio.
+- Rellenar `src/ai/llamaEngine.ts` (real, con streaming) sobre la misma interface.
+
+Plan, checklist y riesgos detallados en `docs/IA-SISTEMA.md`.
 
 ## Play Store
 

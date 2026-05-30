@@ -178,6 +178,16 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Micro-feedback al completar un hábito: un destello sutil en la tarjeta.
 - Mejor lectura de progreso por atributos en Progreso: componente `AttributeRow` con icono, nombre, nivel y barra de progreso al siguiente nivel para los 6 atributos, debajo del radar.
 
+### El Sistema (IA local)
+
+- Chat con personalidad RPG ("el Sistema", tono Solo Leveling: seco, imperativo, breve) accesible desde Hoy (tarjeta "Hablar con el Sistema") y Ajustes (sección Sistema). Pantalla `app/system-chat.tsx`.
+- Funciona offline con un motor determinista por plantillas (reglas), no un LLM todavía.
+- Arquitectura enchufable: interface `SystemChatEngine` en `src/ai/engine.ts` con dos adapters, `templateEngine` (activo) y `llamaEngine` (STUB que delega en plantillas hasta que haya build nativo); selector en `src/ai/index.ts`.
+- Contexto determinista armado desde SQLite en `src/core/aiContext.ts` (`SystemContext` + serialización) y voz por reglas en `src/core/systemVoice.ts` (greeting proactivo según estado y respuestas por intención), ambos puros y testeados.
+- Bilingüe sin acoplar el motor al idioma: el motor devuelve `{key, params}` y el store `src/stores/aiStore.ts` traduce con i18n y guarda el texto resuelto. Banco de frases `sys_*` en ES/EN.
+- Persistencia en tablas `ai_profile` (singleton: enabled, engine `'template'|'llama'`, modelStatus, modelPath) y `ai_messages` (historial), migración 0010. Export/import y reset cubren ambas.
+- Entregado por OTA (es JS puro). El LLM local real (Fase 5B) queda documentado en `docs/IA-SISTEMA.md` como build nativo pendiente.
+
 ### Persistencia
 
 - SQLite nativo en `src/db/repository.ts`.
@@ -575,7 +585,17 @@ MVP listo para publicar: no por decisión de producto, no por bloqueo técnico p
 
 Gamificación avanzada (v2.0): en marcha. El primer bloque (economía de Esencia + Tienda del Sistema con títulos y auras) está implementado, con lógica pura testeada en `src/core/economy.ts` y `src/core/shop.ts` y migraciones 0006-0008. El segundo bloque (logros + feedback/celebraciones) también está implementado: 21 logros con catálogo puro testeado en `src/core/achievements.ts` y migración 0009, overlay global de celebración, rank-up automático al subir de rango jugando y lectura de progreso por atributos en Progreso.
 
-Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda y bloque de logros + feedback/celebraciones implementados sobre la base de producto v1.3.
+El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. El LLM local real queda documentado en `docs/IA-SISTEMA.md` como build nativo pendiente (Fase 5B).
+
+Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3.
+
+Update `preview` con el chat del Sistema (IA base por reglas):
+
+- Update group: `4c58d8ad-5ef5-460c-80ea-b3ab4bbfbef8`
+- Runtime: `1.0.2`
+- Mensaje: `Add System chat (offline rule-based AI)`
+- Commit: `f617d89c80fcabd2da719a286357a06d4f47febb`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/4c58d8ad-5ef5-460c-80ea-b3ab4bbfbef8>
 
 Update `preview` con logros, celebraciones y rank-up automático:
 
