@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Sparkles } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -14,15 +14,25 @@ import Animated, {
 import { Button } from '@/components/Button';
 import { RankBadge } from '@/components/RankBadge';
 import { Screen } from '@/components/Screen';
+import { RANK_ORDER } from '@/core/ranks';
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
-import { colors, radii, shadows, typography } from '@/theme/colors';
+import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
+
+function asRank(value: unknown): Rank | null {
+  return typeof value === 'string' && (RANK_ORDER as string[]).includes(value) ? (value as Rank) : null;
+}
 
 export default function RankUpScreen() {
   const player = useAppStore((state) => state.player);
   const language = useAppStore((state) => state.language);
-  const rank = player?.rango ?? 'E';
+  // Disparo automático: el layout pasa from/to por params para narrar la transición. Modo demo
+  // (sin params, desde Ajustes): cae al rango actual del jugador.
+  const params = useLocalSearchParams<{ from?: string; to?: string }>();
+  const fromRank = asRank(params.from);
+  const toRank = asRank(params.to);
+  const rank = toRank ?? player?.rango ?? 'E';
   const accent = getRankAccent(rank);
   const pulse = useSharedValue(0);
   const reveal = useSharedValue(0);
@@ -68,7 +78,15 @@ export default function RankUpScreen() {
         </Animated.View>
         <View style={[styles.delta, { borderColor: `${accent}88` }]}>
           <Text style={styles.deltaLabel}>{t(language, 'currentRank')}</Text>
-          <Text style={[styles.deltaValue, { color: accent }]}>{rank}</Text>
+          {fromRank && fromRank !== rank ? (
+            <Text style={styles.deltaValue}>
+              <Text style={{ color: colors.state.pending }}>{fromRank}</Text>
+              <Text style={{ color: colors.state.pending }}> → </Text>
+              <Text style={{ color: accent }}>{rank}</Text>
+            </Text>
+          ) : (
+            <Text style={[styles.deltaValue, { color: accent }]}>{rank}</Text>
+          )}
         </View>
       </View>
 

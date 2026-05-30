@@ -6,18 +6,29 @@ import {
   getClaimedDailyMissionStreak,
   getDailyMissionBonus,
 } from '@/core/missions';
-import { getLevelProgress } from '@/core/ranks';
+import {
+  getCompletionEssence,
+  getLevelUpEssenceBetween,
+  getMissionEssence,
+  getPerfectWeekEssence,
+} from '@/core/economy';
+import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
+import type { SystemContext } from '@/core/aiContext';
+import { DEFAULT_AURA_ID, getShopItem, meetsRequirement } from '@/core/shop';
 import { getScheduledCompletionStreak } from '@/core/streaks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import {
   applyAttributeDeltas,
+  attributeIds,
   createEmptyAttributeXp,
   getAttributeDeltas,
+  getAttributeLevelProgress,
   normalizeAttributeXp,
   serializeAttributeXp,
   serializeHabitAttributes,
   type AttributeXp,
 } from '@/core/attributes';
+import { evaluateUnlocked, getAchievement, type AchievementContext } from '@/core/achievements';
 import { toDateKey, toIsoTimestamp } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
@@ -65,7 +76,27 @@ export type PlayerRecord = {
   rango: Rank;
   rachaMisiones: number;
   atributosXp: AttributeXp;
+  esencia: number;
+  nivelEsenciaOtorgado: number;
+  tituloEquipado: string | null;
+  auraEquipada: string;
   actualizadoEn: string;
+};
+
+export type PurchaseResult = { ok: boolean; reason?: 'unknown' | 'owned' | 'locked' | 'insufficient' };
+export type EquipResult = { ok: boolean; reason?: 'unknown' | 'notOwned' };
+
+type RewardRecord = {
+  id: string;
+  rewardId: string;
+  kind: string;
+  adquiridoEn: string;
+};
+
+type AchievementUnlockedRecord = {
+  id: string;
+  achievementId: string;
+  desbloqueadoEn: string;
 };
 
 export type DailyMissionRecord = {
@@ -77,6 +108,7 @@ export type DailyMissionRecord = {
   perfectStreakDays: number;
   streakBonusClaimed: boolean;
   streakBonusXp: number;
+  esenciaOtorgada: number;
 };
 
 export type EventRecord = {
@@ -86,8 +118,29 @@ export type EventRecord = {
   tipoEvento: EventType;
   xpDelta: number;
   attributeDelta: AttributeXp;
+  esenciaOtorgada: number;
   registradoEn: string;
   habitName?: string;
+};
+
+export type AiEngine = 'template' | 'llama';
+export type AiModelStatus = 'none' | 'downloading' | 'ready' | 'error';
+export type AiRole = 'system' | 'user' | 'assistant';
+
+export type AiProfile = {
+  enabled: boolean;
+  engine: AiEngine;
+  modelStatus: AiModelStatus;
+  modelPath: string | null;
+  actualizadoEn: string;
+};
+
+export type AiMessage = {
+  id: string;
+  rol: AiRole;
+  contenido: string;
+  fecha: string;
+  creadoEn: string;
 };
 
 type HabitDayStatus = ProgressState | 'no_programado';
@@ -128,6 +181,10 @@ type WebDb = {
   progress: DailyProgressRecord[];
   player: PlayerRecord;
   missions: DailyMissionRecord[];
+  rewards: RewardRecord[];
+  achievements: AchievementUnlockedRecord[];
+  aiProfile: AiProfile;
+  aiMessages: AiMessage[];
 };
 
 const KEY = 'levelarc.webdb.v1';
@@ -268,11 +325,13 @@ export async function incrementHabitProgress(habitId: string, dateKey = toDateKe
     const streakDays = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
     const xpDelta = getCompletionXp(habit.importancia, streakDays + 1);
     const attributeDelta = getAttributeDeltas(xpDelta, habit.atributos);
+    const esenciaOtorgada = getCompletionEssence(habit.importancia);
     db.player.xpTotal = applyXpDelta(db.player.xpTotal, xpDelta);
     db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, attributeDelta);
     syncPlayer(db);
+    grantEssence(db, esenciaOtorgada);
     progress.estado = 'completado';
-    db.events.push(createEvent(habit, dateKey, 'completado', xpDelta, attributeDelta));
+    db.events.push(createEvent(habit, dateKey, 'completado', xpDelta, attributeDelta, esenciaOtorgada));
     syncMission(db, dateKey);
   }
   await saveDb(db);
@@ -302,10 +361,25 @@ export async function closeDay(dateKey = toDateKey()) {
       await markHabitFailed(habit.id, dateKey);
     }
   }
+  // Paridad con el nativo: sincronizamos la misión al cerrar el día. Aquí vive la revocación de
+  // esencia de misión, así que debe correr también en web.
+  const db = await loadDb();
+  if (syncMission(db, dateKey)) {
+    recalculatePlayerFromLedger(db);
+  }
+  await saveDb(db);
 }
 
 export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
   const db = await loadDb();
+  // Revertimos exactamente la esencia que se concedió al registrar los eventos (persistida en
+  // esenciaOtorgada), no la recomputada desde la importancia actual: si la importancia cambió
+  // entre completar y deshacer, recomputar descuadraría el saldo. El nivel no baja, así que la
+  // esencia de nivel no se toca.
+  const esenciaRevertida = db.events
+    .filter((event) => event.habitId === habitId && event.fecha === dateKey)
+    .reduce((total, event) => total + (event.esenciaOtorgada ?? 0), 0);
+  if (esenciaRevertida !== 0) grantEssence(db, -esenciaRevertida);
   db.events = db.events.filter((event) => !(event.habitId === habitId && event.fecha === dateKey));
   db.progress = db.progress.filter((progress) => !(progress.habitId === habitId && progress.fecha === dateKey));
   syncMission(db, dateKey);
@@ -314,6 +388,9 @@ export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
 }
 
 function recalculatePlayerFromLedger(db: WebDb) {
+  // Solo reconstruye XP y atributos desde el ledger. La esencia es gastable (no derivada de
+  // eventos), así que NO se recalcula aquí; su reversión se gestiona en cada acción. El
+  // syncPlayer final llama a syncLevelUpEssence, que es idempotente y nunca resta.
   db.player.xpTotal = 0;
   db.player.atributosXp = createEmptyAttributeXp();
   const ledger = [
@@ -352,6 +429,56 @@ export async function updatePlayerName(name: string) {
   await saveDb(db);
 }
 
+// IDs de cosméticos poseídos. La aura cian (default) siempre está incluida aunque no tenga fila,
+// porque es gratis y todo jugador la posee de inicio.
+export async function listOwnedRewardIds(): Promise<string[]> {
+  const db = await loadDb();
+  const owned = new Set(db.rewards.map((reward) => reward.rewardId));
+  owned.add(DEFAULT_AURA_ID);
+  return [...owned];
+}
+
+export async function purchaseReward(rewardId: string): Promise<PurchaseResult> {
+  const item = getShopItem(rewardId);
+  if (!item) return { ok: false, reason: 'unknown' };
+  if (rewardId === DEFAULT_AURA_ID) return { ok: false, reason: 'owned' };
+
+  const db = await loadDb();
+  if (db.rewards.some((reward) => reward.rewardId === rewardId)) return { ok: false, reason: 'owned' };
+  if (!meetsRequirement(item, db.player.nivel, db.player.rango)) return { ok: false, reason: 'locked' };
+  if (db.player.esencia < item.cost) return { ok: false, reason: 'insufficient' };
+
+  grantEssence(db, -item.cost);
+  db.rewards.push({ id: createId(), rewardId, kind: item.kind, adquiridoEn: toIsoTimestamp() });
+  await saveDb(db);
+  return { ok: true };
+}
+
+export async function equipReward(rewardId: string): Promise<EquipResult> {
+  const item = getShopItem(rewardId);
+  if (!item) return { ok: false, reason: 'unknown' };
+
+  const db = await loadDb();
+  const owned = rewardId === DEFAULT_AURA_ID || db.rewards.some((reward) => reward.rewardId === rewardId);
+  if (!owned) return { ok: false, reason: 'notOwned' };
+
+  if (item.kind === 'title') {
+    db.player.tituloEquipado = rewardId;
+  } else {
+    db.player.auraEquipada = rewardId;
+  }
+  db.player.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+  return { ok: true };
+}
+
+export async function unequipTitle(): Promise<void> {
+  const db = await loadDb();
+  db.player.tituloEquipado = null;
+  db.player.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
 export async function getDailyMission(dateKey = toDateKey()) {
   const db = await loadDb();
   const mission = ensureMission(db, dateKey);
@@ -369,10 +496,15 @@ export async function claimDailyMission(dateKey = toDateKey()) {
     recalculatePlayerFromLedger(db);
   }
   if (mission.reclamada || mission.completados < mission.objetivo) return;
+  // Persistimos la esencia concedida en el claim para revertir ese valor exacto si la misión
+  // deja de estar completa, en vez de recomputarla desde un objetivo que pudo cambiar.
+  const esenciaOtorgada = getMissionEssence(mission.objetivo);
   mission.reclamada = true;
+  mission.esenciaOtorgada = esenciaOtorgada;
   db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.xpBonus);
   db.player.rachaMisiones = getPreviousClaimedMissionStreak(db, dateKey) + 1;
   syncPlayer(db);
+  grantEssence(db, esenciaOtorgada);
   await saveDb(db);
 }
 
@@ -386,12 +518,194 @@ export async function claimPerfectWeekMission(dateKey = toDateKey()) {
   mission.streakBonusClaimed = true;
   db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.streakBonusXp);
   syncPlayer(db);
+  grantEssence(db, getPerfectWeekEssence());
   await saveDb(db);
 }
 
 export async function getRecentEvents(limit = 25) {
   const db = await loadDb();
   return db.events.slice().sort((a, b) => b.registradoEn.localeCompare(a.registradoEn)).slice(0, limit);
+}
+
+// --- Chat con el Sistema (IA local) ---
+
+export async function getAiProfile(): Promise<AiProfile> {
+  const db = await loadDb();
+  return db.aiProfile;
+}
+
+export async function ensureAiProfile(): Promise<AiProfile> {
+  const db = await loadDb();
+  await saveDb(db);
+  return db.aiProfile;
+}
+
+export async function setAiEnabled(enabled: boolean): Promise<void> {
+  const db = await loadDb();
+  db.aiProfile.enabled = enabled;
+  db.aiProfile.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
+export async function setAiEngine(engine: AiEngine): Promise<void> {
+  const db = await loadDb();
+  db.aiProfile.engine = engine;
+  db.aiProfile.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
+export async function setAiModelStatus(status: AiModelStatus, modelPath?: string | null): Promise<void> {
+  const db = await loadDb();
+  db.aiProfile.modelStatus = status;
+  db.aiProfile.modelPath = modelPath ?? null;
+  db.aiProfile.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
+export async function listAiMessages(limit?: number): Promise<AiMessage[]> {
+  const db = await loadDb();
+  const ordered = db.aiMessages.slice().sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
+  // Con `limit` devolvemos los N más recientes, manteniendo el orden ascendente.
+  return limit && limit > 0 ? ordered.slice(-limit) : ordered;
+}
+
+export async function addAiMessage(rol: AiRole, contenido: string, dateKey = toDateKey()): Promise<AiMessage> {
+  const db = await loadDb();
+  const message: AiMessage = { id: createId(), rol, contenido, fecha: dateKey, creadoEn: toIsoTimestamp() };
+  db.aiMessages.push(message);
+  await saveDb(db);
+  return message;
+}
+
+export async function clearAiMessages(): Promise<void> {
+  const db = await loadDb();
+  db.aiMessages = [];
+  await saveDb(db);
+}
+
+// Arma el SystemContext desde el estado actual (paridad con el nativo). Reutiliza getLevelProgress y
+// getAttributeLevelProgress; no duplica la lógica de nivel/atributos/racha.
+export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemContext> {
+  const db = await loadDb();
+  const player = db.player;
+  const todayHabits = await listTodayHabits(dateKey);
+  const mission = ensureMission(db, dateKey);
+  syncMission(db, dateKey);
+
+  const progress = getLevelProgress(player.xpTotal);
+
+  let atributoTop: { id: string; nivel: number } | null = null;
+  for (const id of attributeIds) {
+    const nivel = getAttributeLevelProgress(player.atributosXp[id]).level;
+    if (player.atributosXp[id] > 0 && (!atributoTop || nivel > atributoTop.nivel)) {
+      atributoTop = { id, nivel };
+    }
+  }
+
+  const completadosHoy = todayHabits.filter((habit) => habit.estado === 'completado').length;
+  const falladosHoy = todayHabits.filter((habit) => habit.estado === 'fallado').length;
+  const pendientesHoy = todayHabits.filter((habit) => habit.estado === 'pendiente').length;
+  const habitosHoyTotal = todayHabits.length;
+  const diaPerfecto = habitosHoyTotal > 0 && completadosHoy === habitosHoyTotal;
+
+  let mejorRachaHabito = 0;
+  for (const habit of todayHabits) {
+    const priorStreak = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
+    const streak = habit.estado === 'completado' ? priorStreak + 1 : priorStreak;
+    if (streak > mejorRachaHabito) mejorRachaHabito = streak;
+  }
+
+  const maxPerfect = db.missions.reduce((max, m) => Math.max(max, m.perfectStreakDays), 0);
+
+  return {
+    nombre: player.nombre,
+    nivel: player.nivel,
+    rango: player.rango,
+    esencia: player.esencia,
+    ratioNivel: progress.ratio,
+    faltaParaNivel: Math.max(0, progress.neededForLevel - progress.gainedInLevel),
+    rachaMisiones: player.rachaMisiones,
+    atributoTop,
+    habitosHoyTotal,
+    completadosHoy,
+    pendientesHoy,
+    falladosHoy,
+    diaPerfecto,
+    mejorRachaHabito,
+    rachaPerfecta: Math.max(mission.perfectStreakDays, maxPerfect),
+  };
+}
+
+// Arma el contexto de stats agregadas que consume el evaluador de logros. Reutiliza la lógica de
+// racha (getHabitCompletionStreak) y los niveles de atributo (getAttributeLevelProgress) ya
+// existentes en vez de duplicarlas.
+export async function buildAchievementContext(): Promise<AchievementContext> {
+  const db = await loadDb();
+  const dateKey = toDateKey();
+
+  let maxRachaHabitoActual = 0;
+  for (const habit of db.habits.filter((item) => !item.archivado)) {
+    const priorStreak = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
+    const todayCompleted = db.progress.some(
+      (item) => item.habitId === habit.id && item.fecha === dateKey && item.estado === 'completado',
+    );
+    const currentStreak = todayCompleted ? priorStreak + 1 : priorStreak;
+    if (currentStreak > maxRachaHabitoActual) maxRachaHabitoActual = currentStreak;
+  }
+
+  const maxNivelAtributo = attributeIds.reduce(
+    (max, id) => Math.max(max, getAttributeLevelProgress(db.player.atributosXp[id]).level),
+    0,
+  );
+
+  return {
+    nivel: db.player.nivel,
+    rango: db.player.rango,
+    habitosCreados: db.habits.length,
+    totalCompletados: db.events.filter((event) => event.tipoEvento === 'completado').length,
+    maxRachaHabitoActual,
+    misionesReclamadas: db.missions.filter((mission) => mission.reclamada).length,
+    rachaMisionesActual: db.player.rachaMisiones,
+    rachaPerfectaMax: db.missions.reduce((max, mission) => Math.max(max, mission.perfectStreakDays), 0),
+    maxNivelAtributo,
+    cosmeticosComprados: db.rewards.length,
+  };
+}
+
+export async function listUnlockedAchievementIds(): Promise<string[]> {
+  const db = await loadDb();
+  return db.achievements.map((entry) => entry.achievementId);
+}
+
+// Evalúa el catálogo contra el estado actual, persiste los nuevos logros y otorga su Esencia.
+// Idempotente: antes de insertar cada logro comprobamos que no exista ya en db.achievements (la
+// misma semántica que el INSERT OR IGNORE del nativo), así un check solapado no duplica Esencia ni
+// celebración. Si no hay nuevos devuelve [].
+export async function evaluateAndUnlockAchievements(): Promise<{ id: string; essenceReward: number }[]> {
+  const context = await buildAchievementContext();
+  const unlockedIds = evaluateUnlocked(context);
+  const db = await loadDb();
+  const already = new Set(db.achievements.map((entry) => entry.achievementId));
+
+  const candidates = unlockedIds
+    .filter((id) => !already.has(id))
+    .map((id) => ({ id, essenceReward: getAchievement(id)?.essenceReward ?? 0 }));
+
+  if (candidates.length === 0) return [];
+
+  const newlyUnlocked: { id: string; essenceReward: number }[] = [];
+
+  for (const { id, essenceReward } of candidates) {
+    // Re-check sobre el estado recién cargado: si otra llamada ya lo añadió, lo saltamos (ni
+    // Esencia ni celebración). Solo los que de verdad insertamos otorgan y se devuelven.
+    if (db.achievements.some((entry) => entry.achievementId === id)) continue;
+    db.achievements.push({ id: createId(), achievementId: id, desbloqueadoEn: toIsoTimestamp() });
+    if (essenceReward > 0) grantEssence(db, essenceReward);
+    newlyUnlocked.push({ id, essenceReward });
+  }
+  await saveDb(db);
+
+  return newlyUnlocked;
 }
 
 export async function exportAllData() {
@@ -431,6 +745,7 @@ function ensureMission(db: WebDb, dateKey: string) {
       perfectStreakDays: 0,
       streakBonusClaimed: false,
       streakBonusXp: PERFECT_WEEK_BONUS_XP,
+      esenciaOtorgada: 0,
     };
     db.missions.push(mission);
   }
@@ -441,6 +756,7 @@ function syncMission(db: WebDb, dateKey: string) {
   const mission = ensureMission(db, dateKey);
   const wasClaimed = mission.reclamada;
   const wasStreakBonusClaimed = mission.streakBonusClaimed;
+  const claimedEssence = mission.esenciaOtorgada;
   const weekday = new Date(`${dateKey}T12:00:00`).getDay();
   const levelArcWeekday = weekday === 0 ? 7 : weekday;
   const scheduledHabitIds = new Set(
@@ -466,7 +782,22 @@ function syncMission(db: WebDb, dateKey: string) {
     mission.reclamada = false;
   }
 
-  return (wasClaimed && !mission.reclamada) || (wasStreakBonusClaimed && !mission.streakBonusClaimed);
+  const missionRevoked = wasClaimed && !mission.reclamada;
+  const streakBonusRevoked = wasStreakBonusClaimed && !mission.streakBonusClaimed;
+  // El XP se reconstruye desde el ledger en el llamador; la esencia es gastable, así que la
+  // revertimos aquí a mano para mantener coherencia con la concesión. Devolvemos exactamente lo
+  // concedido en el claim (persistido), no lo recomputado desde el objetivo actual, que pudo
+  // cambiar si el set de hábitos del día cambió; tras revocar lo ponemos a 0.
+  if (missionRevoked) {
+    grantEssence(db, -claimedEssence);
+    mission.esenciaOtorgada = 0;
+  }
+  // La racha perfecta usa una constante (PERFECT_WEEK_ESSENCE), así que conceder y revertir
+  // siempre cuadra; no necesita persistirse. Si algún día se hace variable, habría que persistir
+  // su esencia igual que la misión diaria.
+  if (streakBonusRevoked) grantEssence(db, -getPerfectWeekEssence());
+
+  return missionRevoked || streakBonusRevoked;
 }
 
 function getPreviousPerfectDayStreak(db: WebDb, dateKey: string) {
@@ -502,6 +833,21 @@ function syncPlayer(db: WebDb) {
   db.player.nivel = progress.level;
   db.player.rango = progress.rank;
   db.player.actualizadoEn = toIsoTimestamp();
+  syncLevelUpEssence(db);
+}
+
+// Suma (o resta, con delta negativo) esencia gastable, con suelo en cero.
+function grantEssence(db: WebDb, deltaEsencia: number) {
+  db.player.esencia = Math.max(0, db.player.esencia + deltaEsencia);
+}
+
+// Otorga esencia por las subidas de nivel pendientes. Idempotente y monotónico: el nivel
+// tiene suelo y nunca baja, así que recalcular XP nunca resta esencia de nivel.
+function syncLevelUpEssence(db: WebDb) {
+  const nivelActual = getLevelFromXp(db.player.xpTotal);
+  if (nivelActual <= db.player.nivelEsenciaOtorgado) return;
+  grantEssence(db, getLevelUpEssenceBetween(db.player.nivelEsenciaOtorgado, nivelActual));
+  db.player.nivelEsenciaOtorgado = nivelActual;
 }
 
 function getHabitCompletionStreak(db: WebDb, habitId: string, dateKey: string, weekdaysCsv: string) {
@@ -568,6 +914,7 @@ function createEvent(
   tipoEvento: EventType,
   xpDelta: number,
   attributeDelta = createEmptyAttributeXp(),
+  esenciaOtorgada = 0,
 ): EventRecord {
   return {
     id: createId(),
@@ -577,6 +924,7 @@ function createEvent(
     tipoEvento,
     xpDelta,
     attributeDelta,
+    esenciaOtorgada,
     registradoEn: toIsoTimestamp(),
   };
 }
@@ -587,18 +935,37 @@ async function loadDb(): Promise<WebDb> {
   const empty = createEmptyDb();
   const parsed = JSON.parse(raw) as Partial<WebDb>;
   const db = { ...empty, ...parsed, player: { ...empty.player, ...parsed.player } };
+  // Player antiguo sin esencia: anclamos el marcador de nivel al nivel actual para que la
+  // economía empiece a contar desde ahora y no regale esencia retroactiva por niveles ya
+  // alcanzados. Si ya trae el campo, lo respetamos.
+  if (parsed.player && parsed.player.nivelEsenciaOtorgado == null) {
+    db.player.nivelEsenciaOtorgado = db.player.nivel;
+  }
   db.habits = db.habits.map((habit) => ({
     ...habit,
     icono: normalizeHabitIcon(habit.icono),
     atributos: serializeHabitAttributes(habit.atributos),
   }));
-  db.events = db.events.map((event) => ({ ...event, attributeDelta: normalizeAttributeXp(event.attributeDelta) }));
+  db.events = db.events.map((event) => ({
+    ...event,
+    attributeDelta: normalizeAttributeXp(event.attributeDelta),
+    esenciaOtorgada: Math.max(0, Math.floor(Number(event.esenciaOtorgada ?? 0))),
+  }));
   db.player.atributosXp = normalizeAttributeXp(db.player.atributosXp);
+  // Player antiguo sin cosméticos: defaults seguros (aura cian, sin título).
+  db.player.auraEquipada = db.player.auraEquipada ?? DEFAULT_AURA_ID;
+  db.player.tituloEquipado = db.player.tituloEquipado ?? null;
+  db.rewards = Array.isArray(db.rewards) ? db.rewards : [];
+  db.achievements = Array.isArray(db.achievements) ? db.achievements : [];
+  // Blob antiguo sin IA → defaults / []. La tabla no existía, no hay nada que restaurar.
+  db.aiProfile = normalizeAiProfile(parsed.aiProfile) ?? createDefaultAiProfile();
+  db.aiMessages = Array.isArray(db.aiMessages) ? db.aiMessages.map(normalizeAiMessage) : [];
   db.missions = db.missions.map((mission) => ({
     ...mission,
     perfectStreakDays: Math.max(0, Math.floor(Number(mission.perfectStreakDays ?? 0))),
     streakBonusClaimed: Boolean(mission.streakBonusClaimed),
     streakBonusXp: Math.max(0, Math.floor(Number(mission.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
+    esenciaOtorgada: Math.max(0, Math.floor(Number(mission.esenciaOtorgada ?? 0))),
   }));
   return db;
 }
@@ -620,9 +987,27 @@ function createEmptyDb(): WebDb {
       rango: progress.rank,
       rachaMisiones: 0,
       atributosXp: createEmptyAttributeXp(),
+      esencia: 0,
+      nivelEsenciaOtorgado: 1,
+      tituloEquipado: null,
+      auraEquipada: DEFAULT_AURA_ID,
       actualizadoEn: toIsoTimestamp(),
     },
     missions: [],
+    rewards: [],
+    achievements: [],
+    aiProfile: createDefaultAiProfile(),
+    aiMessages: [],
+  };
+}
+
+function createDefaultAiProfile(): AiProfile {
+  return {
+    enabled: false,
+    engine: 'template',
+    modelStatus: 'none',
+    modelPath: null,
+    actualizadoEn: toIsoTimestamp(),
   };
 }
 
@@ -634,8 +1019,47 @@ function normalizeBackupData(data: unknown): WebDb {
   const progress = asArray(data.habitDailyProgress ?? data.progress).map(normalizeProgress);
   const player = normalizePlayer(asArray(data.player)[0] ?? data.player) ?? empty.player;
   const missions = asArray(data.dailyMissions ?? data.missions).map(normalizeMission);
+  const rewards = asArray(data.playerRewards ?? data.rewards).map(normalizeReward);
+  // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
+  const achievements = asArray(data.achievementsUnlocked ?? data.achievements).map(normalizeAchievement);
+  // Backups antiguos sin IA → defaults / [].
+  const aiProfile = normalizeAiProfile(asArray(data.aiProfile)[0] ?? data.aiProfile) ?? createDefaultAiProfile();
+  const aiMessages = asArray(data.aiMessages).map(normalizeAiMessage);
 
-  return { habits, events, progress, player, missions };
+  return { habits, events, progress, player, missions, rewards, achievements, aiProfile, aiMessages };
+}
+
+function normalizeAiProfile(row: unknown): AiProfile | null {
+  if (!isRecord(row)) return null;
+  const engine = row.engine === 'llama' ? 'llama' : 'template';
+  const status = row.modelStatus ?? row.model_status;
+  return {
+    enabled: asBoolean(row.enabled),
+    engine,
+    modelStatus: isAiModelStatus(status) ? status : 'none',
+    modelPath: nullableString(row.modelPath ?? row.model_path),
+    actualizadoEn: asString((row.actualizadoEn ?? row.actualizado_en) || toIsoTimestamp()),
+  };
+}
+
+function normalizeAiMessage(row: unknown): AiMessage {
+  if (!isRecord(row)) throw new Error('Invalid ai message row');
+  const rol = isAiRole(row.rol) ? row.rol : 'system';
+  return {
+    id: asString(row.id),
+    rol,
+    contenido: typeof row.contenido === 'string' ? row.contenido : '',
+    fecha: asString((row.fecha as string) || toDateKey()),
+    creadoEn: asString((row.creadoEn ?? row.creado_en) || toIsoTimestamp()),
+  };
+}
+
+function isAiRole(value: unknown): value is AiRole {
+  return value === 'system' || value === 'user' || value === 'assistant';
+}
+
+function isAiModelStatus(value: unknown): value is AiModelStatus {
+  return value === 'none' || value === 'downloading' || value === 'ready' || value === 'error';
 }
 
 function normalizeHabit(row: unknown): HabitRecord {
@@ -679,6 +1103,7 @@ function normalizeEvent(row: unknown): EventRecord {
     tipoEvento: row.tipo_evento === 'fallado' || row.tipoEvento === 'fallado' ? 'fallado' : 'completado',
     xpDelta: asNumber(row.xp_delta ?? row.xpDelta),
     attributeDelta: normalizeAttributeXp(row.attribute_delta ?? row.attributeDelta),
+    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
     registradoEn: asString((row.registrado_en ?? row.registradoEn) || toIsoTimestamp()),
   };
 }
@@ -694,6 +1119,7 @@ function normalizeMission(row: unknown): DailyMissionRecord {
     perfectStreakDays: Math.max(0, Math.floor(asNumber(row.perfect_streak_days ?? row.perfectStreakDays ?? 0))),
     streakBonusClaimed: asBoolean(row.streak_bonus_claimed ?? row.streakBonusClaimed),
     streakBonusXp: Math.max(0, Math.floor(asNumber(row.streak_bonus_xp ?? row.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
+    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
   };
 }
 
@@ -701,14 +1127,38 @@ function normalizePlayer(row: unknown): PlayerRecord | null {
   if (!isRecord(row)) return null;
   const xpTotal = asNumber(row.xp_total ?? row.xpTotal);
   const progress = getLevelProgress(xpTotal);
+  const nivel = Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level)));
   return {
     nombre: nullableString(row.nombre ?? row.name),
     xpTotal,
-    nivel: Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level))),
+    nivel,
     rango: isRank(row.rango) ? row.rango : progress.rank,
     rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
     atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
+    esencia: Math.max(0, Math.floor(asNumber(row.esencia ?? 0))),
+    nivelEsenciaOtorgado: Math.max(1, Math.floor(asNumber(row.nivel_esencia_otorgado ?? row.nivelEsenciaOtorgado ?? nivel))),
+    tituloEquipado: nullableString(row.titulo_equipado ?? row.tituloEquipado),
+    auraEquipada: nullableString(row.aura_equipada ?? row.auraEquipada) ?? DEFAULT_AURA_ID,
     actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
+  };
+}
+
+function normalizeReward(row: unknown): RewardRecord {
+  if (!isRecord(row)) throw new Error('Invalid reward row');
+  return {
+    id: asString(row.id),
+    rewardId: asString(row.reward_id ?? row.rewardId),
+    kind: asString(row.kind),
+    adquiridoEn: asString((row.adquirido_en ?? row.adquiridoEn) || toIsoTimestamp()),
+  };
+}
+
+function normalizeAchievement(row: unknown): AchievementUnlockedRecord {
+  if (!isRecord(row)) throw new Error('Invalid achievement row');
+  return {
+    id: asString(row.id),
+    achievementId: asString(row.achievement_id ?? row.achievementId),
+    desbloqueadoEn: asString((row.desbloqueado_en ?? row.desbloqueadoEn) || toIsoTimestamp()),
   };
 }
 

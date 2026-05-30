@@ -7,20 +7,23 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "node": "22.15.1"
     },
     "preview": {
       "android": {
         "buildType": "apk"
       },
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "node": "22.15.1"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "channel": "production"
+      "channel": "production",
+      "node": "22.15.1"
     }
   },
   "submit": {

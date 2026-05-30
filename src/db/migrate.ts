@@ -26,6 +26,7 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       tipo_evento text NOT NULL,
       xp_delta integer NOT NULL,
       attribute_delta text DEFAULT '{}' NOT NULL,
+      esencia_otorgada integer DEFAULT 0 NOT NULL,
       registrado_en text NOT NULL,
       FOREIGN KEY (habit_id) REFERENCES habits(id) ON UPDATE no action ON DELETE no action
     );
@@ -51,8 +52,22 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       rango text DEFAULT 'E' NOT NULL,
       racha_misiones integer DEFAULT 0 NOT NULL,
       atributos_xp text DEFAULT '{}' NOT NULL,
+      esencia integer DEFAULT 0 NOT NULL,
+      nivel_esencia_otorgado integer DEFAULT 1 NOT NULL,
+      titulo_equipado text,
+      aura_equipada text DEFAULT 'aura_cyan' NOT NULL,
       actualizado_en text NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS player_rewards (
+      id text PRIMARY KEY NOT NULL,
+      reward_id text NOT NULL,
+      kind text NOT NULL,
+      adquirido_en text NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS player_rewards_reward_id_unique
+      ON player_rewards (reward_id);
 
     CREATE TABLE IF NOT EXISTS daily_missions (
       fecha text PRIMARY KEY NOT NULL,
@@ -62,8 +77,38 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       xp_bonus integer DEFAULT 10 NOT NULL,
       perfect_streak_days integer DEFAULT 0 NOT NULL,
       streak_bonus_claimed integer DEFAULT 0 NOT NULL,
-      streak_bonus_xp integer DEFAULT 30 NOT NULL
+      streak_bonus_xp integer DEFAULT 30 NOT NULL,
+      esencia_otorgada integer DEFAULT 0 NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS achievements_unlocked (
+      id text PRIMARY KEY NOT NULL,
+      achievement_id text NOT NULL,
+      desbloqueado_en text NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS achievements_unlocked_achievement_id_unique
+      ON achievements_unlocked (achievement_id);
+
+    CREATE TABLE IF NOT EXISTS ai_profile (
+      id integer PRIMARY KEY DEFAULT 1 NOT NULL,
+      enabled integer DEFAULT 0 NOT NULL,
+      engine text DEFAULT 'template' NOT NULL,
+      model_status text DEFAULT 'none' NOT NULL,
+      model_path text,
+      actualizado_en text NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_messages (
+      id text PRIMARY KEY NOT NULL,
+      rol text NOT NULL,
+      contenido text NOT NULL,
+      fecha text NOT NULL,
+      creado_en text NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS ai_messages_creado_en_idx
+      ON ai_messages (creado_en);
   `);
 
   try {
@@ -91,6 +136,12 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
   }
 
   try {
+    await sqlite.execAsync('ALTER TABLE events ADD COLUMN esencia_otorgada integer DEFAULT 0 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
     await sqlite.execAsync('ALTER TABLE player ADD COLUMN nombre text;');
   } catch {
     // Column already exists in fresh databases and after the first migration.
@@ -98,6 +149,35 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
 
   try {
     await sqlite.execAsync("ALTER TABLE player ADD COLUMN atributos_xp text DEFAULT '{}' NOT NULL;");
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE player ADD COLUMN esencia integer DEFAULT 0 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE player ADD COLUMN nivel_esencia_otorgado integer DEFAULT 1 NOT NULL;');
+    // Solo corre la PRIMERA vez que se añade la columna (en bases existentes): anclamos el
+    // marcador al nivel actual para que la economía empiece a contar desde ahora y no regale
+    // esencia retroactiva por niveles ya alcanzados. En instalación nueva la tabla se crea con
+    // la columna, el ALTER falla y este UPDATE no llega a ejecutarse, dejando al jugador en 1.
+    await sqlite.execAsync('UPDATE player SET nivel_esencia_otorgado = nivel;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE player ADD COLUMN titulo_equipado text;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  try {
+    await sqlite.execAsync("ALTER TABLE player ADD COLUMN aura_equipada text DEFAULT 'aura_cyan' NOT NULL;");
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }
@@ -119,4 +199,21 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }
+
+  try {
+    await sqlite.execAsync('ALTER TABLE daily_missions ADD COLUMN esencia_otorgada integer DEFAULT 0 NOT NULL;');
+  } catch {
+    // Column already exists in fresh databases and after the first migration.
+  }
+
+  await ensureAiProfile(sqlite);
+}
+
+// Garantiza la fila singleton (id = 1) de ai_profile con los defaults, igual que ensurePlayer hace
+// con el jugador. Idempotente: INSERT OR IGNORE no toca la fila si ya existe.
+async function ensureAiProfile(sqlite: SQLiteDatabase) {
+  await sqlite.runAsync(
+    "INSERT OR IGNORE INTO ai_profile (id, enabled, engine, model_status, model_path, actualizado_en) VALUES (1, 0, 'template', 'none', NULL, ?)",
+    [new Date().toISOString()],
+  );
 }

@@ -12,6 +12,18 @@ const rankThresholds: Array<{ rank: Rank; minLevel: number }> = [
   { rank: 'E', minLevel: 1 },
 ];
 
+// Orden ascendente de rangos (E < D < C < B < A < S), derivado del umbral de nivel para no
+// duplicar la fuente de verdad. Útil para comparar rangos (requisitos de tienda, etc.).
+export const RANK_ORDER: Rank[] = rankThresholds
+  .slice()
+  .sort((a, b) => a.minLevel - b.minLevel)
+  .map(({ rank }) => rank);
+
+// Devuelve negativo si a < b, cero si iguales, positivo si a > b, según RANK_ORDER.
+export function compareRanks(a: Rank, b: Rank): number {
+  return RANK_ORDER.indexOf(a) - RANK_ORDER.indexOf(b);
+}
+
 export function getXpForLevel(level: number): number {
   if (!Number.isFinite(level) || level <= 1) {
     return 0;

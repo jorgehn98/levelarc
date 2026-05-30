@@ -89,10 +89,38 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Definir métricas v1.3 sin sobrecargar la app.
 - [x] Mejorar detalle de hábito con historial y consistencia.
 - [x] Mostrar rachas por hábito de forma más accionable.
-- [ ] Añadir resumen semanal simple de completados/fallados.
-- [ ] Mejorar lectura de progreso por atributos.
-- [ ] Revisar si hacen falta logros simples antes de v2.
+- [x] Resumen semanal simple de completados/fallados: descartado (el detalle de hábito ya cubre historial/consistencia).
+- [x] Mejorar lectura de progreso por atributos: componente `AttributeRow` debajo del radar en Progreso.
+- [x] Revisar si hacen falta logros simples antes de v2: van dentro de v2.0 (ver Gamificación).
 - [ ] Recoger fricciones que aparezcan usando la app varios días.
+
+## Gamificación (v2.0)
+
+- [x] Economía de Esencia.
+- [x] Tienda del Sistema (títulos + auras).
+- [x] Logros / medallas.
+- [x] Celebraciones y feedback de recompensa.
+- [x] Lectura de progreso por atributos mejorada.
+- [x] IA local "el Sistema" (chat base por reglas, Fase 5A).
+
+## IA local — LLM on-device (5B, build nativo)
+
+Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hecha; esto es el LLM real on-device.
+
+- [x] Instalar `llama.rn` 0.12.4 + `expo-file-system` 56.0.7 + `expo-build-properties` 56.0.16.
+- [x] Configurar el config plugin (`app.json` con newArch + plugins, `pnpm-workspace` allowBuilds `llama.rn`).
+- [x] Implementar descarga de modelo (NEW File API de `expo-file-system`, `src/ai/modelManager.ts`) + pantalla de gestión `app/system-ai.tsx` con progreso/cancelación.
+- [x] Implementar `llamaEngine` real (`initLlama` + `completion`, carga perezosa) sobre la interface `SystemChatEngine`.
+- [x] Bump de `runtimeVersion` a `1.1.0` (corta OTA: requiere instalar el build nativo nuevo).
+- [x] Cambiar el modelo a Gemma 4 E2B GGUF Q4_K_M (`unsloth/gemma-4-E2B-it-GGUF`, ~3,1 GB, stop `<end_of_turn>`).
+- [x] Mensaje del Sistema en Hoy (banner `SystemMessageCard`, cacheado por día con IA activa).
+- [x] Apariciones autónomas del Sistema (`SystemInterjectionOverlay`, triggers misión completada / vuelta tras ausencia, cooldown 1/sesión y 1/día por trigger, "Continuar" abre el chat con contexto).
+- [x] Build nativo conseguido (preview Android `1c04b308-ea9a-44a9-afb1-da7ecb837927`, runtime `1.1.0`, versionCode `5`; resuelto con `EAS_NO_VCS=1` por el bug de git clone en Windows).
+- [ ] Validar en device real: instalar APK `1c04b308`, descargar Gemma 4 E2B (~3,1 GB) y probar chat y apariciones (RAM/batería/calor, toggle de IA obligatorio).
+- [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
+- [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
+- [ ] Cablear triggers extra de apariciones (`streak`, `near_level`, `mission_failed`).
+- [ ] EAS Build production.
 
 ## Datos / lógica
 

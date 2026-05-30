@@ -6,6 +6,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Ese documento
 
 El MVP funcional está implementado en Expo + React Native + TypeScript. La app ya permite crear hábitos, marcarlos en el día, ganar/perder XP, ver progreso, cambiar idioma, exportar/importar backup y usar la primera identidad visual real de LevelArc.
 
+La app ya ha entrado en gamificación avanzada (v2.0): tiene una economía propia de Esencia (moneda gastable, distinta del XP) y una Tienda del Sistema donde se canjea Esencia por cosméticos (títulos y auras) que no afectan al motor de XP.
+
 El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de marca `#3FCAE6`, tipografía local Inter/Orbitron y componentes base con radios/bordes/glow disciplinados.
 
 La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
@@ -118,6 +120,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Los niveles de atributo usan la misma curva que el nivel de jugador: `30 * (nivel - 1)^1.6`.
 - Los eventos guardan `attribute_delta` para que deshacer/recalcular no dependa de cambios futuros en el hábito.
 - Pantalla Progreso muestra radar chart y barras por atributo; el radar visual escala hasta nivel 20 para no saturarse demasiado pronto.
+- Debajo del radar, una lectura por atributos (`AttributeRow`) con icono, nombre, nivel y barra de progreso al siguiente nivel para los 6 atributos.
 - Pantalla Progreso incluye actividad de los últimos 7 días y mapa de calor de 12 semanas basado en eventos completados.
 - Multiplicador de racha por hábito capado a `x1.50`: 4+ días `x1.10`, 8+ `x1.20`, 15+ `x1.35`, 31+ `x1.50`.
 - La racha por hábito cuenta ocurrencias programadas consecutivas, no días naturales: un hábito lunes/miércoles no se rompe por el martes, y uno solo de domingo avanza una vez por semana.
@@ -135,6 +138,60 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Misión extra de racha perfecta: si los 6 días anteriores fueron perfectos, en el día 7 aparece una misión de racha. Al completar todos los hábitos del día 7 se puede reclamar un bonus extra de +30 XP.
 - La racha de misión (`player.racha_misiones`) cuenta misiones diarias reclamadas en días consecutivos; si hay un día con misión no reclamada, la siguiente reclamación reinicia la racha. La racha perfecta se calcula desde `daily_missions`.
 - Al arrancar la app o cambiar de día, se ejecuta cierre automático hasta ayer usando `levelarc.lastActiveDate` en almacenamiento local. La primera ejecución inicializa el marcador sin penalizar historial antiguo.
+
+### Economía (Esencia)
+
+- Moneda de juego "Esencia" gastable, distinta del XP, guardada en `player.esencia`.
+- Se gana al completar un hábito (importancia x2), al reclamar la misión diaria (3/5/8/12 según número de hábitos del día), al reclamar la racha perfecta (+25) y al subir de nivel (`10 + (nivel - 1) * 5`: nivel 2 = 15, nivel 10 = 55).
+- Se revierte de forma exacta y no farmeable: al deshacer un completado se resta la esencia que otorgó ese evento (persistida en `events.esencia_otorgada`); al revocarse una misión reclamada se resta la persistida en `daily_missions.esencia_otorgada`.
+- La esencia por subida de nivel es idempotente con el marcador monotónico `player.nivel_esencia_otorgado`. En instalaciones existentes se ancla al nivel actual en la migración, así la economía empieza a contar desde ahora sin regalo retroactivo.
+- Lógica pura en `src/core/economy.ts` con tests; persistencia en `src/db/repository.ts` y `src/db/repository.web.ts`.
+- Se muestra en Hoy y Progreso con el componente `EssenceBadge` (icono Gem).
+- Migraciones 0006 (`player.esencia`, `player.nivel_esencia_otorgado`) y 0007 (`events.esencia_otorgada`, `daily_missions.esencia_otorgada`).
+
+### Tienda del Sistema
+
+- Pantalla `app/shop.tsx` (ruta `/shop`), accesible desde Ajustes (sección "Sistema") y desde Progreso (junto al balance de Esencia).
+- Se gasta Esencia en cosméticos que no afectan al motor de XP.
+- Títulos de Jugador: Despierto (30), Cazador (80, nivel 5), Implacable (150, nivel 10), Soberano de Sombras (300, rango B), Monarca del Sistema (600, rango S).
+- Auras del emblema: Cian (default gratis), Ámbar (50), Violeta (120, nivel 8), Esmeralda (200, nivel 15), Carmesí (350, rango A), Dorada (700, rango S).
+- Cada item puede tener requisito de nivel y/o rango además del coste. Compra atómica en transacción con validación catálogo → poseído → requisito → esencia.
+- Tabla `player_rewards` (UNIQUE por `reward_id`) con `player.titulo_equipado` y `player.aura_equipada`.
+- El título equipado se muestra junto al nombre del jugador en onboarding (modo retorno) y Progreso. El aura equipada tiñe el glow del emblema en onboarding; el cian por defecto mantiene el look actual.
+- Catálogo y reglas puras en `src/core/shop.ts` con tests. Migración 0008 (`player_rewards` + columnas de `player`).
+- Backup export/import cubre las tablas y columnas nuevas y restaura backups antiguos con defaults seguros.
+
+### Logros
+
+- 21 logros en 6 categorías: Primeros pasos, Constancia, Progresión, Misiones, Atributos y Colección.
+- Catálogo puro en `src/core/achievements.ts`: cada logro tiene su condición `isUnlocked(ctx)`; evaluador testeado.
+- Se evalúan tras cada acción y al arrancar. Al desbloquear otorgan Esencia (de 10 a 300 según dificultad).
+- Persistencia en tabla `achievements_unlocked` (migración 0009) con `INSERT OR IGNORE` para idempotencia: la Esencia solo se otorga si la fila se inserta de verdad.
+- En el primer arranque tras actualizar, los logros ya cumplidos se desbloquean en silencio (sin avalancha de avisos) y se otorga su Esencia de golpe; a partir de ahí cada nuevo logro se celebra.
+- Pantalla `app/achievements.tsx` (ruta `/achievements`), accesible desde Progreso y Ajustes, con desglose por categoría, contador "X/21" y estado bloqueado/desbloqueado. Los bloqueados se ven igual, como meta aspiracional.
+
+### Feedback y celebraciones
+
+- Overlay global de celebración `CelebrationOverlay` (sustituye al toast solo-logros): una cola que celebra tres tipos de evento con tarjeta flotante animada — logro desbloqueado, subida de nivel del jugador y subida de nivel de atributo.
+- Detección automática de subidas tras las acciones que dan XP: si el jugador sube de nivel se celebra (salvo que coincida con un cambio de rango, que lo cubre la cinemática); si sube el nivel de un atributo, se celebra ese atributo.
+- La cinemática de ascenso de rango se dispara sola al subir de rango jugando (antes solo existía el botón demo de Ajustes). Recibe rango origen/destino para narrar "E → D" y está protegida contra abrir dos veces.
+- Micro-feedback al completar un hábito: un destello sutil en la tarjeta.
+- Mejor lectura de progreso por atributos en Progreso: componente `AttributeRow` con icono, nombre, nivel y barra de progreso al siguiente nivel para los 6 atributos, debajo del radar.
+
+### El Sistema (IA local)
+
+- Chat con personalidad RPG ("el Sistema", tono Solo Leveling: seco, imperativo, breve) accesible desde Hoy (tarjeta "Hablar con el Sistema") y Ajustes (sección Sistema). Pantalla `app/system-chat.tsx`.
+- Funciona offline con un motor determinista por plantillas (reglas), no un LLM todavía.
+- Arquitectura enchufable: interface `SystemChatEngine` en `src/ai/engine.ts` con dos adapters, `templateEngine` (activo) y `llamaEngine` (STUB que delega en plantillas hasta que haya build nativo); selector en `src/ai/index.ts`.
+- Contexto determinista armado desde SQLite en `src/core/aiContext.ts` (`SystemContext` + serialización) y voz por reglas en `src/core/systemVoice.ts` (greeting proactivo según estado y respuestas por intención), ambos puros y testeados.
+- Bilingüe sin acoplar el motor al idioma: el motor devuelve `{key, params}` y el store `src/stores/aiStore.ts` traduce con i18n y guarda el texto resuelto. Banco de frases `sys_*` en ES/EN.
+- Persistencia en tablas `ai_profile` (singleton: enabled, engine `'template'|'llama'`, modelStatus, modelPath) y `ai_messages` (historial), migración 0010. Export/import y reset cubren ambas.
+- Entregado por OTA (es JS puro). El motor de plantillas funciona en runtime `1.0.2`.
+- Mensaje del Sistema en Hoy: un banner que te recibe cada día con una línea contextual del Sistema. Instantáneo con plantillas; cuando la IA está activa lo genera Gemma y se cachea por día. Componente `SystemMessageCard`.
+- Apariciones autónomas del Sistema: la IA no es solo chat. El Sistema salta solo en momentos clave (completar la misión diaria, volver tras ausencia) con un personaje y bocadillo (overlay `SystemInterjectionOverlay`), con cooldown (1/sesión, 1/día por trigger). El botón "Continuar" abre el chat heredando el contexto de por qué saltó. Personaje placeholder enchufable (sprites en `assets/character/`). Toggle "Apariciones del Sistema" en Ajustes. Funciona offline con plantillas; con IA activa lo genera Gemma. Triggers extra preparados (`streak`, `near_level`, `mission_failed`) pero no cableados aún.
+- La IA es OPCIONAL: la app funciona perfecta sin modelo. Se activa con un botón que descarga el modelo dentro de la app (Ajustes → Sistema → "IA avanzada"). El modelo NO viene por OTA ni en el APK: se descarga on-device bajo demanda.
+- LLM local real (Fase 5B) implementado en código (commit `3d5d509`) detrás de la misma arquitectura enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB) en `src/ai/llamaEngine.ts` (motor real con carga perezosa), descarga del modelo on-device (`src/ai/modelManager.ts`, NEW File API) y pantalla de gestión `app/system-ai.tsx` (Ajustes → Sistema → "IA avanzada" y cabecera del chat).
+- El LLM NO llega por OTA: solo por el build nativo nuevo (runtime `1.1.0`), que ya está conseguido (build `1c04b308`). Pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
 ### Persistencia
 
@@ -264,6 +321,16 @@ Build preview Android actual con actualización automática al arranque:
 - Fingerprint: `2d844f8e79f4e7f2343903a11d0843d6228a08d5`
 - Perfil: `preview`, canal `preview`, runtimeVersion `1.0.2`, SDK `56.0.0`, version `1.0.2`, versionCode `4`.
 - Incluye comprobación automática de EAS Update al arrancar, manteniendo el botón manual de Ajustes como fallback.
+
+Build preview Android con LLM (llama.rn + Gemma 4 E2B):
+
+- ID: `1c04b308-ea9a-44a9-afb1-da7ecb837927`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/1c04b308-ea9a-44a9-afb1-da7ecb837927>
+- Estado: terminado correctamente.
+- Perfil: `preview`, distribución interna, runtimeVersion `1.1.0`, version `1.1.0`, versionCode `5`.
+- Compiló con `llama.rn` 0.12.4 (New Arch). El config plugin cargó sin el gotcha `ERR_REQUIRE_ESM` porque EAS usa Node 22.15.1 (fijado en `eas.json`). El postinstall de `llama.rn` descargó los binarios nativos (`allowBuilds` `llama.rn: true` en `pnpm-workspace`).
+- Gotcha del build: el primer intento falló por un bug de `eas-cli` en Windows (git clone `file:///C:/...` con git 2.53 da código 128, "does not appear to be a git repository"). Se resolvió con `EAS_NO_VCS=1` para empaquetar el working dir sin git clone.
+- Pendiente: validación en device real (cargar el GGUF de ~3,1 GB, probar chat y apariciones).
 
 Update `preview` inicial publicado:
 
@@ -531,6 +598,45 @@ Backup import/export: implementado, pero queda como comprobación menor pendient
 
 MVP listo para publicar: no por decisión de producto, no por bloqueo técnico principal.
 
-Fase actual: producto v1.3 en marcha.
+Gamificación avanzada (v2.0): en marcha. El primer bloque (economía de Esencia + Tienda del Sistema con títulos y auras) está implementado, con lógica pura testeada en `src/core/economy.ts` y `src/core/shop.ts` y migraciones 0006-0008. El segundo bloque (logros + feedback/celebraciones) también está implementado: 21 logros con catálogo puro testeado en `src/core/achievements.ts` y migración 0009, overlay global de celebración, rank-up automático al subir de rango jugando y lectura de progreso por atributos en Progreso.
 
-Siguiente paso recomendado: seguir usando la app con datos reales y ajustar las métricas simples antes de avanzar a estadísticas más amplias, logros o tiendas. IA local queda como futuro opcional, después de validar que la app base tiene suficiente valor y uso real.
+El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. La IA se ha ampliado más allá del chat: banner del Sistema en Hoy (`SystemMessageCard`) y apariciones autónomas en momentos clave (`SystemInterjectionOverlay`), ambas offline con plantillas y generadas por Gemma cuando la IA está activa. El LLM local real (Fase 5B) ya está implementado en código (commit `3d5d509`) detrás de la misma interface enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB), descarga del modelo on-device bajo demanda y pantalla de gestión. La IA es opcional: la app funciona sin modelo. Solo se entrega por build nativo (runtime `1.1.0`), no por OTA, y queda pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
+
+Build nativo EAS con LLM: conseguido. Build preview `1c04b308-ea9a-44a9-afb1-da7ecb837927` (runtime `1.1.0`, versionCode `5`) compiló correctamente con `llama.rn` 0.12.4 + Gemma 4 E2B; pendiente de validación en device real. Detalle arriba en "Verificación actual".
+
+Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas y Gemma 4:
+
+- Update group: `a1d8f4ab-79b3-42e8-9604-890c5b5847b3`
+- Runtime: `1.1.0`
+- Mensaje: `System daily message, autonomous interjections and Gemma 4 model`
+- Commit: `0cac468`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a1d8f4ab-79b3-42e8-9604-890c5b5847b3>
+- Llega al APK del build `1c04b308` (runtime 1.1.0), no a los APK 1.0.x.
+
+Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código con Gemma 4 E2B y ya tiene build nativo `1.1.0` conseguido (`1c04b308`); entra en validación en device.
+
+Update `preview` con el chat del Sistema (IA base por reglas):
+
+- Update group: `4c58d8ad-5ef5-460c-80ea-b3ab4bbfbef8`
+- Runtime: `1.0.2`
+- Mensaje: `Add System chat (offline rule-based AI)`
+- Commit: `f617d89c80fcabd2da719a286357a06d4f47febb`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/4c58d8ad-5ef5-460c-80ea-b3ab4bbfbef8>
+
+Update `preview` con logros, celebraciones y rank-up automático:
+
+- Update group: `7e4d12a2-c1d6-4a7c-ba69-999952e61c9c`
+- Runtime: `1.0.2`
+- Mensaje: `Add achievements, progress celebrations and auto rank-up`
+- Commit: `f9f763ba6a260a6def216f98ae0a398bac4756a0`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/7e4d12a2-c1d6-4a7c-ba69-999952e61c9c>
+
+Update `preview` con economía de Esencia y Tienda del Sistema:
+
+- Update group: `960b7e0a-7f53-41f1-817b-b6ebf9f73997`
+- Runtime: `1.0.2`
+- Mensaje: `Add Essence economy and System Shop (titles + auras)`
+- Commit: `7869bd0f51167dfa6e6ae2e19852fab07d101d6f`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/960b7e0a-7f53-41f1-817b-b6ebf9f73997>
+
+Siguiente paso recomendado: seguir usando la app con datos reales, validar en Android la economía/tienda y el nuevo bloque de logros + feedback/celebraciones, y publicar el update OTA correspondiente. Dentro de v2.0 queda pendiente las estadísticas avanzadas; la IA local "el Sistema" va en su propia fase v2.x, como futuro opcional tras validar que la app base tiene suficiente valor y uso real.

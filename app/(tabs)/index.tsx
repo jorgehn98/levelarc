@@ -1,20 +1,25 @@
-import { Link, router } from 'expo-router';
+import { Link, router, useFocusEffect } from 'expo-router';
 import { Check, Flame, Gift, Plus, Target } from 'lucide-react-native';
+import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
+import { EssenceBadge } from '@/components/EssenceBadge';
 import { HabitCard } from '@/components/HabitCard';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
+import { SystemMessageCard } from '@/components/SystemMessageCard';
 import { getDailyMissionProgress, getPerfectWeekMissionProgress } from '@/core/missions';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
 export default function TodayScreen() {
   const todayHabits = useAppStore((state) => state.todayHabits);
+  const player = useAppStore((state) => state.player);
   const dailyMission = useAppStore((state) => state.dailyMission);
   const incrementHabit = useAppStore((state) => state.incrementHabit);
   const failHabit = useAppStore((state) => state.failHabit);
@@ -22,6 +27,17 @@ export default function TodayScreen() {
   const claimMission = useAppStore((state) => state.claimMission);
   const claimPerfectWeekMission = useAppStore((state) => state.claimPerfectWeekMission);
   const language = useAppStore((state) => state.language);
+  const ensureDailyMessage = useAiStore((state) => state.ensureDailyMessage);
+
+  // Recepción del Sistema: al enfocar Hoy aseguramos el mensaje del día. ensureDailyMessage es barato
+  // e idempotente (cachea por día), así que llamarlo en cada foco solo regenera si cambió el día o el
+  // mensaje no está fresco. Esto cubre también el rollover de día al volver a la pantalla.
+  useFocusEffect(
+    useCallback(() => {
+      void ensureDailyMessage();
+    }, [ensureDailyMessage]),
+  );
+
   const mission = getDailyMissionProgress(dailyMission?.completados ?? 0, dailyMission?.objetivo ?? todayHabits.length);
   const perfectWeekMission = getPerfectWeekMissionProgress(dailyMission?.perfectStreakDays ?? 0);
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
@@ -37,11 +53,14 @@ export default function TodayScreen() {
         subtitle={t(language, 'habitsToday')}
         title={t(language, 'today')}
         action={(
-          <Link href="/habit/new" asChild>
-            <Pressable style={styles.addButton}>
-              <Plus color={colors.background.void} size={22} />
-            </Pressable>
-          </Link>
+          <View style={styles.headerActions}>
+            <EssenceBadge value={player?.esencia ?? 0} />
+            <Link href="/habit/new" asChild>
+              <Pressable style={styles.addButton}>
+                <Plus color={colors.background.void} size={22} />
+              </Pressable>
+            </Link>
+          </View>
         )}
       />
 
@@ -70,6 +89,8 @@ export default function TodayScreen() {
             <Text style={styles.claimed}>{t(language, 'missionClaimed')} · +{dailyMission?.xpBonus ?? 10} XP</Text>
           ) : null}
         </View>
+
+        <SystemMessageCard />
 
         {showPerfectWeekMission ? (
           <View style={[styles.missionPanel, styles.streakMissionPanel]}>
@@ -211,6 +232,11 @@ const styles = StyleSheet.create({
   scroll: {
     gap: 16,
     paddingBottom: 24,
+  },
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
   },
   addButton: {
     alignItems: 'center',

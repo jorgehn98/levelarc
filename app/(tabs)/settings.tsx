@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import {
   Bell,
   ChevronLeft,
+  Cpu,
   Download,
   Eye,
   Globe,
@@ -16,6 +17,9 @@ import {
   Skull,
   Snowflake,
   Sparkles,
+  Store,
+  Terminal,
+  Trophy,
   Upload,
   User,
   X,
@@ -37,6 +41,7 @@ import {
   requestNotificationPermissions,
   scheduleEndOfDayReminder,
 } from '@/lib/notifications';
+import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
@@ -44,6 +49,7 @@ const END_OF_DAY_REMINDER_TIME_KEY = 'levelarc.endOfDayReminderTime';
 const END_OF_DAY_REMINDER_ID_KEY = 'levelarc.endOfDayReminderNotificationId';
 const VIBRATION_KEY = 'levelarc.settings.vibration';
 const SOUND_KEY = 'levelarc.settings.sound';
+const INTERJECTIONS_ENABLED_KEY = 'levelarc.interjectionsEnabled';
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.2';
 
 async function clearEndOfDayReminder() {
@@ -64,6 +70,7 @@ type SettingsState = {
   endOfDayReminderDraft: string | null;
   vibrationEnabled: boolean;
   soundEnabled: boolean;
+  interjectionsEnabled: boolean;
   isCheckingUpdate: boolean;
 };
 
@@ -77,8 +84,15 @@ type SettingsAction =
   | { type: 'setEndOfDayReminderDraft'; value: string | null }
   | { type: 'setVibrationEnabled'; value: boolean }
   | { type: 'setSoundEnabled'; value: boolean }
+  | { type: 'setInterjectionsEnabled'; value: boolean }
   | { type: 'setCheckingUpdate'; value: boolean }
-  | { type: 'loadPreferences'; reminderTime: string | null; vibrationEnabled: boolean; soundEnabled: boolean }
+  | {
+      type: 'loadPreferences';
+      reminderTime: string | null;
+      vibrationEnabled: boolean;
+      soundEnabled: boolean;
+      interjectionsEnabled: boolean;
+    }
   | { type: 'clearEndOfDayReminder' }
   | { type: 'saveEndOfDayReminder'; value: string };
 
@@ -93,6 +107,7 @@ function createSettingsState(playerName: string): SettingsState {
     endOfDayReminderDraft: '21:30',
     vibrationEnabled: true,
     soundEnabled: false,
+    interjectionsEnabled: true,
     isCheckingUpdate: false,
   };
 }
@@ -117,6 +132,8 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
       return { ...state, vibrationEnabled: action.value };
     case 'setSoundEnabled':
       return { ...state, soundEnabled: action.value };
+    case 'setInterjectionsEnabled':
+      return { ...state, interjectionsEnabled: action.value };
     case 'setCheckingUpdate':
       return { ...state, isCheckingUpdate: action.value };
     case 'loadPreferences':
@@ -124,6 +141,7 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
         ...state,
         vibrationEnabled: action.vibrationEnabled,
         soundEnabled: action.soundEnabled,
+        interjectionsEnabled: action.interjectionsEnabled,
         endOfDayReminderTime: action.reminderTime,
         endOfDayReminderDraft: action.reminderTime ?? state.endOfDayReminderDraft,
       };
@@ -153,6 +171,7 @@ export default function SettingsScreen() {
   const importBackup = useAppStore((state) => state.importBackup);
   const closeToday = useAppStore((state) => state.closeToday);
   const resetAll = useAppStore((state) => state.resetAll);
+  const setInterjectionsEnabled = useAiStore((store) => store.setInterjectionsEnabled);
   const [state, dispatch] = useReducer(settingsReducer, player?.nombre ?? '', createSettingsState);
   const {
     backupJson,
@@ -160,6 +179,7 @@ export default function SettingsScreen() {
     endOfDayReminderTime,
     isCheckingUpdate,
     isEndOfDayReminderOpen,
+    interjectionsEnabled,
     isImportOpen,
     isNameOpen,
     playerName,
@@ -169,16 +189,18 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     async function loadEndOfDayReminder() {
-      const [storedTime, storedVibration, storedSound] = await Promise.all([
+      const [storedTime, storedVibration, storedSound, storedInterjections] = await Promise.all([
         AsyncStorage.getItem(END_OF_DAY_REMINDER_TIME_KEY),
         AsyncStorage.getItem(VIBRATION_KEY),
         AsyncStorage.getItem(SOUND_KEY),
+        AsyncStorage.getItem(INTERJECTIONS_ENABLED_KEY),
       ]);
       dispatch({
         type: 'loadPreferences',
         reminderTime: storedTime,
         vibrationEnabled: storedVibration !== 'false',
         soundEnabled: storedSound === 'true',
+        interjectionsEnabled: storedInterjections !== 'false',
       });
     }
 
@@ -278,6 +300,14 @@ export default function SettingsScreen() {
     await AsyncStorage.setItem(SOUND_KEY, String(next));
   };
 
+  const handleToggleInterjections = async () => {
+    const next = !interjectionsEnabled;
+    dispatch({ type: 'setInterjectionsEnabled', value: next });
+    // El store persiste la preferencia y actualiza su propio estado, que es lo que lee el guard de
+    // triggerInterjection. Así el toggle queda sincronizado con la mecánica de apariciones.
+    await setInterjectionsEnabled(next);
+  };
+
   const handleResetAll = () => {
     Alert.alert(t(language, 'resetAllConfirmTitle'), t(language, 'resetAllConfirmCopy'), [
       { text: t(language, 'cancel'), style: 'cancel' },
@@ -354,6 +384,36 @@ export default function SettingsScreen() {
 
           <SettingRow compact icon={Music} title={t(language, 'sound')} value={t(language, 'soundCopy')}>
             <Toggle active={soundEnabled} onPress={() => void handleToggleSound()} />
+          </SettingRow>
+        </SettingsSection>
+
+        <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'system')}>
+          <SettingRow compact icon={Cpu} title={t(language, 'interjectionsToggle')} value={t(language, 'interjectionsToggleCopy')}>
+            <Toggle active={interjectionsEnabled} onPress={() => void handleToggleInterjections()} />
+          </SettingRow>
+
+          <SettingRow icon={Terminal} title={t(language, 'systemChatTitle')} value={t(language, 'systemChatRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Terminal} label={t(language, 'open')} onPress={() => router.push('/system-chat')} variant="selected" />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={Cpu} title={t(language, 'aiManageTitle')} value={t(language, 'aiManageRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Cpu} label={t(language, 'aiManageOpen')} onPress={() => router.push('/system-ai')} variant="selected" />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={Store} title={t(language, 'systemShop')} value={t(language, 'shopRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Store} label={t(language, 'openShop')} onPress={() => router.push('/shop')} variant="selected" />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={Trophy} title={t(language, 'achievements')} value={t(language, 'achievementsRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Trophy} label={t(language, 'achievements')} onPress={() => router.push('/achievements')} variant="selected" />
+            </View>
           </SettingRow>
         </SettingsSection>
 

@@ -124,35 +124,54 @@ Incluye:
 
 ## v2.0 — Gamificación avanzada
 
-Estado: futuro.
+Estado: fase activa, primer bloque implementado.
 
 Objetivo: aumentar retención sin meter IA todavía.
 
-Incluye:
+Implementado (primer bloque):
 
-- Logros.
+- Economía de Esencia: moneda gastable distinta del XP, ganada al completar hábitos, reclamar misión diaria, racha perfecta y subir de nivel; reversión exacta y no farmeable. Lógica pura en `src/core/economy.ts`, migraciones 0006-0007.
+- Tienda del Sistema (`/shop`, accesible desde Ajustes y Progreso): se gasta Esencia en cosméticos que no afectan al motor de XP.
+- Títulos de Jugador (5) y auras del emblema (6), con requisitos de nivel/rango y compra atómica. Catálogo y reglas en `src/core/shop.ts`, migración 0008.
+
+Implementado (segundo bloque):
+
+- Logros / medallas: 21 logros en 6 categorías, catálogo puro con condición por logro en `src/core/achievements.ts`, evaluación tras cada acción y al arrancar, Esencia al desbloquear y persistencia idempotente en `achievements_unlocked` (migración 0009). Pantalla `/achievements` accesible desde Progreso y Ajustes.
+- Celebraciones de rango (rank-up automático): la cinemática de ascenso se dispara sola al subir de rango jugando, con rango origen/destino.
+- Feedback de recompensa: overlay global de celebración (logro, subida de nivel del jugador y subida de nivel de atributo), micro-feedback al completar un hábito y lectura de progreso por atributos en Progreso (`AttributeRow`).
+
+Pendiente dentro de v2.0:
+
 - Más misiones, no generativas.
-- Celebraciones de rango.
-- Evolución del sistema de rachas si los datos reales lo piden.
 - Estadísticas avanzadas.
+- Evolución del sistema de rachas si los datos reales lo piden.
 - Ajuste de curva XP si los datos reales lo piden.
 
-## v2.x — IA local opcional
+## v2.x — IA local "el Sistema"
 
-Estado: futuro documentado, no implementar aún.
+Estado: chat por reglas (Fase 5A) implementado; LLM on-device (Fase 5B) pendiente de build nativo.
 
-Objetivo: añadir personalidad del Sistema sin romper privacidad.
+Objetivo: añadir personalidad del Sistema sin romper privacidad. Referencia completa en `docs/IA-SISTEMA.md`.
 
-Según la biblia:
+Implementado (Fase 5A — chat del Sistema por reglas):
 
-- Modelo local descargable: Gemma 4 E2B GGUF Q4.
-- Integración probable: `llama.rn`.
-- Sin tool calling.
-- Sin subagentes.
-- Contexto determinista armado desde SQLite por TypeScript.
-- Tablas futuras: `AI_MESSAGES`, `AI_PROFILE`.
+- Chat "el Sistema" (tono Solo Leveling) accesible desde Hoy y Ajustes, pantalla `app/system-chat.tsx`.
+- Funciona offline con motor determinista por plantillas (reglas), no un LLM todavía.
+- Arquitectura enchufable: interface `SystemChatEngine` con adapters `templateEngine` (activo) y `llamaEngine` (STUB).
+- Contexto determinista desde SQLite (`src/core/aiContext.ts`) y voz por reglas (`src/core/systemVoice.ts`), puros y testeados.
+- Bilingüe vía `{key, params}` + i18n, tablas `ai_profile` y `ai_messages` (migración 0010).
+- Entregado por OTA (JS puro).
 
-No crear tablas IA hasta que se vaya a implementar la feature.
+Pendiente (Fase 5B — LLM on-device, build nativo):
+
+- Modelo local descargable: Gemma 3 1B GGUF Q4_K_M (~720 MB). Plan B: Llama 3.2 1B / Qwen 2.5 1.5B.
+- Integración con `llama.rn` (binding de llama.cpp, GGUF). Alternativa: `react-native-executorch`.
+- Sin tool calling. Sin subagentes.
+- Requiere New Architecture + módulo nativo: development build + nuevo EAS Build + bump de `runtimeVersion`. NO es OTA.
+- Descarga del modelo bajo demanda con la NEW File API de `expo-file-system`, toggle de IA obligatorio.
+- Rellenar `src/ai/llamaEngine.ts` (real, con streaming) sobre la misma interface.
+
+Plan, checklist y riesgos detallados en `docs/IA-SISTEMA.md`.
 
 ## Play Store
 

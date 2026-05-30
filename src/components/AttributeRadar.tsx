@@ -70,21 +70,6 @@ export function AttributeRadar({ attributeXp }: AttributeRadarProps) {
           ))}
         </Svg>
       </View>
-
-      <View style={styles.attributeList}>
-        {items.map((item) => (
-          <View key={item.id} style={styles.attributeRow}>
-            <View style={[styles.dot, { backgroundColor: item.color }]} />
-            <View style={styles.attributeCopy}>
-              <Text style={styles.attributeName}>{item.label}</Text>
-              <View style={styles.barTrack}>
-                <View style={[styles.barFill, { backgroundColor: item.color, width: `${Math.max(6, item.progress.ratio * 100)}%` }]} />
-              </View>
-            </View>
-            <Text style={styles.attributeLevel}>Nv. {item.progress.level}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }
@@ -125,43 +110,5 @@ const styles = StyleSheet.create({
   },
   radarWrap: {
     alignItems: 'center',
-  },
-  attributeList: {
-    gap: 10,
-  },
-  attributeRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  dot: {
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  attributeCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  attributeName: {
-    color: colors.brand.bone,
-    fontFamily: typography.font.bodyMedium,
-    fontSize: 12,
-    marginBottom: 5,
-  },
-  barTrack: {
-    backgroundColor: colors.background.card,
-    borderRadius: 2,
-    height: 4,
-    overflow: 'hidden',
-  },
-  barFill: {
-    borderRadius: 2,
-    height: 4,
-  },
-  attributeLevel: {
-    color: colors.brand.boneMuted,
-    fontFamily: typography.font.displayMedium,
-    fontSize: 10,
   },
 });

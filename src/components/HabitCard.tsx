@@ -1,5 +1,13 @@
 import { Check, Plus, RotateCcw, X } from 'lucide-react-native';
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ProgressBar } from '@/components/ProgressBar';
 import { normalizeHabitAttributes } from '@/core/attributes';
@@ -31,8 +39,25 @@ export function HabitCard({ habit, language, onIncrement, onFail, onOpenDetail, 
   const ActionIcon = habit.tipo === 'binario' ? Check : Plus;
   const stateLabel = isDone ? t(language, 'completed') : isFailed ? t(language, 'failed') : t(language, 'pending');
 
+  // Micro-feedback: un destello sutil del color `completed` sobre la tarjeta justo en la transición
+  // pendiente → completado, para que rematar un hábito se sienta. No bloquea toques (pointerEvents
+  // none) y no se dispara en el primer render (solo cuando el estado realmente cambia).
+  const flash = useSharedValue(0);
+  const wasDone = useRef(isDone);
+  useEffect(() => {
+    if (isDone && !wasDone.current) {
+      flash.value = withSequence(
+        withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 520, easing: Easing.in(Easing.quad) }),
+      );
+    }
+    wasDone.current = isDone;
+  }, [isDone, flash]);
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value * 0.22 }));
+
   return (
     <View style={[styles.card, { borderColor: accent }, isDone && styles.doneCard, isFailed && styles.failedCard]}>
+      <Animated.View pointerEvents="none" style={[styles.completeFlash, flashStyle]} />
       <View style={[styles.statusRail, { backgroundColor: accent }]} />
       <View style={styles.topRow}>
         <Pressable
@@ -126,6 +151,14 @@ const styles = StyleSheet.create({
   },
   failedCard: {
     opacity: 0.78,
+  },
+  completeFlash: {
+    backgroundColor: colors.state.completed,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   statusRail: {
     bottom: 0,
