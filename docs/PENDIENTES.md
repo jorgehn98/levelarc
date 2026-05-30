@@ -112,8 +112,14 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Implementar descarga de modelo (NEW File API de `expo-file-system`, `src/ai/modelManager.ts`) + pantalla de gestión `app/system-ai.tsx` con progreso/cancelación.
 - [x] Implementar `llamaEngine` real (`initLlama` + `completion`, carga perezosa) sobre la interface `SystemChatEngine`.
 - [x] Bump de `runtimeVersion` a `1.1.0` (corta OTA: requiere instalar el build nativo nuevo).
-- [ ] Build nativo validado en device real (instalar APK, descargar modelo, probar conversación; RAM/batería/calor, toggle de IA obligatorio).
-- [ ] Reactivar OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
+- [x] Cambiar el modelo a Gemma 4 E2B GGUF Q4_K_M (`unsloth/gemma-4-E2B-it-GGUF`, ~3,1 GB, stop `<end_of_turn>`).
+- [x] Mensaje del Sistema en Hoy (banner `SystemMessageCard`, cacheado por día con IA activa).
+- [x] Apariciones autónomas del Sistema (`SystemInterjectionOverlay`, triggers misión completada / vuelta tras ausencia, cooldown 1/sesión y 1/día por trigger, "Continuar" abre el chat con contexto).
+- [x] Build nativo conseguido (preview Android `1c04b308-ea9a-44a9-afb1-da7ecb837927`, runtime `1.1.0`, versionCode `5`; resuelto con `EAS_NO_VCS=1` por el bug de git clone en Windows).
+- [ ] Validar en device real: instalar APK `1c04b308`, descargar Gemma 4 E2B (~3,1 GB) y probar chat y apariciones (RAM/batería/calor, toggle de IA obligatorio).
+- [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
+- [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
+- [ ] Cablear triggers extra de apariciones (`streak`, `near_level`, `mission_failed`).
 - [ ] EAS Build production.
 
 ## Datos / lógica

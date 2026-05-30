@@ -32,9 +32,9 @@ Funciona **OFFLINE con un motor determinista por plantillas (reglas)**, no un LL
 - `src/stores/aiStore.ts` — store, traducción i18n y persistencia del texto resuelto.
 - Tablas `ai_profile` y `ai_messages` (migración 0010), banco de frases `sys_*` en `src/i18n/index.ts`.
 
-## Fase 5B — LLM local real (implementada en código, commit `3d5d509`; build nativo en marcha)
+## Fase 5B — LLM local real (implementada en código, commit `3d5d509`; build nativo conseguido)
 
-El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. Falta solo **validar en device real** y el build de production. Se ha lanzado un build nativo EAS (runtime `1.1.0`).
+El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. El **build nativo EAS ya está conseguido** (preview Android, runtime `1.1.0`, build `1c04b308-ea9a-44a9-afb1-da7ecb837927`): compiló correctamente con `llama.rn` 0.12.4 + el LLM. Falta solo **validar en device real** y el build de production.
 
 ### Librería y dependencias
 
@@ -44,7 +44,9 @@ El LLM on-device ya está implementado en código sobre la misma interface `Syst
 
 ### Modelo
 
-- **Gemma 3 1B GGUF Q4_K_M (~806 MB)** desde `unsloth/gemma-3-1b-it-GGUF`: el único que corre digno en Android de gama media (4 GB RAM).
+- **Gemma 4 E2B GGUF Q4_K_M (~3,1 GB)** desde `unsloth/gemma-4-E2B-it-GGUF`. Decisión del usuario frente a Gemma 3 1B. llama.cpp lo soporta (gemma4.cpp, PLE resuelto, Q4 seguro) y `llama.rn` 0.12.4 trae un build reciente que lo carga.
+- **Stop**: `<end_of_turn>`. CPU-only en el primer build.
+- **Peso**: ~3,1 GB. Cómodo en 6 GB de RAM, justo en 4 GB. El manejo de error cubre el fallo de carga sin romper la app.
 - Plan B (no usado): Llama 3.2 1B o Qwen 2.5 1.5B.
 
 ### CRÍTICO — esto NO es OTA
@@ -53,7 +55,8 @@ El LLM on-device ya está implementado en código sobre la misma interface `Syst
 
 - NO funciona en Expo Go.
 - NO se entrega por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
-- El LLM solo llega instalando el build nativo nuevo; el modelo se descarga on-device desde la pantalla de gestión.
+- El LLM solo llega instalando el build nativo nuevo (build `1c04b308`, ya conseguido); el modelo se descarga on-device desde la pantalla de gestión.
+- El modelo NO viene en el APK ni por OTA: la IA es **opcional** y el GGUF se descarga bajo demanda dentro de la app. La app funciona perfecta sin modelo.
 - El chat por plantillas (runtime `1.0.2`) sigue funcionando por OTA para quien no instale el build nuevo.
 
 ### Aislamiento de `llama.rn` (triple barrera)
@@ -92,19 +95,36 @@ El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y
 ### Config nativa
 
 - `app.json`: `newArchEnabled`, plugins `llama.rn` + `expo-build-properties`, version `1.1.0` / versionCode `5`.
-- `eas.json`: node `22.15.1` en los 3 perfiles.
+- `eas.json`: node `22.15.1` en los 3 perfiles. Esto evita el gotcha `ERR_REQUIRE_ESM` al cargar el config plugin de `llama.rn`.
 - `pnpm-workspace`: `allowBuilds` con `llama.rn: true` (postinstall que descarga los artefactos nativos).
 - **Primer build CPU-only** (sin `enableOpenCL`, `n_gpu_layers=0`) por estabilidad. Tras validar en device se puede reactivar OpenCL / `n_gpu_layers`.
+
+### Gotcha del build en Windows (`EAS_NO_VCS`)
+
+El primer intento de build falló por un bug de `eas-cli` en Windows: al hacer git clone de `file:///C:/...` con git 2.53 devuelve código 128 ("does not appear to be a git repository"). Se resolvió con `EAS_NO_VCS=1`, que empaqueta el working dir directamente sin pasar por git clone. El build `1c04b308` se lanzó así.
+
+### Integración de la IA en la app (más allá del chat)
+
+La IA no es solo una pantalla de chat: aparece en el flujo de juego.
+
+- **Mensaje del Sistema en Hoy (banner)**: la app te recibe cada día con una línea contextual del Sistema. Componente `SystemMessageCard`. Instantáneo con plantillas; cuando la IA está activa lo genera Gemma y se **cachea por día**.
+- **Apariciones autónomas del Sistema**: el Sistema salta solo en momentos clave (completar la misión diaria, volver tras ausencia) con un personaje y bocadillo (overlay `SystemInterjectionOverlay`), con **cooldown** (1/sesión, 1/día por trigger). El botón "Continuar" abre el chat heredando el contexto de por qué saltó.
+  - Personaje placeholder enchufable (sprites en `assets/character/`).
+  - Toggle "Apariciones del Sistema" en Ajustes.
+  - Funciona offline con plantillas; con IA activa lo genera Gemma.
+  - Triggers extra preparados (`streak`, `near_level`, `mission_failed`) pero **no cableados aún**.
 
 ### Prompt de sistema
 
 Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar datos, usa solo el estado proporcionado.
 
-## Cómo validar 5B (pendiente)
+## Cómo validar 5B (pendiente — única tarea abierta)
 
-1. Instalar el APK del build nativo nuevo (runtime `1.1.0`) en Android real.
-2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el modelo.
-3. Activar la IA avanzada y probar conversación; verificar RAM/batería/calor en gama media.
+El build nativo ya está conseguido (`1c04b308`); lo que queda es la validación en device:
+
+1. Instalar el APK del build nativo `1c04b308` (runtime `1.1.0`) en Android real.
+2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
+3. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
 4. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
 5. EAS Build `production`.
 
@@ -113,9 +133,9 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 - **Peso del binario**: el módulo nativo aumenta el tamaño; valorar ABI splits.
 - **New Arch / RN 0.85**: superficie de compatibilidad nueva.
 - **Bump de `runtimeVersion`**: corta el OTA; los usuarios reinstalan binario desde la store.
-- **Gama baja**: riesgo de OOM con 1B Q4 en dispositivos de poca RAM.
+- **Gama baja**: Gemma 4 E2B Q4 pesa ~3,1 GB; cómodo en 6 GB de RAM, justo en 4 GB. El manejo de error cubre el fallo de carga sin romper la app.
 - **Batería y calor**: generación larga calienta y descarga; de ahí el toggle obligatorio.
 
 ## Resumen de la decisión
 
-Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con build nativo EAS en marcha (runtime `1.1.0`). Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo. Queda pendiente la validación en device real y el build de production.
+Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B y **build nativo EAS conseguido** (runtime `1.1.0`, build `1c04b308`). La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo y descargar el GGUF de ~3,1 GB on-device. Queda pendiente la validación en device real y el build de production.

@@ -187,8 +187,11 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Bilingüe sin acoplar el motor al idioma: el motor devuelve `{key, params}` y el store `src/stores/aiStore.ts` traduce con i18n y guarda el texto resuelto. Banco de frases `sys_*` en ES/EN.
 - Persistencia en tablas `ai_profile` (singleton: enabled, engine `'template'|'llama'`, modelStatus, modelPath) y `ai_messages` (historial), migración 0010. Export/import y reset cubren ambas.
 - Entregado por OTA (es JS puro). El motor de plantillas funciona en runtime `1.0.2`.
-- LLM local real (Fase 5B) implementado en código (commit `3d5d509`) detrás de la misma arquitectura enchufable: `llama.rn` 0.12.4 + Gemma 3 1B GGUF Q4_K_M (~806 MB) en `src/ai/llamaEngine.ts` (motor real con carga perezosa), descarga del modelo on-device (`src/ai/modelManager.ts`, NEW File API) y pantalla de gestión `app/system-ai.tsx` (Ajustes → Sistema → "IA avanzada" y cabecera del chat).
-- El LLM NO llega por OTA: solo por el build nativo nuevo (runtime `1.1.0`). Pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
+- Mensaje del Sistema en Hoy: un banner que te recibe cada día con una línea contextual del Sistema. Instantáneo con plantillas; cuando la IA está activa lo genera Gemma y se cachea por día. Componente `SystemMessageCard`.
+- Apariciones autónomas del Sistema: la IA no es solo chat. El Sistema salta solo en momentos clave (completar la misión diaria, volver tras ausencia) con un personaje y bocadillo (overlay `SystemInterjectionOverlay`), con cooldown (1/sesión, 1/día por trigger). El botón "Continuar" abre el chat heredando el contexto de por qué saltó. Personaje placeholder enchufable (sprites en `assets/character/`). Toggle "Apariciones del Sistema" en Ajustes. Funciona offline con plantillas; con IA activa lo genera Gemma. Triggers extra preparados (`streak`, `near_level`, `mission_failed`) pero no cableados aún.
+- La IA es OPCIONAL: la app funciona perfecta sin modelo. Se activa con un botón que descarga el modelo dentro de la app (Ajustes → Sistema → "IA avanzada"). El modelo NO viene por OTA ni en el APK: se descarga on-device bajo demanda.
+- LLM local real (Fase 5B) implementado en código (commit `3d5d509`) detrás de la misma arquitectura enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB) en `src/ai/llamaEngine.ts` (motor real con carga perezosa), descarga del modelo on-device (`src/ai/modelManager.ts`, NEW File API) y pantalla de gestión `app/system-ai.tsx` (Ajustes → Sistema → "IA avanzada" y cabecera del chat).
+- El LLM NO llega por OTA: solo por el build nativo nuevo (runtime `1.1.0`), que ya está conseguido (build `1c04b308`). Pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
 ### Persistencia
 
@@ -318,6 +321,16 @@ Build preview Android actual con actualización automática al arranque:
 - Fingerprint: `2d844f8e79f4e7f2343903a11d0843d6228a08d5`
 - Perfil: `preview`, canal `preview`, runtimeVersion `1.0.2`, SDK `56.0.0`, version `1.0.2`, versionCode `4`.
 - Incluye comprobación automática de EAS Update al arrancar, manteniendo el botón manual de Ajustes como fallback.
+
+Build preview Android con LLM (llama.rn + Gemma 4 E2B):
+
+- ID: `1c04b308-ea9a-44a9-afb1-da7ecb837927`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/1c04b308-ea9a-44a9-afb1-da7ecb837927>
+- Estado: terminado correctamente.
+- Perfil: `preview`, distribución interna, runtimeVersion `1.1.0`, version `1.1.0`, versionCode `5`.
+- Compiló con `llama.rn` 0.12.4 (New Arch). El config plugin cargó sin el gotcha `ERR_REQUIRE_ESM` porque EAS usa Node 22.15.1 (fijado en `eas.json`). El postinstall de `llama.rn` descargó los binarios nativos (`allowBuilds` `llama.rn: true` en `pnpm-workspace`).
+- Gotcha del build: el primer intento falló por un bug de `eas-cli` en Windows (git clone `file:///C:/...` con git 2.53 da código 128, "does not appear to be a git repository"). Se resolvió con `EAS_NO_VCS=1` para empaquetar el working dir sin git clone.
+- Pendiente: validación en device real (cargar el GGUF de ~3,1 GB, probar chat y apariciones).
 
 Update `preview` inicial publicado:
 
@@ -587,11 +600,20 @@ MVP listo para publicar: no por decisión de producto, no por bloqueo técnico p
 
 Gamificación avanzada (v2.0): en marcha. El primer bloque (economía de Esencia + Tienda del Sistema con títulos y auras) está implementado, con lógica pura testeada en `src/core/economy.ts` y `src/core/shop.ts` y migraciones 0006-0008. El segundo bloque (logros + feedback/celebraciones) también está implementado: 21 logros con catálogo puro testeado en `src/core/achievements.ts` y migración 0009, overlay global de celebración, rank-up automático al subir de rango jugando y lectura de progreso por atributos en Progreso.
 
-El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. Además, el LLM local real (Fase 5B) ya está implementado en código (commit `3d5d509`) detrás de la misma interface enchufable: `llama.rn` 0.12.4 + Gemma 3 1B GGUF Q4_K_M, descarga del modelo on-device y pantalla de gestión. Solo se entrega por build nativo (runtime `1.1.0`), no por OTA, y queda pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
+El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. La IA se ha ampliado más allá del chat: banner del Sistema en Hoy (`SystemMessageCard`) y apariciones autónomas en momentos clave (`SystemInterjectionOverlay`), ambas offline con plantillas y generadas por Gemma cuando la IA está activa. El LLM local real (Fase 5B) ya está implementado en código (commit `3d5d509`) detrás de la misma interface enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB), descarga del modelo on-device bajo demanda y pantalla de gestión. La IA es opcional: la app funciona sin modelo. Solo se entrega por build nativo (runtime `1.1.0`), no por OTA, y queda pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
-Build nativo EAS con LLM: pendiente de registrar ID.
+Build nativo EAS con LLM: conseguido. Build preview `1c04b308-ea9a-44a9-afb1-da7ecb837927` (runtime `1.1.0`, versionCode `5`) compiló correctamente con `llama.rn` 0.12.4 + Gemma 4 E2B; pendiente de validación en device real. Detalle arriba en "Verificación actual".
 
-Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código y entra en validación en device con el build nativo `1.1.0`.
+Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas y Gemma 4:
+
+- Update group: `a1d8f4ab-79b3-42e8-9604-890c5b5847b3`
+- Runtime: `1.1.0`
+- Mensaje: `System daily message, autonomous interjections and Gemma 4 model`
+- Commit: `0cac468`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a1d8f4ab-79b3-42e8-9604-890c5b5847b3>
+- Llega al APK del build `1c04b308` (runtime 1.1.0), no a los APK 1.0.x.
+
+Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código con Gemma 4 E2B y ya tiene build nativo `1.1.0` conseguido (`1c04b308`); entra en validación en device.
 
 Update `preview` con el chat del Sistema (IA base por reglas):
 
