@@ -149,6 +149,9 @@ export default function ProgressScreen() {
               <Button icon={Store} label={t(language, 'shop')} onPress={() => router.push('/shop')} variant="selected" />
             </View>
           </View>
+          <View style={styles.navAction}>
+            <Button icon={Trophy} label={t(language, 'achievements')} onPress={() => router.push('/achievements')} variant="selected" />
+          </View>
         </View>
 
         <View style={styles.panel}>
@@ -478,6 +481,9 @@ const styles = StyleSheet.create({
   },
   shopAction: {
     justifyContent: 'center',
+  },
+  navAction: {
+    marginTop: 10,
   },
   events: {
     gap: 8,

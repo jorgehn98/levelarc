@@ -18,13 +18,16 @@ import {
 import { getScheduledCompletionStreak } from '@/core/streaks';
 import {
   applyAttributeDeltas,
+  attributeIds,
   createEmptyAttributeXp,
   getAttributeDeltas,
+  getAttributeLevelProgress,
   normalizeAttributeXp,
   serializeAttributeXp,
   serializeHabitAttributes,
   type AttributeXp,
 } from '@/core/attributes';
+import { evaluateUnlocked, getAchievement, type AchievementContext } from '@/core/achievements';
 import { getTodayWeekday, toDateKey, toIsoTimestamp } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
@@ -202,6 +205,7 @@ export async function resetAllData() {
     DELETE FROM habit_daily_progress;
     DELETE FROM daily_missions;
     DELETE FROM player_rewards;
+    DELETE FROM achievements_unlocked;
     DELETE FROM habits;
     DELETE FROM player;
   `);
@@ -555,14 +559,108 @@ async function getHabitEvents(habitId: string, limit = 10): Promise<EventRecord[
   return rows.map(mapEvent);
 }
 
+// Arma el contexto de stats agregadas que consume el evaluador de logros. Reutiliza la lógica de
+// racha (getHabitCompletionStreak) y los niveles de atributo (getAttributeLevelProgress) ya
+// existentes en vez de duplicarlas.
+export async function buildAchievementContext(): Promise<AchievementContext> {
+  const player = await ensurePlayer();
+  const dateKey = toDateKey();
+
+  const habitCount = await sqlite.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM habits');
+  const completedCount = await sqlite.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) as count FROM events WHERE tipo_evento = 'completado'",
+  );
+  const claimedMissions = await sqlite.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM daily_missions WHERE reclamada = 1',
+  );
+  const perfectStreak = await sqlite.getFirstAsync<{ max: number | null }>(
+    'SELECT MAX(perfect_streak_days) as max FROM daily_missions',
+  );
+  const rewardsCount = await sqlite.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM player_rewards');
+
+  const activeHabits = await listHabits(false);
+  let maxRachaHabitoActual = 0;
+  for (const habit of activeHabits) {
+    const streak = await getHabitCompletionStreak(habit.id, dateKey, habit.diasSemana);
+    const todayCompleted = await sqlite.getFirstAsync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM habit_daily_progress WHERE habit_id = ? AND fecha = ? AND estado = 'completado'",
+      [habit.id, dateKey],
+    );
+    const currentStreak = (todayCompleted?.count ?? 0) > 0 ? streak + 1 : streak;
+    if (currentStreak > maxRachaHabitoActual) maxRachaHabitoActual = currentStreak;
+  }
+
+  const maxNivelAtributo = attributeIds.reduce(
+    (max, id) => Math.max(max, getAttributeLevelProgress(player.atributosXp[id]).level),
+    0,
+  );
+
+  return {
+    nivel: player.nivel,
+    rango: player.rango,
+    habitosCreados: habitCount?.count ?? 0,
+    totalCompletados: completedCount?.count ?? 0,
+    maxRachaHabitoActual,
+    misionesReclamadas: claimedMissions?.count ?? 0,
+    rachaMisionesActual: player.rachaMisiones,
+    rachaPerfectaMax: perfectStreak?.max ?? 0,
+    maxNivelAtributo,
+    cosmeticosComprados: rewardsCount?.count ?? 0,
+  };
+}
+
+export async function listUnlockedAchievementIds(): Promise<string[]> {
+  const rows = await sqlite.getAllAsync<{ achievement_id: string }>(
+    'SELECT achievement_id FROM achievements_unlocked',
+  );
+  return rows.map((row) => row.achievement_id);
+}
+
+// Evalúa el catálogo contra el estado actual, persiste los nuevos logros y otorga su Esencia en una
+// transacción. Idempotente incluso ante checks solapados: el INSERT OR IGNORE más el unique index
+// sobre achievement_id garantizan que solo una de las llamadas concurrentes inserta cada logro, y
+// solo esa otorga Esencia (changes > 0). Si no hay nuevos devuelve [].
+export async function evaluateAndUnlockAchievements(): Promise<{ id: string; essenceReward: number }[]> {
+  const context = await buildAchievementContext();
+  const unlockedIds = evaluateUnlocked(context);
+  const already = new Set(await listUnlockedAchievementIds());
+
+  const candidates = unlockedIds
+    .filter((id) => !already.has(id))
+    .map((id) => ({ id, essenceReward: getAchievement(id)?.essenceReward ?? 0 }));
+
+  if (candidates.length === 0) return [];
+
+  const newlyUnlocked: { id: string; essenceReward: number }[] = [];
+
+  await sqlite.withExclusiveTransactionAsync(async (tx) => {
+    for (const { id, essenceReward } of candidates) {
+      // OR IGNORE: si otro check ganó la carrera e insertó esta fila, changes === 0 y la saltamos
+      // (ni Esencia ni celebración). Solo la inserción real (changes > 0) otorga y se devuelve.
+      const result = await tx.runAsync(
+        'INSERT OR IGNORE INTO achievements_unlocked (id, achievement_id, desbloqueado_en) VALUES (?, ?, ?)',
+        [createId(), id, toIsoTimestamp()],
+      );
+      if (result.changes === 0) continue;
+      if (essenceReward > 0) {
+        await tx.runAsync('UPDATE player SET esencia = MAX(0, esencia + ?) WHERE id = 1', [essenceReward]);
+      }
+      newlyUnlocked.push({ id, essenceReward });
+    }
+  });
+
+  return newlyUnlocked;
+}
+
 export async function exportAllData() {
-  const [allHabits, allEvents, progress, playerRows, missions, rewards] = await Promise.all([
+  const [allHabits, allEvents, progress, playerRows, missions, rewards, achievements] = await Promise.all([
     sqlite.getAllAsync('SELECT * FROM habits ORDER BY creado_en ASC'),
     sqlite.getAllAsync('SELECT * FROM events ORDER BY registrado_en ASC'),
     sqlite.getAllAsync('SELECT * FROM habit_daily_progress ORDER BY fecha ASC'),
     sqlite.getAllAsync('SELECT * FROM player'),
     sqlite.getAllAsync('SELECT * FROM daily_missions ORDER BY fecha ASC'),
     sqlite.getAllAsync('SELECT * FROM player_rewards ORDER BY adquirido_en ASC'),
+    sqlite.getAllAsync('SELECT * FROM achievements_unlocked ORDER BY desbloqueado_en ASC'),
   ]);
 
   return {
@@ -573,6 +671,7 @@ export async function exportAllData() {
     player: playerRows,
     dailyMissions: missions,
     playerRewards: rewards,
+    achievementsUnlocked: achievements,
   };
 }
 
@@ -596,6 +695,7 @@ export async function importAllData(data: unknown) {
       await tx.runAsync('DELETE FROM events');
       await tx.runAsync('DELETE FROM daily_missions');
       await tx.runAsync('DELETE FROM player_rewards');
+      await tx.runAsync('DELETE FROM achievements_unlocked');
       await tx.runAsync('DELETE FROM habits');
       await tx.runAsync('DELETE FROM player');
 
@@ -683,6 +783,13 @@ export async function importAllData(data: unknown) {
         await tx.runAsync(
           'INSERT INTO player_rewards (id, reward_id, kind, adquirido_en) VALUES (?, ?, ?, ?)',
           [reward.id, reward.rewardId, reward.kind, reward.adquiridoEn],
+        );
+      }
+
+      for (const achievement of backup.achievementsUnlocked) {
+        await tx.runAsync(
+          'INSERT INTO achievements_unlocked (id, achievement_id, desbloqueado_en) VALUES (?, ?, ?)',
+          [achievement.id, achievement.achievementId, achievement.desbloqueadoEn],
         );
       }
     });
@@ -1153,6 +1260,7 @@ type NormalizedBackupData = {
   player: PlayerRecord | null;
   dailyMissions: DailyMissionRecord[];
   playerRewards: Array<{ id: string; rewardId: string; kind: string; adquiridoEn: string }>;
+  achievementsUnlocked: Array<{ id: string; achievementId: string; desbloqueadoEn: string }>;
 };
 
 function normalizeBackupData(data: unknown): NormalizedBackupData {
@@ -1165,6 +1273,17 @@ function normalizeBackupData(data: unknown): NormalizedBackupData {
     player: normalizePlayer(asArray(data.player)[0] ?? data.player),
     dailyMissions: asArray(data.dailyMissions ?? data.missions).map(normalizeMission),
     playerRewards: asArray(data.playerRewards ?? data.rewards).map(normalizeReward),
+    // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
+    achievementsUnlocked: asArray(data.achievementsUnlocked ?? data.achievements).map(normalizeAchievement),
+  };
+}
+
+function normalizeAchievement(row: unknown) {
+  if (!isRecord(row)) throw new Error('Invalid achievement row');
+  return {
+    id: asString(row.id),
+    achievementId: asString(row.achievement_id ?? row.achievementId),
+    desbloqueadoEn: asString((row.desbloqueado_en ?? row.desbloqueadoEn) || toIsoTimestamp()),
   };
 }
 

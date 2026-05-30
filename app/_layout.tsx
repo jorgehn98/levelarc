@@ -7,6 +7,7 @@ import { useFonts } from 'expo-font';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, View } from 'react-native';
 
+import { AchievementToast } from '@/components/AchievementToast';
 import { colors } from '@/theme/colors';
 import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
@@ -136,7 +137,9 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" options={{ presentation: 'modal' }} />
         <Stack.Screen name="rank-up" options={{ presentation: 'modal' }} />
         <Stack.Screen name="shop" />
+        <Stack.Screen name="achievements" />
       </Stack>
+      <AchievementToast />
     </>
   );
 }

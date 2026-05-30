@@ -80,6 +80,15 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       streak_bonus_xp integer DEFAULT 30 NOT NULL,
       esencia_otorgada integer DEFAULT 0 NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS achievements_unlocked (
+      id text PRIMARY KEY NOT NULL,
+      achievement_id text NOT NULL,
+      desbloqueado_en text NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS achievements_unlocked_achievement_id_unique
+      ON achievements_unlocked (achievement_id);
   `);
 
   try {

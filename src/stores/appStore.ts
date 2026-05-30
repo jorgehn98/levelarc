@@ -12,6 +12,7 @@ import {
   closeDay,
   createHabit,
   equipReward,
+  evaluateAndUnlockAchievements,
   exportAllData,
   getDailyMission,
   getHabit,
@@ -24,6 +25,7 @@ import {
   listHabits,
   listOwnedRewardIds,
   listTodayHabits,
+  listUnlockedAchievementIds,
   markHabitFailed,
   purchaseReward,
   resetAllData,
@@ -53,8 +55,12 @@ type AppState = {
   dailyMission: DailyMissionRecord | null;
   events: EventRecord[];
   ownedRewards: string[];
+  unlockedAchievements: string[];
+  recentlyUnlocked: { id: string; essenceReward: number }[];
   boot: () => Promise<void>;
   refresh: () => Promise<void>;
+  runAchievementCheck: (celebrate: boolean) => Promise<void>;
+  consumeRecentAchievements: () => void;
   saveHabit: (input: HabitInput, id?: string) => Promise<void>;
   getHabitById: (id: string) => Promise<HabitRecord | null>;
   getHabitInsightById: (id: string) => Promise<HabitInsightRecord | null>;
@@ -80,6 +86,12 @@ type AppState = {
 const LANGUAGE_KEY = 'levelarc.language';
 const LAST_ACTIVE_DATE_KEY = 'levelarc.lastActiveDate';
 
+// Guard de reentrada: si ya hay un check de logros en curso, una segunda llamada concurrente
+// retorna sin hacer nada. El check en curso ve el estado más reciente, así que captura cualquier
+// logro pendiente; relanzarlo en paralelo solo duplicaría trabajo (la correctitud ya la garantiza
+// el INSERT OR IGNORE del repo).
+let achievementCheckInFlight = false;
+
 export const useAppStore = create<AppState>((set, get) => ({
   isReady: false,
   isBusy: false,
@@ -90,6 +102,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   dailyMission: null,
   events: [],
   ownedRewards: [],
+  unlockedAchievements: [],
+  recentlyUnlocked: [],
   boot: async () => {
     set({ isBusy: true });
     await initializeDatabase();
@@ -98,19 +112,45 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ language: storedLanguage });
     }
     await get().closeMissedDays();
+    // Desbloqueo silencioso al arrancar: otorga la Esencia de logros ya cumplidos por el estado
+    // actual sin celebrar (evita una avalancha de toasts al actualizar la app). El regalo inicial
+    // por logros ya conseguidos es intencional.
+    await get().runAchievementCheck(false);
     await get().refresh();
     set({ isReady: true, isBusy: false });
   },
   refresh: async () => {
-    const [habits, todayHabits, player, dailyMission, events, ownedRewards] = await Promise.all([
+    const [habits, todayHabits, player, dailyMission, events, ownedRewards, unlockedAchievements] = await Promise.all([
       listHabits(true),
       listTodayHabits(),
       getPlayer(),
       getDailyMission(),
       getRecentEvents(250),
       listOwnedRewardIds(),
+      listUnlockedAchievementIds(),
     ]);
-    set({ habits, todayHabits, player, dailyMission, events, ownedRewards });
+    set({ habits, todayHabits, player, dailyMission, events, ownedRewards, unlockedAchievements });
+  },
+  // Evalúa y desbloquea logros tras una mutación del jugador. Si hay nuevos y celebrate es true,
+  // los encola en recentlyUnlocked para que la UI los muestre. Siempre refresca el estado para
+  // reflejar la Esencia otorgada y la lista de logros desbloqueados.
+  runAchievementCheck: async (celebrate) => {
+    if (achievementCheckInFlight) return;
+    achievementCheckInFlight = true;
+    try {
+      const newlyUnlocked = await evaluateAndUnlockAchievements();
+      if (newlyUnlocked.length > 0) {
+        if (celebrate) {
+          set((state) => ({ recentlyUnlocked: [...state.recentlyUnlocked, ...newlyUnlocked] }));
+        }
+        await get().refresh();
+      }
+    } finally {
+      achievementCheckInFlight = false;
+    }
+  },
+  consumeRecentAchievements: () => {
+    set({ recentlyUnlocked: [] });
   },
   saveHabit: async (input, id) => {
     set({ isBusy: true });
@@ -120,6 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await createHabit(input);
     }
     await get().refresh();
+    await get().runAchievementCheck(true);
     set({ isBusy: false });
   },
   getHabitById: (id) => getHabit(id),
@@ -139,22 +180,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   incrementHabit: async (id) => {
     await incrementHabitProgress(id);
     await get().refresh();
+    await get().runAchievementCheck(true);
   },
   failHabit: async (id) => {
     await markHabitFailed(id);
     await get().refresh();
+    await get().runAchievementCheck(true);
   },
   undoHabit: async (id) => {
     await undoTodayHabit(id);
     await get().refresh();
+    await get().runAchievementCheck(true);
   },
   claimMission: async () => {
     await claimDailyMission();
     await get().refresh();
+    await get().runAchievementCheck(true);
   },
   claimPerfectWeekMission: async () => {
     await claimPerfectWeekMissionRepo();
     await get().refresh();
+    await get().runAchievementCheck(true);
   },
   closeMissedDays: async () => {
     const today = toDateKey();
@@ -165,6 +211,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       for (const dateKey of getDateKeysBetween(lastActiveDate, yesterday)) {
         await closeDay(dateKey);
       }
+      // closeMissedDays corre dentro de boot(), antes del refresh: el desbloqueo silencioso de
+      // boot ya cubre la Esencia de logros derivada del cierre, así que no celebramos aquí.
     }
 
     await AsyncStorage.setItem(LAST_ACTIVE_DATE_KEY, today);
@@ -172,6 +220,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeToday: async () => {
     await closeDay();
     await get().refresh();
+    await get().runAchievementCheck(true);
   },
   setLanguage: async (language) => {
     await AsyncStorage.setItem(LANGUAGE_KEY, language);
@@ -191,6 +240,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const result = await purchaseReward(id);
       await get().refresh();
+      await get().runAchievementCheck(true);
       return result;
     } finally {
       set({ isBusy: false });

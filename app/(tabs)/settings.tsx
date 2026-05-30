@@ -17,6 +17,7 @@ import {
   Snowflake,
   Sparkles,
   Store,
+  Trophy,
   Upload,
   User,
   X,
@@ -362,6 +363,12 @@ export default function SettingsScreen() {
           <SettingRow icon={Store} title={t(language, 'systemShop')} value={t(language, 'shopRowCopy')}>
             <View style={styles.inlineActions}>
               <Button icon={Store} label={t(language, 'openShop')} onPress={() => router.push('/shop')} variant="selected" />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={Trophy} title={t(language, 'achievements')} value={t(language, 'achievementsRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Trophy} label={t(language, 'achievements')} onPress={() => router.push('/achievements')} variant="selected" />
             </View>
           </SettingRow>
         </SettingsSection>

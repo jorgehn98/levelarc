@@ -18,13 +18,16 @@ import { getScheduledCompletionStreak } from '@/core/streaks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
 import {
   applyAttributeDeltas,
+  attributeIds,
   createEmptyAttributeXp,
   getAttributeDeltas,
+  getAttributeLevelProgress,
   normalizeAttributeXp,
   serializeAttributeXp,
   serializeHabitAttributes,
   type AttributeXp,
 } from '@/core/attributes';
+import { evaluateUnlocked, getAchievement, type AchievementContext } from '@/core/achievements';
 import { toDateKey, toIsoTimestamp } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
@@ -87,6 +90,12 @@ type RewardRecord = {
   rewardId: string;
   kind: string;
   adquiridoEn: string;
+};
+
+type AchievementUnlockedRecord = {
+  id: string;
+  achievementId: string;
+  desbloqueadoEn: string;
 };
 
 export type DailyMissionRecord = {
@@ -152,6 +161,7 @@ type WebDb = {
   player: PlayerRecord;
   missions: DailyMissionRecord[];
   rewards: RewardRecord[];
+  achievements: AchievementUnlockedRecord[];
 };
 
 const KEY = 'levelarc.webdb.v1';
@@ -494,6 +504,78 @@ export async function getRecentEvents(limit = 25) {
   return db.events.slice().sort((a, b) => b.registradoEn.localeCompare(a.registradoEn)).slice(0, limit);
 }
 
+// Arma el contexto de stats agregadas que consume el evaluador de logros. Reutiliza la lógica de
+// racha (getHabitCompletionStreak) y los niveles de atributo (getAttributeLevelProgress) ya
+// existentes en vez de duplicarlas.
+export async function buildAchievementContext(): Promise<AchievementContext> {
+  const db = await loadDb();
+  const dateKey = toDateKey();
+
+  let maxRachaHabitoActual = 0;
+  for (const habit of db.habits.filter((item) => !item.archivado)) {
+    const priorStreak = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
+    const todayCompleted = db.progress.some(
+      (item) => item.habitId === habit.id && item.fecha === dateKey && item.estado === 'completado',
+    );
+    const currentStreak = todayCompleted ? priorStreak + 1 : priorStreak;
+    if (currentStreak > maxRachaHabitoActual) maxRachaHabitoActual = currentStreak;
+  }
+
+  const maxNivelAtributo = attributeIds.reduce(
+    (max, id) => Math.max(max, getAttributeLevelProgress(db.player.atributosXp[id]).level),
+    0,
+  );
+
+  return {
+    nivel: db.player.nivel,
+    rango: db.player.rango,
+    habitosCreados: db.habits.length,
+    totalCompletados: db.events.filter((event) => event.tipoEvento === 'completado').length,
+    maxRachaHabitoActual,
+    misionesReclamadas: db.missions.filter((mission) => mission.reclamada).length,
+    rachaMisionesActual: db.player.rachaMisiones,
+    rachaPerfectaMax: db.missions.reduce((max, mission) => Math.max(max, mission.perfectStreakDays), 0),
+    maxNivelAtributo,
+    cosmeticosComprados: db.rewards.length,
+  };
+}
+
+export async function listUnlockedAchievementIds(): Promise<string[]> {
+  const db = await loadDb();
+  return db.achievements.map((entry) => entry.achievementId);
+}
+
+// Evalúa el catálogo contra el estado actual, persiste los nuevos logros y otorga su Esencia.
+// Idempotente: antes de insertar cada logro comprobamos que no exista ya en db.achievements (la
+// misma semántica que el INSERT OR IGNORE del nativo), así un check solapado no duplica Esencia ni
+// celebración. Si no hay nuevos devuelve [].
+export async function evaluateAndUnlockAchievements(): Promise<{ id: string; essenceReward: number }[]> {
+  const context = await buildAchievementContext();
+  const unlockedIds = evaluateUnlocked(context);
+  const db = await loadDb();
+  const already = new Set(db.achievements.map((entry) => entry.achievementId));
+
+  const candidates = unlockedIds
+    .filter((id) => !already.has(id))
+    .map((id) => ({ id, essenceReward: getAchievement(id)?.essenceReward ?? 0 }));
+
+  if (candidates.length === 0) return [];
+
+  const newlyUnlocked: { id: string; essenceReward: number }[] = [];
+
+  for (const { id, essenceReward } of candidates) {
+    // Re-check sobre el estado recién cargado: si otra llamada ya lo añadió, lo saltamos (ni
+    // Esencia ni celebración). Solo los que de verdad insertamos otorgan y se devuelven.
+    if (db.achievements.some((entry) => entry.achievementId === id)) continue;
+    db.achievements.push({ id: createId(), achievementId: id, desbloqueadoEn: toIsoTimestamp() });
+    if (essenceReward > 0) grantEssence(db, essenceReward);
+    newlyUnlocked.push({ id, essenceReward });
+  }
+  await saveDb(db);
+
+  return newlyUnlocked;
+}
+
 export async function exportAllData() {
   return loadDb();
 }
@@ -742,6 +824,7 @@ async function loadDb(): Promise<WebDb> {
   db.player.auraEquipada = db.player.auraEquipada ?? DEFAULT_AURA_ID;
   db.player.tituloEquipado = db.player.tituloEquipado ?? null;
   db.rewards = Array.isArray(db.rewards) ? db.rewards : [];
+  db.achievements = Array.isArray(db.achievements) ? db.achievements : [];
   db.missions = db.missions.map((mission) => ({
     ...mission,
     perfectStreakDays: Math.max(0, Math.floor(Number(mission.perfectStreakDays ?? 0))),
@@ -777,6 +860,7 @@ function createEmptyDb(): WebDb {
     },
     missions: [],
     rewards: [],
+    achievements: [],
   };
 }
 
@@ -789,8 +873,10 @@ function normalizeBackupData(data: unknown): WebDb {
   const player = normalizePlayer(asArray(data.player)[0] ?? data.player) ?? empty.player;
   const missions = asArray(data.dailyMissions ?? data.missions).map(normalizeMission);
   const rewards = asArray(data.playerRewards ?? data.rewards).map(normalizeReward);
+  // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
+  const achievements = asArray(data.achievementsUnlocked ?? data.achievements).map(normalizeAchievement);
 
-  return { habits, events, progress, player, missions, rewards };
+  return { habits, events, progress, player, missions, rewards, achievements };
 }
 
 function normalizeHabit(row: unknown): HabitRecord {
@@ -881,6 +967,15 @@ function normalizeReward(row: unknown): RewardRecord {
     rewardId: asString(row.reward_id ?? row.rewardId),
     kind: asString(row.kind),
     adquiridoEn: asString((row.adquirido_en ?? row.adquiridoEn) || toIsoTimestamp()),
+  };
+}
+
+function normalizeAchievement(row: unknown): AchievementUnlockedRecord {
+  if (!isRecord(row)) throw new Error('Invalid achievement row');
+  return {
+    id: asString(row.id),
+    achievementId: asString(row.achievement_id ?? row.achievementId),
+    desbloqueadoEn: asString((row.desbloqueado_en ?? row.desbloqueadoEn) || toIsoTimestamp()),
   };
 }
 

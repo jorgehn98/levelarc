@@ -65,6 +65,12 @@ export const playerRewards = sqliteTable('player_rewards', {
   adquiridoEn: text('adquirido_en').notNull(),
 });
 
+export const achievementsUnlocked = sqliteTable('achievements_unlocked', {
+  id: text('id').primaryKey(),
+  achievementId: text('achievement_id').notNull().unique(),
+  desbloqueadoEn: text('desbloqueado_en').notNull(),
+});
+
 export const dailyMissions = sqliteTable('daily_missions', {
   fecha: text('fecha').primaryKey(),
   objetivo: integer('objetivo').notNull().default(3),
