@@ -89,10 +89,19 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Definir métricas v1.3 sin sobrecargar la app.
 - [x] Mejorar detalle de hábito con historial y consistencia.
 - [x] Mostrar rachas por hábito de forma más accionable.
-- [ ] Añadir resumen semanal simple de completados/fallados.
+- [x] Resumen semanal simple de completados/fallados: descartado (el detalle de hábito ya cubre historial/consistencia).
 - [ ] Mejorar lectura de progreso por atributos.
-- [ ] Revisar si hacen falta logros simples antes de v2.
+- [x] Revisar si hacen falta logros simples antes de v2: van dentro de v2.0 (ver Gamificación).
 - [ ] Recoger fricciones que aparezcan usando la app varios días.
+
+## Gamificación (v2.0)
+
+- [x] Economía de Esencia.
+- [x] Tienda del Sistema (títulos + auras).
+- [ ] Logros / medallas.
+- [ ] Celebraciones y feedback de recompensa.
+- [ ] Lectura de progreso por atributos mejorada.
+- [ ] IA local "el Sistema".
 
 ## Datos / lógica
 

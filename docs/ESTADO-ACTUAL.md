@@ -6,6 +6,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Ese documento
 
 El MVP funcional está implementado en Expo + React Native + TypeScript. La app ya permite crear hábitos, marcarlos en el día, ganar/perder XP, ver progreso, cambiar idioma, exportar/importar backup y usar la primera identidad visual real de LevelArc.
 
+La app ya ha entrado en gamificación avanzada (v2.0): tiene una economía propia de Esencia (moneda gastable, distinta del XP) y una Tienda del Sistema donde se canjea Esencia por cosméticos (títulos y auras) que no afectan al motor de XP.
+
 El diseño base ya se está alineando con `docs/UI-UX`: tokens oscuros, cian de marca `#3FCAE6`, tipografía local Inter/Orbitron y componentes base con radios/bordes/glow disciplinados.
 
 La primera pasada visual completa ya está aplicada en runtime: Hoy, Hábitos, Progreso, Ajustes, formulario de hábito, onboarding y rank-up usan el lenguaje de Sistema/RPG del kit de `docs/UI-UX`.
@@ -135,6 +137,28 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Misión extra de racha perfecta: si los 6 días anteriores fueron perfectos, en el día 7 aparece una misión de racha. Al completar todos los hábitos del día 7 se puede reclamar un bonus extra de +30 XP.
 - La racha de misión (`player.racha_misiones`) cuenta misiones diarias reclamadas en días consecutivos; si hay un día con misión no reclamada, la siguiente reclamación reinicia la racha. La racha perfecta se calcula desde `daily_missions`.
 - Al arrancar la app o cambiar de día, se ejecuta cierre automático hasta ayer usando `levelarc.lastActiveDate` en almacenamiento local. La primera ejecución inicializa el marcador sin penalizar historial antiguo.
+
+### Economía (Esencia)
+
+- Moneda de juego "Esencia" gastable, distinta del XP, guardada en `player.esencia`.
+- Se gana al completar un hábito (importancia x2), al reclamar la misión diaria (3/5/8/12 según número de hábitos del día), al reclamar la racha perfecta (+25) y al subir de nivel (`10 + (nivel - 1) * 5`: nivel 2 = 15, nivel 10 = 55).
+- Se revierte de forma exacta y no farmeable: al deshacer un completado se resta la esencia que otorgó ese evento (persistida en `events.esencia_otorgada`); al revocarse una misión reclamada se resta la persistida en `daily_missions.esencia_otorgada`.
+- La esencia por subida de nivel es idempotente con el marcador monotónico `player.nivel_esencia_otorgado`. En instalaciones existentes se ancla al nivel actual en la migración, así la economía empieza a contar desde ahora sin regalo retroactivo.
+- Lógica pura en `src/core/economy.ts` con tests; persistencia en `src/db/repository.ts` y `src/db/repository.web.ts`.
+- Se muestra en Hoy y Progreso con el componente `EssenceBadge` (icono Gem).
+- Migraciones 0006 (`player.esencia`, `player.nivel_esencia_otorgado`) y 0007 (`events.esencia_otorgada`, `daily_missions.esencia_otorgada`).
+
+### Tienda del Sistema
+
+- Pantalla `app/shop.tsx` (ruta `/shop`), accesible desde Ajustes (sección "Sistema") y desde Progreso (junto al balance de Esencia).
+- Se gasta Esencia en cosméticos que no afectan al motor de XP.
+- Títulos de Jugador: Despierto (30), Cazador (80, nivel 5), Implacable (150, nivel 10), Soberano de Sombras (300, rango B), Monarca del Sistema (600, rango S).
+- Auras del emblema: Cian (default gratis), Ámbar (50), Violeta (120, nivel 8), Esmeralda (200, nivel 15), Carmesí (350, rango A), Dorada (700, rango S).
+- Cada item puede tener requisito de nivel y/o rango además del coste. Compra atómica en transacción con validación catálogo → poseído → requisito → esencia.
+- Tabla `player_rewards` (UNIQUE por `reward_id`) con `player.titulo_equipado` y `player.aura_equipada`.
+- El título equipado se muestra junto al nombre del jugador en onboarding (modo retorno) y Progreso. El aura equipada tiñe el glow del emblema en onboarding; el cian por defecto mantiene el look actual.
+- Catálogo y reglas puras en `src/core/shop.ts` con tests. Migración 0008 (`player_rewards` + columnas de `player`).
+- Backup export/import cubre las tablas y columnas nuevas y restaura backups antiguos con defaults seguros.
 
 ### Persistencia
 
@@ -531,6 +555,16 @@ Backup import/export: implementado, pero queda como comprobación menor pendient
 
 MVP listo para publicar: no por decisión de producto, no por bloqueo técnico principal.
 
-Fase actual: producto v1.3 en marcha.
+Gamificación avanzada (v2.0): iniciada. El primer bloque (economía de Esencia + Tienda del Sistema con títulos y auras) está implementado, con lógica pura testeada en `src/core/economy.ts` y `src/core/shop.ts` y migraciones 0006-0008.
 
-Siguiente paso recomendado: seguir usando la app con datos reales y ajustar las métricas simples antes de avanzar a estadísticas más amplias, logros o tiendas. IA local queda como futuro opcional, después de validar que la app base tiene suficiente valor y uso real.
+Fase actual: gamificación avanzada v2.0 en marcha; primer bloque (economía + tienda) implementado sobre la base de producto v1.3.
+
+Update `preview` con economía de Esencia y Tienda del Sistema:
+
+- Update group: `960b7e0a-7f53-41f1-817b-b6ebf9f73997`
+- Runtime: `1.0.2`
+- Mensaje: `Add Essence economy and System Shop (titles + auras)`
+- Commit: `7869bd0f51167dfa6e6ae2e19852fab07d101d6f`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/960b7e0a-7f53-41f1-817b-b6ebf9f73997>
+
+Siguiente paso recomendado: seguir usando la app con datos reales, validar la economía/tienda en Android y avanzar con el resto de v2.0 (logros, celebraciones de recompensa, lectura de progreso por atributos). IA local queda como futuro opcional, después de validar que la app base tiene suficiente valor y uso real.

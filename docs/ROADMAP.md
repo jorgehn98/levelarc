@@ -124,17 +124,23 @@ Incluye:
 
 ## v2.0 — Gamificación avanzada
 
-Estado: futuro.
+Estado: fase activa, primer bloque implementado.
 
 Objetivo: aumentar retención sin meter IA todavía.
 
-Incluye:
+Implementado (primer bloque):
 
-- Logros.
+- Economía de Esencia: moneda gastable distinta del XP, ganada al completar hábitos, reclamar misión diaria, racha perfecta y subir de nivel; reversión exacta y no farmeable. Lógica pura en `src/core/economy.ts`, migraciones 0006-0007.
+- Tienda del Sistema (`/shop`, accesible desde Ajustes y Progreso): se gasta Esencia en cosméticos que no afectan al motor de XP.
+- Títulos de Jugador (5) y auras del emblema (6), con requisitos de nivel/rango y compra atómica. Catálogo y reglas en `src/core/shop.ts`, migración 0008.
+
+Pendiente dentro de v2.0:
+
+- Logros / medallas.
+- Celebraciones de rango y feedback de recompensa.
 - Más misiones, no generativas.
-- Celebraciones de rango.
-- Evolución del sistema de rachas si los datos reales lo piden.
 - Estadísticas avanzadas.
+- Evolución del sistema de rachas si los datos reales lo piden.
 - Ajuste de curva XP si los datos reales lo piden.
 
 ## v2.x — IA local opcional
