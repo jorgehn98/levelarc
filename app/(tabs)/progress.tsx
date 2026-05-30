@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { BarChart3, CalendarDays, Check, Clock, Flame, Gem, Shield, Sparkles, Store, Target, Trophy, X } from 'lucide-react-native';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AttributeRadar } from '@/components/AttributeRadar';
@@ -33,11 +34,15 @@ export default function ProgressScreen() {
   const accent = getRankAccent(progress.rank);
   const equippedTitle = getEquippedTitle(player?.tituloEquipado ?? null, language);
   const activeHabits = habits.filter((habit) => !habit.archivado).length;
-  const weekActivity = getWeekActivity(events, habits);
-  const heatMap = getHeatMap(events);
-  const attributeXp = normalizeAttributeXp(player?.atributosXp);
-  const sortedAttributes = [...attributeIds].sort(
-    (a, b) => getAttributeLevelProgress(attributeXp[b]).level - getAttributeLevelProgress(attributeXp[a]).level,
+  const weekActivity = useMemo(() => getWeekActivity(events, habits), [events, habits]);
+  const heatMap = useMemo(() => getHeatMap(events), [events]);
+  const attributeXp = useMemo(() => normalizeAttributeXp(player?.atributosXp), [player?.atributosXp]);
+  const sortedAttributes = useMemo(
+    () =>
+      [...attributeIds].sort(
+        (a, b) => getAttributeLevelProgress(attributeXp[b]).level - getAttributeLevelProgress(attributeXp[a]).level,
+      ),
+    [attributeXp],
   );
 
   return (

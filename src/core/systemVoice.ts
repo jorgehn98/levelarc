@@ -216,6 +216,19 @@ export function getSystemInterjection(ctx: SystemContext, trigger: InterjectionT
   return keyReply(pick(INTERJECTION_KEY_PREFIX[trigger], 2, ctx), params);
 }
 
+// Frase del Sistema para la subida de rango (pantalla de ascensión). Determinista y SIN modelo: la
+// animación es corta y un LLM la arruinaría, así que solo plantilla. Devuelve { kind: 'key' } como el
+// resto del core; la UI traduce con i18n. Si el rango alcanzado es S (clímax del juego), usa una
+// variante especial; el resto comparte la plantilla genérica. La variante (_1/_2) se rota de forma
+// estable derivando el índice de los propios rangos (sin Math.random: mismo from/to → misma frase).
+export function getRankUpLine(fromRank: string, toRank: string, _language?: string): SystemReply {
+  const params = { from: fromRank, to: toRank };
+  const prefix = toRank === 'S' ? 'sys_rankup_s' : 'sys_rankup';
+  const seed = fromRank.length + toRank.length + toRank.charCodeAt(0);
+  const variant = (seed % 2) + 1;
+  return keyReply(`${prefix}_${variant}`, params);
+}
+
 // Índice determinista para rotar variantes a partir del contexto de un hábito (no del SystemContext).
 // Mismo criterio que `variantIndex` pero con señales del propio hábito, para que la frase sea estable
 // por hábito sin Math.random.

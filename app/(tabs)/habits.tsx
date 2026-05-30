@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Archive, ChevronRight, ListChecks, Plus, Target } from 'lucide-react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/Screen';
@@ -21,16 +21,23 @@ export default function HabitsScreen() {
   const habits = useAppStore((state) => state.habits);
   const language = useAppStore((state) => state.language);
   const [filter, setFilter] = useState<HabitFilter>('active');
-  const counts = {
-    active: habits.filter((habit) => !habit.archivado).length,
-    archived: habits.filter((habit) => habit.archivado).length,
-    all: habits.length,
-  };
-  const filtered = habits.filter((habit) => {
-    if (filter === 'all') return true;
-    if (filter === 'archived') return habit.archivado;
-    return !habit.archivado;
-  });
+  const counts = useMemo(
+    () => ({
+      active: habits.filter((habit) => !habit.archivado).length,
+      archived: habits.filter((habit) => habit.archivado).length,
+      all: habits.length,
+    }),
+    [habits],
+  );
+  const filtered = useMemo(
+    () =>
+      habits.filter((habit) => {
+        if (filter === 'all') return true;
+        if (filter === 'archived') return habit.archivado;
+        return !habit.archivado;
+      }),
+    [habits, filter],
+  );
 
   return (
     <Screen>
@@ -312,11 +319,6 @@ const styles = StyleSheet.create({
   },
   archivedText: {
     color: colors.brand.boneMuted,
-  },
-  rowText: {
-    color: colors.state.pending,
-    fontFamily: typography.font.bodyRegular,
-    fontSize: 12,
   },
   emptyKicker: {
     color: colors.brand.cyanCore,

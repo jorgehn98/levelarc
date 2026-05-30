@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Archive, BarChart3, CalendarDays, Check, Clock, Edit3, Flame, Target, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Archive, BarChart3, CalendarDays, Check, Clock, Cpu, Edit3, Flame, Target, Terminal, X } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -8,6 +8,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
+import type { HabitInsightInput } from '@/core/aiContext';
 import { normalizeHabitAttributes, type AttributeId } from '@/core/attributes';
 import { getCompletionXp } from '@/core/xp';
 import type { EventRecord, HabitInsightDay, HabitInsightRecord, HabitRecord } from '@/db/repository';
@@ -16,6 +17,7 @@ import { getHabitAttribute } from '@/lib/habitAttributes';
 import { getHabitIconComponent } from '@/lib/habitIcons';
 import { confirmAction } from '@/lib/confirm';
 import { formatWeekdays, weekDays } from '@/lib/weekdays';
+import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
@@ -29,6 +31,8 @@ export default function HabitDetailScreen() {
   const getHabitInsightById = useAppStore((state) => state.getHabitInsightById);
   const unarchiveHabitById = useAppStore((state) => state.unarchiveHabitById);
   const language = useAppStore((state) => state.language);
+  const ensureHabitInsight = useAiStore((state) => state.ensureHabitInsight);
+  const systemInsight = useAiStore((state) => (id ? state.habitInsights[id] : undefined));
 
   useEffect(() => {
     let isActive = true;
@@ -49,6 +53,30 @@ export default function HabitDetailScreen() {
       isActive = false;
     };
   }, [getHabitById, getHabitInsightById, id]);
+
+  // Deriva el HabitInsightInput (entrada del core de IA) desde lo que la pantalla ya tiene. Ojo:
+  // insight.last7 viene del más RECIENTE al más antiguo; el core lo espera del más antiguo al más
+  // reciente, así que lo invertimos y mapeamos a estados. mejorRachaHabito no está en el insight: usamos
+  // la racha actual como cota inferior honesta (la mejor racha es al menos la actual; la voz determinista
+  // no la usa y el prompt LLM solo la lista).
+  const insightInput = useMemo<HabitInsightInput | null>(() => {
+    if (!habit || !insight) return null;
+    return {
+      nombre: habit.nombre,
+      consistency30: insight.consistency30.ratio,
+      currentStreak: insight.currentStreak,
+      mejorRachaHabito: insight.currentStreak,
+      importancia: habit.importancia,
+      atributos: normalizeHabitAttributes(habit.atributos),
+      last7: insight.last7.map((day) => day.status).reverse(),
+    };
+  }, [habit, insight]);
+
+  // Pide el micro-comentario del Sistema cuando el insight ya está cargado: plantilla al instante y, si
+  // el LLM está activo, lo enriquece en background. No bloquea la pantalla.
+  useEffect(() => {
+    if (id && insightInput) void ensureHabitInsight(id, insightInput);
+  }, [ensureHabitInsight, id, insightInput]);
 
   if (isLoading) {
     return (
@@ -137,6 +165,26 @@ export default function HabitDetailScreen() {
             <InfoPill label={t(language, 'reminder')} value={habit.horaRecordatorio ?? t(language, 'noReminder')} />
           </View>
         </View>
+
+        {systemInsight?.text ? (
+          <View style={styles.systemCard}>
+            <View style={styles.systemIcon}>
+              <Terminal color={colors.brand.cyanCore} size={16} />
+            </View>
+            <View style={styles.systemCopy}>
+              <View style={styles.systemLabelRow}>
+                <Text style={styles.systemKicker}>◆ {t(language, 'systemChatLabel')}</Text>
+                {systemInsight.fromAi ? (
+                  <View style={styles.aiBadge}>
+                    <Cpu color={colors.brand.cyanCore} size={10} />
+                    <Text style={styles.aiBadgeText}>{t(language, 'systemMessageAiBadge')}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.systemMessage}>{systemInsight.text}</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.twoColumns}>
           <MetricPanel
@@ -329,6 +377,65 @@ const styles = StyleSheet.create({
   archivedHero: {
     borderColor: colors.background.borderBright,
     opacity: 0.76,
+  },
+  systemCard: {
+    alignItems: 'center',
+    backgroundColor: colors.background.surfaceRaised,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+  },
+  systemIcon: {
+    alignItems: 'center',
+    backgroundColor: `${colors.brand.cyanCore}14`,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  systemCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  systemLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  systemKicker: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  aiBadge: {
+    alignItems: 'center',
+    backgroundColor: `${colors.brand.cyanCore}14`,
+    borderColor: colors.brand.cyanShadow,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  aiBadgeText: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 9,
+    textTransform: 'uppercase',
+  },
+  systemMessage: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
   },
   heroTop: {
     alignItems: 'center',

@@ -8,9 +8,9 @@
 // solo cuando de verdad se va a inferir. El selector (ai/index) además solo construye este motor en
 // nativo con modelo listo, así que ni la web ni el flujo de plantillas arrastran llama.rn.
 
-import { buildSystemContextText } from '@/core/aiContext';
+import { buildHabitContextText, buildSystemContextText } from '@/core/aiContext';
 import type { Language } from '@/i18n';
-import type { SystemContext } from '@/core/aiContext';
+import type { HabitContext, SystemContext } from '@/core/aiContext';
 import type { InterjectionTrigger, SystemReply } from '@/core/systemVoice';
 
 import type { ChatContextNote, SystemChatEngine } from './engine';
@@ -89,6 +89,14 @@ const LANGUAGE_INSTRUCTION: Record<Language, string> = {
 const BRIEFING_PROMPT: Record<Language, string> = {
   es: 'Dale al jugador el parte del día: cuántas misiones le quedan y por dónde empezar (el eslabón débil si lo hay). Seco y accionable.',
   en: "Give the player today's briefing: how many missions remain and where to start (the weak link if any). Terse and actionable.",
+};
+
+// Mensaje interno que dispara el micro-comentario de un hábito concreto: pide al Sistema UNA frase
+// corta interpretando el rendimiento (consistencia, racha, fallos recientes) del hábito cuyo estado
+// va en el system prompt. Seco, sin relleno, como el resto de la voz del Sistema.
+const HABIT_INSIGHT_PROMPT: Record<Language, string> = {
+  es: 'Comenta el rendimiento de este hábito en UNA frase corta y seca: interpreta su consistencia, racha y fallos recientes. Sin relleno.',
+  en: 'Comment on this habit\'s performance in ONE short, terse sentence: read its consistency, streak and recent failures. No filler.',
 };
 
 // Descripción del evento que dispara cada aparición del Sistema, por idioma. Se inyecta como
@@ -270,6 +278,64 @@ export function generateDailyBriefing(
   modelPath: string,
 ): Promise<SystemReply> {
   return generate(ctx, BRIEFING_PROMPT[language], language, modelPath);
+}
+
+// System prompt del micro-comentario de un hábito: misma persona seca del Sistema que buildSystemPrompt,
+// pero el estado serializado es el del hábito (buildHabitContextText), no el del jugador. No inventa
+// datos: solo usa el estado del hábito dado.
+function buildHabitInsightPrompt(ctx: HabitContext, language: Language): string {
+  const persona =
+    language === 'es'
+      ? [
+          'Eres EL SISTEMA de una app de hábitos gamificada al estilo Solo Leveling.',
+          'Hablas seco, imperativo y directo. UNA sola frase corta. Sin emojis, sin disculpas, sin relleno.',
+          'No inventes datos: usa SOLO el estado del hábito que se te da debajo.',
+        ]
+      : [
+          'You are THE SYSTEM of a gamified habit app in the style of Solo Leveling.',
+          'You speak terse, imperative and direct. ONE short sentence only. No emojis, no apologies, no filler.',
+          'Do not invent data: use ONLY the habit state given below.',
+        ];
+  return [
+    ...persona,
+    LANGUAGE_INSTRUCTION[language],
+    '',
+    language === 'es' ? 'Estado del hábito:' : 'Habit state:',
+    buildHabitContextText(ctx),
+  ].join('\n');
+}
+
+// Micro-comentario de un hábito generado por el LLM. Análogo a generateDailyBriefing pero standalone
+// (no pasa por `generate`, que asume SystemContext): construye el system prompt del hábito y corre la
+// inferencia con el mismo timeout/abort. Devuelve TEXTO plano (no SystemReply): el store lo guarda tal
+// cual. Lo llama el store en la rama llama de ensureHabitInsight. Necesita modelPath porque se invoca
+// fuera de la factory del motor.
+export async function generateHabitInsight(
+  ctx: HabitContext,
+  language: Language,
+  modelPath: string,
+): Promise<string> {
+  const llama = await ensureContext(modelPath);
+  const result = await withTimeout(
+    llama.completion({
+      messages: [
+        { role: 'system', content: buildHabitInsightPrompt(ctx, language) },
+        { role: 'user', content: HABIT_INSIGHT_PROMPT[language] },
+      ],
+      n_predict: N_PREDICT,
+      temperature: TEMPERATURE,
+      top_p: TOP_P,
+      top_k: TOP_K,
+      penalty_repeat: PENALTY_REPEAT,
+      stop: STOP,
+    }),
+    COMPLETION_TIMEOUT_MS,
+    'completion',
+    () => {
+      void llama.stopCompletion().catch(() => undefined);
+    },
+  );
+  return result.content.trim();
 }
 
 // Aborta la generación en curso del contexto cargado (si lo hay). La usa el store para cancelar una

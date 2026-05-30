@@ -150,6 +150,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="habit/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="habit/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="habit/edit/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="onboarding" options={{ presentation: 'modal' }} />
         <Stack.Screen name="rank-up" options={{ presentation: 'modal' }} />
         <Stack.Screen name="shop" />

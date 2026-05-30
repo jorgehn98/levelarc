@@ -1,6 +1,6 @@
 import { Link, router, useFocusEffect } from 'expo-router';
 import { Check, Flame, Gift, Plus, Target } from 'lucide-react-native';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -43,9 +43,9 @@ export default function TodayScreen() {
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
   const canClaimPerfectWeek = perfectWeekMission.isComplete && !dailyMission?.streakBonusClaimed;
   const showPerfectWeekMission = (dailyMission?.perfectStreakDays ?? 0) >= 6;
-  const pendingHabits = todayHabits.filter((habit) => habit.estado === 'pendiente');
-  const completedHabits = todayHabits.filter((habit) => habit.estado === 'completado');
-  const failedHabits = todayHabits.filter((habit) => habit.estado === 'fallado');
+  const pendingHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'pendiente'), [todayHabits]);
+  const completedHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'completado'), [todayHabits]);
+  const failedHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'fallado'), [todayHabits]);
 
   return (
     <Screen>

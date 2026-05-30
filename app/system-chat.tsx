@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronLeft, Cpu, Send, Terminal, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Cpu, Send, Terminal, Trash2, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -35,6 +35,7 @@ export default function SystemChatScreen() {
   const loadAi = useAiStore((state) => state.loadAi);
   const openChat = useAiStore((state) => state.openChat);
   const sendMessage = useAiStore((state) => state.sendMessage);
+  const cancelGeneration = useAiStore((state) => state.cancelGeneration);
   const clearChat = useAiStore((state) => state.clearChat);
 
   const insets = useSafeAreaInsets();
@@ -143,13 +144,17 @@ export default function SystemChatScreen() {
             value={draft}
           />
           <Pressable
-            accessibilityLabel={t(language, 'systemChatSend')}
+            accessibilityLabel={isGenerating ? t(language, 'cancel') : t(language, 'systemChatSend')}
             accessibilityRole="button"
-            disabled={!canSend}
-            onPress={handleSend}
-            style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+            disabled={!isGenerating && !canSend}
+            onPress={isGenerating ? cancelGeneration : handleSend}
+            style={[styles.sendButton, !isGenerating && !canSend && styles.sendButtonDisabled]}
           >
-            <Send color={canSend ? colors.background.void : colors.state.pending} size={18} />
+            {isGenerating ? (
+              <X color={colors.background.void} size={18} />
+            ) : (
+              <Send color={canSend ? colors.background.void : colors.state.pending} size={18} />
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>

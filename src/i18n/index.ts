@@ -421,6 +421,11 @@ const dictionary = {
     sys_int_near_level_2: 'El ascenso está cerca. {falta} XP para el siguiente nivel.',
     sys_int_mission_failed_1: 'El día cerró sin completar la misión. Un fallo no te define. Mañana lo recuperas.',
     sys_int_mission_failed_2: 'Misión del día sin cumplir. El Sistema lo anota. Corrige el rumbo.',
+    // Subida de rango (pantalla de ascensión): la voz del Sistema marca el ascenso. S es el clímax.
+    sys_rankup_1: 'Rango {from} superado. Asciendes a {to}. El Sistema reconoce tu fuerza.',
+    sys_rankup_2: 'Ascenso confirmado: {from} → {to}. Has roto tu límite. Sigue subiendo.',
+    sys_rankup_s_1: 'Rango S alcanzado. La cima. Pocos llegan aquí. El Sistema se inclina.',
+    sys_rankup_s_2: 'De {from} a S. Has llegado al clímax. Ahora eres la cúspide del Sistema.',
   },
   en: {
     today: 'Today',
@@ -842,6 +847,11 @@ const dictionary = {
     sys_int_near_level_2: 'The ascent is close. {falta} XP to the next level.',
     sys_int_mission_failed_1: 'The day closed without completing the mission. A failure does not define you. Recover tomorrow.',
     sys_int_mission_failed_2: 'Today mission left unfinished. The System notes it. Correct course.',
+    // Rank up (ascension screen): the System voice marks the ascent. S is the climax.
+    sys_rankup_1: 'Rank {from} surpassed. You ascend to {to}. The System acknowledges your strength.',
+    sys_rankup_2: 'Ascent confirmed: {from} → {to}. You broke your limit. Keep climbing.',
+    sys_rankup_s_1: 'Rank S reached. The summit. Few make it here. The System bows.',
+    sys_rankup_s_2: 'From {from} to S. You reached the climax. You are now the System peak.',
   },
 } as const;
 

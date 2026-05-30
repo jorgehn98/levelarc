@@ -6,6 +6,7 @@ import {
   getDailyBriefing,
   getHabitInsight,
   getInterjectionTone,
+  getRankUpLine,
   getSystemGreeting,
   getSystemInterjection,
   getSystemReply,
@@ -237,6 +238,25 @@ describe('getSystemGreeting briefing integration', () => {
   it('still degrades to the generic pending greeting without a weak link', () => {
     const reply = asKeyReply(getSystemGreeting(makeContext({ pendientesHoy: 2 })));
     expect(reply.key).toMatch(/^sys_pending_[12]$/);
+  });
+});
+
+describe('getRankUpLine', () => {
+  it('uses the generic rank-up line for a non-S ascent and passes from/to params', () => {
+    const reply = asKeyReply(getRankUpLine('E', 'D'));
+    expect(reply.key).toMatch(/^sys_rankup_[12]$/);
+    expect(reply.params?.from).toBe('E');
+    expect(reply.params?.to).toBe('D');
+  });
+
+  it('uses the special climax line when reaching rank S', () => {
+    const reply = asKeyReply(getRankUpLine('A', 'S'));
+    expect(reply.key).toMatch(/^sys_rankup_s_[12]$/);
+    expect(reply.params?.to).toBe('S');
+  });
+
+  it('is deterministic: same from/to produce the same key', () => {
+    expect(asKeyReply(getRankUpLine('C', 'B')).key).toBe(asKeyReply(getRankUpLine('C', 'B')).key);
   });
 });
 
