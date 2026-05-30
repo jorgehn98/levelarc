@@ -13,6 +13,7 @@ import {
   getPerfectWeekEssence,
 } from '@/core/economy';
 import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
+import type { SystemContext } from '@/core/aiContext';
 import { DEFAULT_AURA_ID, getShopItem, meetsRequirement } from '@/core/shop';
 import { getScheduledCompletionStreak } from '@/core/streaks';
 import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
@@ -122,6 +123,26 @@ export type EventRecord = {
   habitName?: string;
 };
 
+export type AiEngine = 'template' | 'llama';
+export type AiModelStatus = 'none' | 'downloading' | 'ready' | 'error';
+export type AiRole = 'system' | 'user' | 'assistant';
+
+export type AiProfile = {
+  enabled: boolean;
+  engine: AiEngine;
+  modelStatus: AiModelStatus;
+  modelPath: string | null;
+  actualizadoEn: string;
+};
+
+export type AiMessage = {
+  id: string;
+  rol: AiRole;
+  contenido: string;
+  fecha: string;
+  creadoEn: string;
+};
+
 type HabitDayStatus = ProgressState | 'no_programado';
 
 export type HabitInsightDay = {
@@ -162,6 +183,8 @@ type WebDb = {
   missions: DailyMissionRecord[];
   rewards: RewardRecord[];
   achievements: AchievementUnlockedRecord[];
+  aiProfile: AiProfile;
+  aiMessages: AiMessage[];
 };
 
 const KEY = 'levelarc.webdb.v1';
@@ -504,6 +527,115 @@ export async function getRecentEvents(limit = 25) {
   return db.events.slice().sort((a, b) => b.registradoEn.localeCompare(a.registradoEn)).slice(0, limit);
 }
 
+// --- Chat con el Sistema (IA local) ---
+
+export async function getAiProfile(): Promise<AiProfile> {
+  const db = await loadDb();
+  return db.aiProfile;
+}
+
+export async function ensureAiProfile(): Promise<AiProfile> {
+  const db = await loadDb();
+  await saveDb(db);
+  return db.aiProfile;
+}
+
+export async function setAiEnabled(enabled: boolean): Promise<void> {
+  const db = await loadDb();
+  db.aiProfile.enabled = enabled;
+  db.aiProfile.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
+export async function setAiEngine(engine: AiEngine): Promise<void> {
+  const db = await loadDb();
+  db.aiProfile.engine = engine;
+  db.aiProfile.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
+export async function setAiModelStatus(status: AiModelStatus, modelPath?: string | null): Promise<void> {
+  const db = await loadDb();
+  db.aiProfile.modelStatus = status;
+  db.aiProfile.modelPath = modelPath ?? null;
+  db.aiProfile.actualizadoEn = toIsoTimestamp();
+  await saveDb(db);
+}
+
+export async function listAiMessages(limit?: number): Promise<AiMessage[]> {
+  const db = await loadDb();
+  const ordered = db.aiMessages.slice().sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
+  // Con `limit` devolvemos los N más recientes, manteniendo el orden ascendente.
+  return limit && limit > 0 ? ordered.slice(-limit) : ordered;
+}
+
+export async function addAiMessage(rol: AiRole, contenido: string, dateKey = toDateKey()): Promise<AiMessage> {
+  const db = await loadDb();
+  const message: AiMessage = { id: createId(), rol, contenido, fecha: dateKey, creadoEn: toIsoTimestamp() };
+  db.aiMessages.push(message);
+  await saveDb(db);
+  return message;
+}
+
+export async function clearAiMessages(): Promise<void> {
+  const db = await loadDb();
+  db.aiMessages = [];
+  await saveDb(db);
+}
+
+// Arma el SystemContext desde el estado actual (paridad con el nativo). Reutiliza getLevelProgress y
+// getAttributeLevelProgress; no duplica la lógica de nivel/atributos/racha.
+export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemContext> {
+  const db = await loadDb();
+  const player = db.player;
+  const todayHabits = await listTodayHabits(dateKey);
+  const mission = ensureMission(db, dateKey);
+  syncMission(db, dateKey);
+
+  const progress = getLevelProgress(player.xpTotal);
+
+  let atributoTop: { id: string; nivel: number } | null = null;
+  for (const id of attributeIds) {
+    const nivel = getAttributeLevelProgress(player.atributosXp[id]).level;
+    if (player.atributosXp[id] > 0 && (!atributoTop || nivel > atributoTop.nivel)) {
+      atributoTop = { id, nivel };
+    }
+  }
+
+  const completadosHoy = todayHabits.filter((habit) => habit.estado === 'completado').length;
+  const falladosHoy = todayHabits.filter((habit) => habit.estado === 'fallado').length;
+  const pendientesHoy = todayHabits.filter((habit) => habit.estado === 'pendiente').length;
+  const habitosHoyTotal = todayHabits.length;
+  const diaPerfecto = habitosHoyTotal > 0 && completadosHoy === habitosHoyTotal;
+
+  let mejorRachaHabito = 0;
+  for (const habit of todayHabits) {
+    const priorStreak = getHabitCompletionStreak(db, habit.id, dateKey, habit.diasSemana);
+    const streak = habit.estado === 'completado' ? priorStreak + 1 : priorStreak;
+    if (streak > mejorRachaHabito) mejorRachaHabito = streak;
+  }
+
+  const maxPerfect = db.missions.reduce((max, m) => Math.max(max, m.perfectStreakDays), 0);
+
+  return {
+    nombre: player.nombre,
+    nivel: player.nivel,
+    rango: player.rango,
+    esencia: player.esencia,
+    ratioNivel: progress.ratio,
+    faltaParaNivel: Math.max(0, progress.neededForLevel - progress.gainedInLevel),
+    rachaMisiones: player.rachaMisiones,
+    atributoTop,
+    habitosHoyTotal,
+    completadosHoy,
+    pendientesHoy,
+    falladosHoy,
+    diaPerfecto,
+    mejorRachaHabito,
+    rachaPerfecta: Math.max(mission.perfectStreakDays, maxPerfect),
+  };
+}
+
 // Arma el contexto de stats agregadas que consume el evaluador de logros. Reutiliza la lógica de
 // racha (getHabitCompletionStreak) y los niveles de atributo (getAttributeLevelProgress) ya
 // existentes en vez de duplicarlas.
@@ -825,6 +957,9 @@ async function loadDb(): Promise<WebDb> {
   db.player.tituloEquipado = db.player.tituloEquipado ?? null;
   db.rewards = Array.isArray(db.rewards) ? db.rewards : [];
   db.achievements = Array.isArray(db.achievements) ? db.achievements : [];
+  // Blob antiguo sin IA → defaults / []. La tabla no existía, no hay nada que restaurar.
+  db.aiProfile = normalizeAiProfile(parsed.aiProfile) ?? createDefaultAiProfile();
+  db.aiMessages = Array.isArray(db.aiMessages) ? db.aiMessages.map(normalizeAiMessage) : [];
   db.missions = db.missions.map((mission) => ({
     ...mission,
     perfectStreakDays: Math.max(0, Math.floor(Number(mission.perfectStreakDays ?? 0))),
@@ -861,6 +996,18 @@ function createEmptyDb(): WebDb {
     missions: [],
     rewards: [],
     achievements: [],
+    aiProfile: createDefaultAiProfile(),
+    aiMessages: [],
+  };
+}
+
+function createDefaultAiProfile(): AiProfile {
+  return {
+    enabled: false,
+    engine: 'template',
+    modelStatus: 'none',
+    modelPath: null,
+    actualizadoEn: toIsoTimestamp(),
   };
 }
 
@@ -875,8 +1022,44 @@ function normalizeBackupData(data: unknown): WebDb {
   const rewards = asArray(data.playerRewards ?? data.rewards).map(normalizeReward);
   // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
   const achievements = asArray(data.achievementsUnlocked ?? data.achievements).map(normalizeAchievement);
+  // Backups antiguos sin IA → defaults / [].
+  const aiProfile = normalizeAiProfile(asArray(data.aiProfile)[0] ?? data.aiProfile) ?? createDefaultAiProfile();
+  const aiMessages = asArray(data.aiMessages).map(normalizeAiMessage);
 
-  return { habits, events, progress, player, missions, rewards, achievements };
+  return { habits, events, progress, player, missions, rewards, achievements, aiProfile, aiMessages };
+}
+
+function normalizeAiProfile(row: unknown): AiProfile | null {
+  if (!isRecord(row)) return null;
+  const engine = row.engine === 'llama' ? 'llama' : 'template';
+  const status = row.modelStatus ?? row.model_status;
+  return {
+    enabled: asBoolean(row.enabled),
+    engine,
+    modelStatus: isAiModelStatus(status) ? status : 'none',
+    modelPath: nullableString(row.modelPath ?? row.model_path),
+    actualizadoEn: asString((row.actualizadoEn ?? row.actualizado_en) || toIsoTimestamp()),
+  };
+}
+
+function normalizeAiMessage(row: unknown): AiMessage {
+  if (!isRecord(row)) throw new Error('Invalid ai message row');
+  const rol = isAiRole(row.rol) ? row.rol : 'system';
+  return {
+    id: asString(row.id),
+    rol,
+    contenido: typeof row.contenido === 'string' ? row.contenido : '',
+    fecha: asString((row.fecha as string) || toDateKey()),
+    creadoEn: asString((row.creadoEn ?? row.creado_en) || toIsoTimestamp()),
+  };
+}
+
+function isAiRole(value: unknown): value is AiRole {
+  return value === 'system' || value === 'user' || value === 'assistant';
+}
+
+function isAiModelStatus(value: unknown): value is AiModelStatus {
+  return value === 'none' || value === 'downloading' || value === 'ready' || value === 'error';
 }
 
 function normalizeHabit(row: unknown): HabitRecord {

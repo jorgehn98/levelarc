@@ -17,6 +17,7 @@ import {
   Snowflake,
   Sparkles,
   Store,
+  Terminal,
   Trophy,
   Upload,
   User,
@@ -360,6 +361,14 @@ export default function SettingsScreen() {
         </SettingsSection>
 
         <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'system')}>
+          <SettingRow icon={Terminal} title={t(language, 'systemChatTitle')} value={t(language, 'systemChatRowCopy')}>
+            <View style={styles.inlineActions}>
+              <Button icon={Terminal} label={t(language, 'open')} onPress={() => router.push('/system-chat')} variant="selected" />
+            </View>
+          </SettingRow>
+
+          <SettingRow compact icon={Info} iconColor={colors.state.pending} title={t(language, 'systemChatEngineLabel')} value={t(language, 'systemChatEngineNote')} />
+
           <SettingRow icon={Store} title={t(language, 'systemShop')} value={t(language, 'shopRowCopy')}>
             <View style={styles.inlineActions}>
               <Button icon={Store} label={t(language, 'openShop')} onPress={() => router.push('/shop')} variant="selected" />

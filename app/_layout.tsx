@@ -153,6 +153,7 @@ export default function RootLayout() {
         <Stack.Screen name="rank-up" options={{ presentation: 'modal' }} />
         <Stack.Screen name="shop" />
         <Stack.Screen name="achievements" />
+        <Stack.Screen name="system-chat" />
       </Stack>
       <CelebrationOverlay />
     </>

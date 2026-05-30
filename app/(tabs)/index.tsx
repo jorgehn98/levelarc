@@ -1,5 +1,5 @@
 import { Link, router } from 'expo-router';
-import { Check, Flame, Gift, Plus, Target } from 'lucide-react-native';
+import { Check, ChevronRight, Flame, Gift, Plus, Target, Terminal } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -75,6 +75,22 @@ export default function TodayScreen() {
             <Text style={styles.claimed}>{t(language, 'missionClaimed')} · +{dailyMission?.xpBonus ?? 10} XP</Text>
           ) : null}
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/system-chat')}
+          style={styles.systemChatCard}
+        >
+          <View style={styles.systemChatIcon}>
+            <Terminal color={colors.brand.cyanCore} size={18} />
+          </View>
+          <View style={styles.systemChatCopy}>
+            <Text style={styles.kicker}>◆ {t(language, 'systemChatLabel')}</Text>
+            <Text style={styles.systemChatTitle}>{t(language, 'systemChatCardTitle')}</Text>
+            <Text style={styles.systemChatSub}>{t(language, 'systemChatCardCopy')}</Text>
+          </View>
+          <ChevronRight color={colors.brand.cyanCore} size={20} />
+        </Pressable>
 
         {showPerfectWeekMission ? (
           <View style={[styles.missionPanel, styles.streakMissionPanel]}>
@@ -248,6 +264,43 @@ const styles = StyleSheet.create({
   },
   streakMissionPanel: {
     borderColor: `${colors.state.streak}88`,
+  },
+  systemChatCard: {
+    alignItems: 'center',
+    backgroundColor: colors.background.surface,
+    borderColor: colors.brand.cyanShadow,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+  },
+  systemChatIcon: {
+    alignItems: 'center',
+    backgroundColor: `${colors.brand.cyanCore}14`,
+    borderColor: colors.brand.cyanCore,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  systemChatCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  systemChatTitle: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 15,
+    marginTop: 3,
+  },
+  systemChatSub: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
   },
   missionIcon: {
     alignItems: 'center',

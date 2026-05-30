@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const habits = sqliteTable('habits', {
   id: text('id').primaryKey(),
@@ -82,3 +82,29 @@ export const dailyMissions = sqliteTable('daily_missions', {
   streakBonusXp: integer('streak_bonus_xp').notNull().default(30),
   esenciaOtorgada: integer('esencia_otorgada').notNull().default(0),
 });
+
+// Singleton (id = 1) con la configuración del Chat con el Sistema. `engine` selecciona el motor
+// activo ('template' = reglas por plantillas, siempre disponible; 'llama' = LLM local, pendiente de
+// build nativo). `modelStatus`/`modelPath` describen el estado del modelo del LLM (sin uso real en 5A).
+export const aiProfile = sqliteTable('ai_profile', {
+  id: integer('id').primaryKey().default(1),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+  engine: text('engine', { enum: ['template', 'llama'] }).notNull().default('template'),
+  modelStatus: text('model_status', { enum: ['none', 'downloading', 'ready', 'error'] }).notNull().default('none'),
+  modelPath: text('model_path'),
+  actualizadoEn: text('actualizado_en').notNull(),
+});
+
+// Historial de mensajes del Chat con el Sistema. El texto se guarda ya resuelto al idioma en que se
+// generó (el motor/core nunca traduce; el store resuelve con i18n antes de persistir).
+export const aiMessages = sqliteTable(
+  'ai_messages',
+  {
+    id: text('id').primaryKey(),
+    rol: text('rol', { enum: ['system', 'user', 'assistant'] }).notNull(),
+    contenido: text('contenido').notNull(),
+    fecha: text('fecha').notNull(),
+    creadoEn: text('creado_en').notNull(),
+  },
+  (table) => [index('ai_messages_creado_en_idx').on(table.creadoEn)],
+);

@@ -8,6 +8,7 @@ import {
   getPerfectWeekEssence,
 } from '@/core/economy';
 import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
+import type { SystemContext } from '@/core/aiContext';
 import { DEFAULT_AURA_ID, getShopItem, meetsRequirement } from '@/core/shop';
 import {
   DAILY_MISSION_BONUS_XP,
@@ -110,6 +111,26 @@ export type EventRecord = {
   habitName?: string;
 };
 
+export type AiEngine = 'template' | 'llama';
+export type AiModelStatus = 'none' | 'downloading' | 'ready' | 'error';
+export type AiRole = 'system' | 'user' | 'assistant';
+
+export type AiProfile = {
+  enabled: boolean;
+  engine: AiEngine;
+  modelStatus: AiModelStatus;
+  modelPath: string | null;
+  actualizadoEn: string;
+};
+
+export type AiMessage = {
+  id: string;
+  rol: AiRole;
+  contenido: string;
+  fecha: string;
+  creadoEn: string;
+};
+
 type HabitDayStatus = ProgressState | 'no_programado';
 
 export type HabitInsightDay = {
@@ -191,9 +212,26 @@ type EventRow = {
   nombre?: string;
 };
 
+type AiProfileRow = {
+  enabled: number;
+  engine: AiEngine;
+  model_status: AiModelStatus;
+  model_path: string | null;
+  actualizado_en: string;
+};
+
+type AiMessageRow = {
+  id: string;
+  rol: AiRole;
+  contenido: string;
+  fecha: string;
+  creado_en: string;
+};
+
 export async function initializeDatabase() {
   await migrateDb(sqlite);
   await ensurePlayer();
+  await ensureAiProfile();
   await ensureDailyMission(toDateKey());
 }
 
@@ -208,8 +246,11 @@ export async function resetAllData() {
     DELETE FROM achievements_unlocked;
     DELETE FROM habits;
     DELETE FROM player;
+    DELETE FROM ai_messages;
+    DELETE FROM ai_profile;
   `);
   await ensurePlayer();
+  await ensureAiProfile();
   await ensureDailyMission(toDateKey());
 }
 
@@ -544,6 +585,143 @@ export async function getRecentEvents(limit = 25): Promise<EventRecord[]> {
   return rows.map(mapEvent);
 }
 
+// --- Chat con el Sistema (IA local) ---
+
+export async function getAiProfile(): Promise<AiProfile> {
+  return ensureAiProfile();
+}
+
+export async function ensureAiProfile(): Promise<AiProfile> {
+  const existing = await sqlite.getFirstAsync<AiProfileRow>('SELECT * FROM ai_profile WHERE id = 1');
+  if (existing) return mapAiProfile(existing);
+
+  const now = toIsoTimestamp();
+  await sqlite.runAsync(
+    "INSERT OR IGNORE INTO ai_profile (id, enabled, engine, model_status, model_path, actualizado_en) VALUES (1, 0, 'template', 'none', NULL, ?)",
+    [now],
+  );
+  return { enabled: false, engine: 'template', modelStatus: 'none', modelPath: null, actualizadoEn: now };
+}
+
+export async function setAiEnabled(enabled: boolean): Promise<void> {
+  await ensureAiProfile();
+  await sqlite.runAsync('UPDATE ai_profile SET enabled = ?, actualizado_en = ? WHERE id = 1', [
+    enabled ? 1 : 0,
+    toIsoTimestamp(),
+  ]);
+}
+
+export async function setAiEngine(engine: AiEngine): Promise<void> {
+  await ensureAiProfile();
+  await sqlite.runAsync('UPDATE ai_profile SET engine = ?, actualizado_en = ? WHERE id = 1', [engine, toIsoTimestamp()]);
+}
+
+export async function setAiModelStatus(status: AiModelStatus, modelPath?: string | null): Promise<void> {
+  await ensureAiProfile();
+  await sqlite.runAsync('UPDATE ai_profile SET model_status = ?, model_path = ?, actualizado_en = ? WHERE id = 1', [
+    status,
+    modelPath ?? null,
+    toIsoTimestamp(),
+  ]);
+}
+
+export async function listAiMessages(limit?: number): Promise<AiMessage[]> {
+  // Orden ascendente por creado_en para renderizar el historial cronológicamente. Con `limit`
+  // tomamos los N más recientes pero los devolvemos igualmente en orden ascendente.
+  if (limit && limit > 0) {
+    const rows = await sqlite.getAllAsync<AiMessageRow>(
+      'SELECT * FROM ai_messages ORDER BY creado_en DESC LIMIT ?',
+      [limit],
+    );
+    return rows.reverse().map(mapAiMessage);
+  }
+  const rows = await sqlite.getAllAsync<AiMessageRow>('SELECT * FROM ai_messages ORDER BY creado_en ASC');
+  return rows.map(mapAiMessage);
+}
+
+export async function addAiMessage(rol: AiRole, contenido: string, dateKey = toDateKey()): Promise<AiMessage> {
+  const message: AiMessage = {
+    id: createId(),
+    rol,
+    contenido,
+    fecha: dateKey,
+    creadoEn: toIsoTimestamp(),
+  };
+  await sqlite.runAsync(
+    'INSERT INTO ai_messages (id, rol, contenido, fecha, creado_en) VALUES (?, ?, ?, ?, ?)',
+    [message.id, message.rol, message.contenido, message.fecha, message.creadoEn],
+  );
+  return message;
+}
+
+export async function clearAiMessages(): Promise<void> {
+  await sqlite.runAsync('DELETE FROM ai_messages');
+}
+
+// Arma el SystemContext leyendo el estado actual: jugador, hábitos de hoy, misión diaria y la mayor
+// racha perfecta vista. Reutiliza helpers existentes (getLevelProgress, getAttributeLevelProgress)
+// para no duplicar la lógica de nivel/atributos.
+export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemContext> {
+  const player = await ensurePlayer();
+  const todayHabits = await listTodayHabits(dateKey);
+  // READ-ONLY: leemos la fila de hoy con un SELECT directo en vez de getDailyMission(), que
+  // sincroniza y escribe (puede revocar esencia/recalcular jugador). Un getter no debe tener
+  // efectos laterales; esto da paridad con la versión web, que tampoco persiste aquí.
+  const missionRow = await sqlite.getFirstAsync<{ perfect_streak_days: number }>(
+    'SELECT perfect_streak_days FROM daily_missions WHERE fecha = ?',
+    [dateKey],
+  );
+  const perfectStreakToday = missionRow?.perfect_streak_days ?? 0;
+
+  const progress = getLevelProgress(player.xpTotal);
+
+  // Atributo con mayor nivel; null si todos están a nivel base (sin XP de atributo).
+  let atributoTop: { id: string; nivel: number } | null = null;
+  for (const id of attributeIds) {
+    const nivel = getAttributeLevelProgress(player.atributosXp[id]).level;
+    if (player.atributosXp[id] > 0 && (!atributoTop || nivel > atributoTop.nivel)) {
+      atributoTop = { id, nivel };
+    }
+  }
+
+  const completadosHoy = todayHabits.filter((habit) => habit.estado === 'completado').length;
+  const falladosHoy = todayHabits.filter((habit) => habit.estado === 'fallado').length;
+  const pendientesHoy = todayHabits.filter((habit) => habit.estado === 'pendiente').length;
+  const habitosHoyTotal = todayHabits.length;
+  const diaPerfecto = habitosHoyTotal > 0 && completadosHoy === habitosHoyTotal;
+
+  // Mejor racha actual entre los hábitos activos (incluye la de hoy si ya está completado).
+  let mejorRachaHabito = 0;
+  for (const habit of todayHabits) {
+    const priorStreak = await getHabitCompletionStreak(habit.id, dateKey, habit.diasSemana);
+    const streak = habit.estado === 'completado' ? priorStreak + 1 : priorStreak;
+    if (streak > mejorRachaHabito) mejorRachaHabito = streak;
+  }
+
+  // Mayor racha perfecta vista (max de daily_missions.perfect_streak_days).
+  const perfectRow = await sqlite.getFirstAsync<{ max: number | null }>(
+    'SELECT MAX(perfect_streak_days) as max FROM daily_missions',
+  );
+
+  return {
+    nombre: player.nombre,
+    nivel: player.nivel,
+    rango: player.rango,
+    esencia: player.esencia,
+    ratioNivel: progress.ratio,
+    faltaParaNivel: Math.max(0, progress.neededForLevel - progress.gainedInLevel),
+    rachaMisiones: player.rachaMisiones,
+    atributoTop,
+    habitosHoyTotal,
+    completadosHoy,
+    pendientesHoy,
+    falladosHoy,
+    diaPerfecto,
+    mejorRachaHabito,
+    rachaPerfecta: Math.max(perfectStreakToday, perfectRow?.max ?? 0),
+  };
+}
+
 async function getHabitEvents(habitId: string, limit = 10): Promise<EventRecord[]> {
   const rows = await sqlite.getAllAsync<EventRow>(
     `
@@ -653,15 +831,18 @@ export async function evaluateAndUnlockAchievements(): Promise<{ id: string; ess
 }
 
 export async function exportAllData() {
-  const [allHabits, allEvents, progress, playerRows, missions, rewards, achievements] = await Promise.all([
-    sqlite.getAllAsync('SELECT * FROM habits ORDER BY creado_en ASC'),
-    sqlite.getAllAsync('SELECT * FROM events ORDER BY registrado_en ASC'),
-    sqlite.getAllAsync('SELECT * FROM habit_daily_progress ORDER BY fecha ASC'),
-    sqlite.getAllAsync('SELECT * FROM player'),
-    sqlite.getAllAsync('SELECT * FROM daily_missions ORDER BY fecha ASC'),
-    sqlite.getAllAsync('SELECT * FROM player_rewards ORDER BY adquirido_en ASC'),
-    sqlite.getAllAsync('SELECT * FROM achievements_unlocked ORDER BY desbloqueado_en ASC'),
-  ]);
+  const [allHabits, allEvents, progress, playerRows, missions, rewards, achievements, aiProfileRows, aiMessages] =
+    await Promise.all([
+      sqlite.getAllAsync('SELECT * FROM habits ORDER BY creado_en ASC'),
+      sqlite.getAllAsync('SELECT * FROM events ORDER BY registrado_en ASC'),
+      sqlite.getAllAsync('SELECT * FROM habit_daily_progress ORDER BY fecha ASC'),
+      sqlite.getAllAsync('SELECT * FROM player'),
+      sqlite.getAllAsync('SELECT * FROM daily_missions ORDER BY fecha ASC'),
+      sqlite.getAllAsync('SELECT * FROM player_rewards ORDER BY adquirido_en ASC'),
+      sqlite.getAllAsync('SELECT * FROM achievements_unlocked ORDER BY desbloqueado_en ASC'),
+      sqlite.getAllAsync('SELECT * FROM ai_profile WHERE id = 1'),
+      sqlite.getAllAsync('SELECT * FROM ai_messages ORDER BY creado_en ASC'),
+    ]);
 
   return {
     exportedAt: toIsoTimestamp(),
@@ -672,6 +853,8 @@ export async function exportAllData() {
     dailyMissions: missions,
     playerRewards: rewards,
     achievementsUnlocked: achievements,
+    aiProfile: aiProfileRows,
+    aiMessages,
   };
 }
 
@@ -698,6 +881,8 @@ export async function importAllData(data: unknown) {
       await tx.runAsync('DELETE FROM achievements_unlocked');
       await tx.runAsync('DELETE FROM habits');
       await tx.runAsync('DELETE FROM player');
+      await tx.runAsync('DELETE FROM ai_messages');
+      await tx.runAsync('DELETE FROM ai_profile');
 
       for (const habit of restoredHabits) {
         await tx.runAsync(
@@ -790,6 +975,25 @@ export async function importAllData(data: unknown) {
         await tx.runAsync(
           'INSERT INTO achievements_unlocked (id, achievement_id, desbloqueado_en) VALUES (?, ?, ?)',
           [achievement.id, achievement.achievementId, achievement.desbloqueadoEn],
+        );
+      }
+
+      const aiProfile = backup.aiProfile;
+      await tx.runAsync(
+        'INSERT INTO ai_profile (id, enabled, engine, model_status, model_path, actualizado_en) VALUES (1, ?, ?, ?, ?, ?)',
+        [
+          aiProfile?.enabled ? 1 : 0,
+          aiProfile?.engine ?? 'template',
+          aiProfile?.modelStatus ?? 'none',
+          aiProfile?.modelPath ?? null,
+          aiProfile?.actualizadoEn ?? toIsoTimestamp(),
+        ],
+      );
+
+      for (const message of backup.aiMessages) {
+        await tx.runAsync(
+          'INSERT INTO ai_messages (id, rol, contenido, fecha, creado_en) VALUES (?, ?, ?, ?, ?)',
+          [message.id, message.rol, message.contenido, message.fecha, message.creadoEn],
         );
       }
     });
@@ -1246,6 +1450,34 @@ function clampImportance(value: number): HabitImportance {
   return Math.round(value) as HabitImportance;
 }
 
+function mapAiProfile(row: AiProfileRow): AiProfile {
+  return {
+    enabled: Boolean(row.enabled),
+    engine: row.engine === 'llama' ? 'llama' : 'template',
+    modelStatus: isAiModelStatus(row.model_status) ? row.model_status : 'none',
+    modelPath: row.model_path ?? null,
+    actualizadoEn: row.actualizado_en,
+  };
+}
+
+function mapAiMessage(row: AiMessageRow): AiMessage {
+  return {
+    id: row.id,
+    rol: isAiRole(row.rol) ? row.rol : 'system',
+    contenido: row.contenido,
+    fecha: row.fecha,
+    creadoEn: row.creado_en,
+  };
+}
+
+function isAiRole(value: unknown): value is AiRole {
+  return value === 'system' || value === 'user' || value === 'assistant';
+}
+
+function isAiModelStatus(value: unknown): value is AiModelStatus {
+  return value === 'none' || value === 'downloading' || value === 'ready' || value === 'error';
+}
+
 type NormalizedBackupData = {
   habits: HabitRecord[];
   events: EventRecord[];
@@ -1261,6 +1493,8 @@ type NormalizedBackupData = {
   dailyMissions: DailyMissionRecord[];
   playerRewards: Array<{ id: string; rewardId: string; kind: string; adquiridoEn: string }>;
   achievementsUnlocked: Array<{ id: string; achievementId: string; desbloqueadoEn: string }>;
+  aiProfile: AiProfile | null;
+  aiMessages: AiMessage[];
 };
 
 function normalizeBackupData(data: unknown): NormalizedBackupData {
@@ -1275,6 +1509,33 @@ function normalizeBackupData(data: unknown): NormalizedBackupData {
     playerRewards: asArray(data.playerRewards ?? data.rewards).map(normalizeReward),
     // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
     achievementsUnlocked: asArray(data.achievementsUnlocked ?? data.achievements).map(normalizeAchievement),
+    // Backups antiguos sin IA → defaults / []. El singleton se reasegura tras importar.
+    aiProfile: normalizeAiProfile(asArray(data.aiProfile)[0] ?? data.aiProfile),
+    aiMessages: asArray(data.aiMessages).map(normalizeAiMessage),
+  };
+}
+
+function normalizeAiProfile(row: unknown): AiProfile | null {
+  if (!isRecord(row)) return null;
+  const engine = row.engine === 'llama' ? 'llama' : 'template';
+  return {
+    enabled: asBoolean(row.enabled),
+    engine,
+    modelStatus: isAiModelStatus(row.model_status ?? row.modelStatus) ? (row.model_status ?? row.modelStatus) as AiModelStatus : 'none',
+    modelPath: nullableString(row.model_path ?? row.modelPath),
+    actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
+  };
+}
+
+function normalizeAiMessage(row: unknown): AiMessage {
+  if (!isRecord(row)) throw new Error('Invalid ai message row');
+  const rol = isAiRole(row.rol) ? row.rol : 'system';
+  return {
+    id: asString(row.id),
+    rol,
+    contenido: typeof row.contenido === 'string' ? row.contenido : '',
+    fecha: asString((row.fecha as string) || toDateKey()),
+    creadoEn: asString((row.creado_en ?? row.creadoEn) || toIsoTimestamp()),
   };
 }
 

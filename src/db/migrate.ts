@@ -89,6 +89,26 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
 
     CREATE UNIQUE INDEX IF NOT EXISTS achievements_unlocked_achievement_id_unique
       ON achievements_unlocked (achievement_id);
+
+    CREATE TABLE IF NOT EXISTS ai_profile (
+      id integer PRIMARY KEY DEFAULT 1 NOT NULL,
+      enabled integer DEFAULT 0 NOT NULL,
+      engine text DEFAULT 'template' NOT NULL,
+      model_status text DEFAULT 'none' NOT NULL,
+      model_path text,
+      actualizado_en text NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_messages (
+      id text PRIMARY KEY NOT NULL,
+      rol text NOT NULL,
+      contenido text NOT NULL,
+      fecha text NOT NULL,
+      creado_en text NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS ai_messages_creado_en_idx
+      ON ai_messages (creado_en);
   `);
 
   try {
@@ -185,4 +205,15 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
   } catch {
     // Column already exists in fresh databases and after the first migration.
   }
+
+  await ensureAiProfile(sqlite);
+}
+
+// Garantiza la fila singleton (id = 1) de ai_profile con los defaults, igual que ensurePlayer hace
+// con el jugador. Idempotente: INSERT OR IGNORE no toca la fila si ya existe.
+async function ensureAiProfile(sqlite: SQLiteDatabase) {
+  await sqlite.runAsync(
+    "INSERT OR IGNORE INTO ai_profile (id, enabled, engine, model_status, model_path, actualizado_en) VALUES (1, 0, 'template', 'none', NULL, ?)",
+    [new Date().toISOString()],
+  );
 }
