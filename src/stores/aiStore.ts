@@ -5,7 +5,8 @@ import { create } from 'zustand';
 import { resolveEngine, templateEngine } from '@/ai';
 import * as modelManager from '@/ai/modelManager';
 import { t } from '@/i18n';
-import { toDateKey } from '@/lib/date';
+import { toDateKey, toIsoTimestamp } from '@/lib/date';
+import { getInterjectionTone } from '@/core/systemVoice';
 import {
   addAiMessage,
   buildSystemContext,
@@ -19,7 +20,7 @@ import {
   type AiMessage,
   type AiModelStatus,
 } from '@/db/repository';
-import type { SystemReply } from '@/core/systemVoice';
+import type { InterjectionTone, InterjectionTrigger, SystemReply } from '@/core/systemVoice';
 
 import { useAppStore } from './appStore';
 
@@ -38,6 +39,32 @@ type DailyMessage = {
   fromAi: boolean;
 };
 
+// Aparición del Sistema en curso: el Sistema "salta" con un mensaje contextual que el overlay del
+// personaje (otra tarea) muestra. `tone` elige la pose; `fromAi` indica si el texto ya es del LLM
+// (al principio es de plantilla y se mejora en background). createdAt para ordenar/animar en la UI.
+type Interjection = {
+  trigger: InterjectionTrigger;
+  tone: InterjectionTone;
+  text: string;
+  fromAi: boolean;
+  createdAt: string;
+};
+
+// Motivo por el que el chat arrancó tras una aparición. sendMessage lo pasa al engine (solo el LLM lo
+// usa) para que la primera respuesta tenga en cuenta de qué iba la conversación. Se limpia tras el
+// primer mensaje o al limpiar el chat. `createdAt` (ISO) marca cuándo se creó la nota: sendMessage la
+// ignora si está caducada (el usuario llegó al chat tras la aparición pero no escribió hasta días
+// después), para que un contexto viejo nunca contamine un chat futuro.
+type ChatContextNote = {
+  trigger: InterjectionTrigger;
+  tone: InterjectionTone;
+  createdAt: string;
+};
+
+// Ventana de validez de chatContextNote: si pasa más de esto desde que se creó, se considera caducada
+// y sendMessage no la pasa al engine.
+const CHAT_CONTEXT_NOTE_MAX_AGE_MS = 10 * 60 * 1000;
+
 type AiState = {
   messages: AiMessage[];
   profile: AiProfileState;
@@ -47,9 +74,27 @@ type AiState = {
   modelProgress: number;
   // Mensaje del día del Sistema para la pantalla Hoy. null hasta que ensureDailyMessage lo rellena.
   dailyMessage: DailyMessage | null;
+  // Aparición del Sistema en curso. null = no hay aparición. El overlay del personaje la consume.
+  interjection: Interjection | null;
+  // Preferencia "Apariciones del Sistema": si está off, triggerInterjection no dispara nada. Se carga
+  // de AsyncStorage en loadAi (default true) y el toggle de Ajustes la cambia con setInterjectionsEnabled.
+  interjectionsEnabled: boolean;
+  // Motivo heredado por el chat tras una aparición (null si el chat no nació de una). Lo usa sendMessage.
+  chatContextNote: ChatContextNote | null;
   loadAi: () => Promise<void>;
   openChat: () => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
+  // Dispara una aparición del Sistema si el cooldown lo permite (1/sesión, 1/día por trigger).
+  triggerInterjection: (trigger: InterjectionTrigger) => Promise<void>;
+  // Descarta la aparición en curso (la UI la llama al cerrarla sin abrir el chat).
+  dismissInterjection: () => void;
+  // Activa/desactiva las apariciones del Sistema. Persiste la preferencia y actualiza el estado para
+  // que el toggle de Ajustes refleje el cambio al instante. Si se desactiva, triggerInterjection no
+  // disparará nuevas apariciones (la que ya esté en pantalla la cierra el usuario).
+  setInterjectionsEnabled: (enabled: boolean) => Promise<void>;
+  // Continúa la aparición en el chat: persiste su texto como mensaje del Sistema y deja el motivo
+  // (chatContextNote) para que la siguiente respuesta lo tenga en cuenta. La UI navega a /system-chat.
+  continueFromInterjection: () => Promise<void>;
   // Genera el mensaje del día: plantilla al instante + LLM en background si está activo. Cachea por día.
   ensureDailyMessage: () => Promise<void>;
   // Fuerza regenerar el mensaje del día ignorando el cache de hoy (para un botón "actualizar").
@@ -96,6 +141,53 @@ async function persistDailyMessage(message: DailyMessage): Promise<void> {
     await AsyncStorage.setItem(DAILY_MESSAGE_KEY, JSON.stringify(message));
   } catch {
     // Cache best-effort: si no se puede escribir, seguimos con el estado en memoria.
+  }
+}
+
+// Clave de AsyncStorage donde se persiste el registro de apariciones mostradas: { [trigger]: dateKey }.
+// Sirve para el dedupe "1 vez por día por trigger" entre arranques de la app.
+const INTERJECTIONS_KEY = 'levelarc.interjections';
+
+// Clave de AsyncStorage de la preferencia "Apariciones del Sistema" (que el Sistema salte solo).
+// Default ON: solo está desactivada si el usuario guardó explícitamente 'false'.
+const INTERJECTIONS_ENABLED_KEY = 'levelarc.interjectionsEnabled';
+
+// Lee la preferencia. Default true: cualquier valor distinto de 'false' (incluida la ausencia de
+// clave o un fallo de AsyncStorage) cuenta como activada.
+async function loadInterjectionsEnabled(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(INTERJECTIONS_ENABLED_KEY)) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+// Flag de sesión (solo en memoria, NO persiste): a lo sumo UNA aparición por apertura de la app.
+// Se resetea al arrancar el proceso, que es justo lo que queremos (una por sesión).
+let interjectionShownThisSession = false;
+
+// Lee el mapa de apariciones mostradas (trigger → dateKey). Devuelve {} si no hay nada o está corrupto.
+async function loadShownInterjections(): Promise<Record<string, string>> {
+  try {
+    const raw = await AsyncStorage.getItem(INTERJECTIONS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') return parsed as Record<string, string>;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+// Marca un trigger como mostrado hoy y persiste el mapa. Best-effort: si falla, el dedupe entre
+// arranques se pierde pero el flag de sesión sigue protegiendo dentro de esta apertura.
+async function markInterjectionShown(trigger: InterjectionTrigger, today: string): Promise<void> {
+  try {
+    const shown = await loadShownInterjections();
+    shown[trigger] = today;
+    await AsyncStorage.setItem(INTERJECTIONS_KEY, JSON.stringify(shown));
+  } catch {
+    // Best-effort: el flag de sesión en memoria sigue garantizando 1/sesión.
   }
 }
 
@@ -163,13 +255,20 @@ export const useAiStore = create<AiState>((set, get) => ({
   isReady: false,
   modelProgress: 0,
   dailyMessage: null,
+  interjection: null,
+  interjectionsEnabled: true,
+  chatContextNote: null,
   loadAi: async () => {
-    const [profile, messages] = await Promise.all([getAiProfile(), listAiMessages()]);
+    const [profile, messages, interjectionsEnabled] = await Promise.all([
+      getAiProfile(),
+      listAiMessages(),
+      loadInterjectionsEnabled(),
+    ]);
     // Normaliza divergencias del modelo (solo nativo) antes de proyectar al estado: 'downloading'
     // huérfano y 'ready' sin fichero. Si reconcilió, recarga el profile ya corregido.
     const reconciled = await reconcileModelState(profile);
     const finalProfile = reconciled ? await getAiProfile() : profile;
-    set({ profile: toProfileState(finalProfile), messages, isReady: true });
+    set({ profile: toProfileState(finalProfile), messages, interjectionsEnabled, isReady: true });
   },
   openChat: async () => {
     // Evita duplicar saludos: si ya hay historial, no genera otro de apertura. Solo arranca el chat
@@ -202,23 +301,129 @@ export const useAiStore = create<AiState>((set, get) => ({
     await addAiMessage('user', trimmed);
     set({ messages: await listAiMessages(), isGenerating: true });
 
+    // Si el chat nació de una aparición, pasamos el motivo al engine (solo el LLM lo usa) para que la
+    // primera respuesta tenga continuidad. Pero solo si la nota es RECIENTE: si el usuario llegó al
+    // chat tras la aparición y no escribió hasta mucho después, la nota está caducada y la ignoramos
+    // para no contaminar un chat futuro con un contexto viejo. Lo limpiamos tras este envío en
+    // cualquier caso (usada o caducada): el contexto inicial ya cumplió o ya no vale.
+    const storedNote = get().chatContextNote;
+    const noteAgeMs = storedNote ? Date.now() - Date.parse(storedNote.createdAt) : Infinity;
+    const contextNote = storedNote && noteAgeMs <= CHAT_CONTEXT_NOTE_MAX_AGE_MS ? storedNote : null;
+
     try {
       const language = useAppStore.getState().language;
       const engine = await resolveEngine(get().profile);
       const ctx = await buildSystemContext();
-      const reply = resolveReply(await engine.reply(ctx, trimmed, language));
+      const reply = resolveReply(await engine.reply(ctx, trimmed, language, contextNote ?? undefined));
       await addAiMessage('assistant', reply);
-      set({ messages: await listAiMessages() });
+      set({ messages: await listAiMessages(), chatContextNote: null });
     } catch {
       // La pantalla llama con `void sendMessage(...)`, así que sin catch un fallo quedaría como
       // unhandled rejection silenciosa. Si el LLM peta (modelo ausente/OOM/inferencia), registramos
       // un mensaje de error del Sistema para que el usuario vea feedback en lugar de silencio.
       const language = useAppStore.getState().language;
       await addAiMessage('assistant', t(language, 'systemChatError'));
-      set({ messages: await listAiMessages() });
+      // Limpiamos el contextNote igualmente: el intento ya consumió el contexto inicial.
+      set({ messages: await listAiMessages(), chatContextNote: null });
     } finally {
       set({ isGenerating: false });
     }
+  },
+  // Dispara una aparición del Sistema si el cooldown lo permite. Reglas:
+  //  - 1 aparición por apertura de app (flag de sesión en memoria).
+  //  - 1 vez por día por trigger (mapa persistido en AsyncStorage).
+  // Si pasa el filtro: muestra al instante el texto de plantilla (fromAi:false) y, si el engine activo
+  // es 'llama', lo regenera en background con el LLM (fromAi:true). Un fallo del LLM deja la plantilla.
+  // No-bloqueante por diseño: las acciones del juego la disparan "fire and forget" con catch.
+  triggerInterjection: async (trigger) => {
+    // 1) Cooldown de sesión: ya hubo una aparición esta apertura → no dispares. Hacemos el "claim"
+    //    SÍNCRONO aquí mismo (antes de cualquier await): así dos disparos casi simultáneos no pueden
+    //    colarse ambos por los guards async de abajo. Si un guard posterior nos hace NO mostrar,
+    //    revertimos el flag a false antes del return para no consumir la única aparición de la sesión.
+    if (interjectionShownThisSession) return;
+    interjectionShownThisSession = true;
+
+    // 0) Preferencia: si el usuario desactivó las apariciones, el Sistema no salta. Leemos de
+    //    AsyncStorage (fuente de verdad) en vez de fiarnos del estado, porque triggerInterjection
+    //    puede dispararse antes de que loadAi haya cargado la preferencia al estado.
+    if (!(await loadInterjectionsEnabled())) {
+      interjectionShownThisSession = false;
+      return;
+    }
+
+    const today = toDateKey();
+
+    // 2) Dedupe diario: este trigger ya se mostró hoy → no dispares.
+    const shown = await loadShownInterjections();
+    if (shown[trigger] === today) {
+      interjectionShownThisSession = false;
+      return;
+    }
+
+    // Pasa el filtro: el flag de sesión ya está reclamado; persistimos el dedupe diario antes de
+    // generar, para que un reinicio de sesión tampoco repita este trigger hoy.
+    await markInterjectionShown(trigger, today);
+
+    // El perfil decide el motor (template/llama). Si el store aún no se cargó (el trigger 'comeback'
+    // salta en boot()→closeMissedDays(), muy pronto, antes de que ninguna pantalla llame a loadAi),
+    // lo cargamos: sin esto profile.engine sería siempre el default 'template' y la aparición nunca
+    // se enriquecería con el LLM aunque esté activo. loadAi solo lee BD/AsyncStorage y setea estado
+    // (no dispara boot ni triggerInterjection), así que no hay bucle. Igual que ensureDailyMessage.
+    if (!get().isReady) await get().loadAi();
+
+    const tone = getInterjectionTone(trigger);
+    const createdAt = new Date().toISOString();
+
+    // Texto de plantilla SIEMPRE primero (instantáneo, offline): la aparición nunca se queda sin texto.
+    const ctx = await buildSystemContext();
+    const templateText = resolveReply(await templateEngine.interjection(ctx, trigger, useAppStore.getState().language));
+    set({ interjection: { trigger, tone, text: templateText, fromAi: false, createdAt } });
+
+    // Si el engine activo no es llama, ya está: la plantilla es definitiva.
+    if (get().profile.engine !== 'llama') return;
+
+    // IA activa: regenera en background. La plantilla ya está visible; si el LLM responde, la sustituye.
+    try {
+      const language = useAppStore.getState().language;
+      const engine = await resolveEngine(get().profile);
+      if (engine.id !== 'llama') return;
+      const aiText = resolveReply(await engine.interjection(ctx, trigger, language));
+      // La aparición pudo descartarse/cambiar mientras inferíamos: solo sustituye si sigue siendo esta.
+      const current = get().interjection;
+      if (current && current.trigger === trigger && current.createdAt === createdAt) {
+        set({ interjection: { ...current, text: aiText, fromAi: true } });
+      }
+    } catch {
+      // El LLM falló: dejamos el texto de plantilla. No rompe nada.
+    }
+  },
+  dismissInterjection: () => {
+    set({ interjection: null });
+  },
+  // Persiste la preferencia y la refleja en el estado. Best-effort en el escribir: si AsyncStorage
+  // falla, el estado igual cambia (el toggle responde); en el peor caso la preferencia no sobrevive
+  // al reinicio. El guard de triggerInterjection relee de AsyncStorage, así que respeta lo escrito.
+  setInterjectionsEnabled: async (enabled) => {
+    set({ interjectionsEnabled: enabled });
+    try {
+      await AsyncStorage.setItem(INTERJECTIONS_ENABLED_KEY, String(enabled));
+    } catch {
+      // Best-effort: el estado ya refleja el cambio en esta sesión.
+    }
+  },
+  // Continúa la aparición en el chat: persiste su texto como mensaje del Sistema en el historial (para
+  // que al abrir /system-chat el contexto ya esté ahí) y deja el motivo en chatContextNote para que la
+  // siguiente respuesta lo tenga en cuenta. Limpia la aparición y recarga messages. La navegación la
+  // hace la UI tras llamar esto.
+  continueFromInterjection: async () => {
+    const current = get().interjection;
+    if (!current) return;
+    await addAiMessage('assistant', current.text);
+    set({
+      interjection: null,
+      chatContextNote: { trigger: current.trigger, tone: current.tone, createdAt: toIsoTimestamp() },
+      messages: await listAiMessages(),
+    });
   },
   // Asegura un mensaje del día del Sistema para la pantalla Hoy. Estrategia "instantáneo primero":
   //  1) Si ya hay un mensaje en estado/cache de HOY y es suficientemente bueno (de IA, o el engine
@@ -292,7 +497,7 @@ export const useAiStore = create<AiState>((set, get) => ({
   },
   clearChat: async () => {
     await clearAiMessages();
-    set({ messages: [] });
+    set({ messages: [], chatContextNote: null });
   },
   setEnabled: async (enabled) => {
     await setAiEnabled(enabled);

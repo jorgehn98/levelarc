@@ -342,6 +342,10 @@ const dictionary = {
     systemMessageTapHint: 'Toca para hablar con el Sistema',
     systemMessageAiBadge: 'IA',
     open: 'Abrir',
+    // Aparición del Sistema (SystemInterjectionOverlay) y su preferencia en Ajustes.
+    close: 'Cerrar',
+    interjectionsToggle: 'Apariciones del Sistema',
+    interjectionsToggleCopy: 'El Sistema aparece solo en momentos clave',
     // Gestión de la IA avanzada del Sistema (pantalla /system-ai y sus accesos).
     systemAiTitle: 'IA del Sistema',
     aiManageTitle: 'IA avanzada',
@@ -394,6 +398,17 @@ const dictionary = {
     sys_reply_motivate_2: 'Nivel {nivel} no es el final. Sigue ascendiendo.',
     sys_reply_unknown_1: 'No comprendo, pero el Sistema observa: nivel {nivel}, rango {rango}.',
     sys_reply_unknown_2: 'Mensaje no reconocido. Tu estado: nivel {nivel}, {n} misiones pendientes.',
+    // Apariciones del Sistema (interjections): el Sistema salta solo ante un evento del juego.
+    sys_int_mission_complete_1: 'Misión diaria cumplida. El Sistema lo registra. Mantén el ritmo.',
+    sys_int_mission_complete_2: 'Has cerrado la misión de hoy. Nivel {nivel}. Sigue así.',
+    sys_int_comeback_1: 'Has vuelto. El Sistema te esperaba. Retoma tu ascenso.',
+    sys_int_comeback_2: 'Reaparecido tras la ausencia. Nivel {nivel}, rango {rango}. No vuelvas a desaparecer.',
+    sys_int_streak_1: 'Racha de {mejorRacha} en un hábito. La constancia te forja.',
+    sys_int_streak_2: 'Hito alcanzado: {mejorRacha} días seguidos. El Sistema reconoce la disciplina.',
+    sys_int_near_level_1: 'Estás al borde del nivel {nivel}. {falta} XP. Empuja ahora.',
+    sys_int_near_level_2: 'El ascenso está cerca. {falta} XP para el siguiente nivel.',
+    sys_int_mission_failed_1: 'El día cerró sin completar la misión. Un fallo no te define. Mañana lo recuperas.',
+    sys_int_mission_failed_2: 'Misión del día sin cumplir. El Sistema lo anota. Corrige el rumbo.',
   },
   en: {
     today: 'Today',
@@ -736,6 +751,10 @@ const dictionary = {
     systemMessageTapHint: 'Tap to talk to the System',
     systemMessageAiBadge: 'AI',
     open: 'Open',
+    // System apparition (SystemInterjectionOverlay) and its preference in Settings.
+    close: 'Close',
+    interjectionsToggle: 'System appearances',
+    interjectionsToggleCopy: 'The System appears on its own at key moments',
     // Advanced System AI management (the /system-ai screen and its entry points).
     systemAiTitle: 'System AI',
     aiManageTitle: 'Advanced AI',
@@ -788,6 +807,17 @@ const dictionary = {
     sys_reply_motivate_2: 'Level {nivel} is not the end. Keep ascending.',
     sys_reply_unknown_1: 'I do not understand, but the System observes: level {nivel}, rank {rango}.',
     sys_reply_unknown_2: 'Message not recognized. Your status: level {nivel}, {n} pending missions.',
+    // System apparitions (interjections): the System appears on its own after a game event.
+    sys_int_mission_complete_1: 'Daily mission complete. The System records it. Keep the pace.',
+    sys_int_mission_complete_2: 'You closed today mission. Level {nivel}. Carry on.',
+    sys_int_comeback_1: 'You are back. The System was waiting. Resume your ascent.',
+    sys_int_comeback_2: 'Reappeared after the absence. Level {nivel}, rank {rango}. Do not vanish again.',
+    sys_int_streak_1: 'A {mejorRacha}-day streak on a habit. Consistency forges you.',
+    sys_int_streak_2: 'Milestone reached: {mejorRacha} days in a row. The System acknowledges the discipline.',
+    sys_int_near_level_1: 'You are on the edge of level {nivel}. {falta} XP. Push now.',
+    sys_int_near_level_2: 'The ascent is close. {falta} XP to the next level.',
+    sys_int_mission_failed_1: 'The day closed without completing the mission. A failure does not define you. Recover tomorrow.',
+    sys_int_mission_failed_2: 'Today mission left unfinished. The System notes it. Correct course.',
   },
 } as const;
 

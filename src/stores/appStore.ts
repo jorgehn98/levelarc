@@ -98,6 +98,25 @@ type AppState = {
 const LANGUAGE_KEY = 'levelarc.language';
 const LAST_ACTIVE_DATE_KEY = 'levelarc.lastActiveDate';
 
+// Umbral de ausencia: nº mínimo de días COMPLETOS sin actividad que dispara la aparición de
+// "vuelta" del Sistema. 2 = el Sistema saluda tras al menos dos días enteros de ausencia real.
+const COMEBACK_MIN_DAYS = 2;
+
+// ¿Una misión diaria está completa? (objetivo>0 y completados alcanzan el objetivo). Helper local
+// para detectar la transición pendiente→completada que dispara la aparición del Sistema.
+function isMissionComplete(mission: DailyMissionRecord | null): boolean {
+  return !!mission && mission.objetivo > 0 && mission.completados >= mission.objetivo;
+}
+
+// Dispara una aparición del Sistema sin bloquear ni romper la acción de juego. Import dinámico del
+// aiStore para evitar un ciclo de import en carga (appStore ↔ aiStore); el catch traga cualquier
+// fallo (aiStore aún sin cargar, AsyncStorage, etc.) para que el juego nunca se rompa por esto.
+function fireInterjection(trigger: import('@/core/systemVoice').InterjectionTrigger): void {
+  import('./aiStore')
+    .then(({ useAiStore }) => useAiStore.getState().triggerInterjection(trigger))
+    .catch(() => undefined);
+}
+
 // Guard de reentrada: si ya hay un check de logros en curso, una segunda llamada concurrente
 // retorna sin hacer nada. El check en curso ve el estado más reciente, así que captura cualquier
 // logro pendiente; relanzarlo en paralelo solo duplicaría trabajo (la correctitud ya la garantiza
@@ -247,10 +266,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   incrementHabit: async (id) => {
     const prev = get().player;
+    const prevMissionComplete = isMissionComplete(get().dailyMission);
     await incrementHabitProgress(id);
     await get().refresh();
     appendCelebrations(set, queueProgressCelebrations(prev, get().player));
     flagRankUp(set, prev, get().player);
+    // La misión diaria acaba de pasar a completada con este incremento → aparición del Sistema.
+    if (!prevMissionComplete && isMissionComplete(get().dailyMission)) {
+      fireInterjection('mission_complete');
+    }
     await get().runAchievementCheck(true);
   },
   failHabit: async (id) => {
@@ -290,6 +314,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       // closeMissedDays corre dentro de boot(), antes del refresh: el desbloqueo silencioso de
       // boot ya cubre la Esencia de logros derivada del cierre, así que no celebramos aquí.
+    }
+
+    // Aparición de "vuelta": si el usuario lleva >= COMEBACK_MIN_DAYS días COMPLETOS sin actividad,
+    // el Sistema saluda el regreso. Usamos lastActiveDate ANTES de sobrescribirlo. getDateKeysBetween
+    // da el tramo inclusivo [last..ayer], que incluye el propio último día activo; restamos 1 para
+    // contar solo los días enteros de ausencia (los que van entre el último activo y ayer, ambos sin
+    // contar el último día activo). Ej.: activo ayer → 0 días de ausencia; activo anteayer → 1; etc.
+    if (lastActiveDate && lastActiveDate < today) {
+      const daysAway = getDateKeysBetween(lastActiveDate, yesterday).length - 1;
+      if (daysAway >= COMEBACK_MIN_DAYS) {
+        fireInterjection('comeback');
+      }
     }
 
     await AsyncStorage.setItem(LAST_ACTIVE_DATE_KEY, today);

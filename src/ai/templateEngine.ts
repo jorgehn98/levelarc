@@ -4,7 +4,7 @@
 // Promise.resolve para cumplir la interface async sin coste real. Ignora `language`: su bilingüismo
 // vive en i18n (devuelve { kind: 'key' } y el store resuelve la clave en el idioma activo).
 
-import { getSystemGreeting, getSystemReply } from '@/core/systemVoice';
+import { getSystemGreeting, getSystemInterjection, getSystemReply } from '@/core/systemVoice';
 
 import type { SystemChatEngine } from './engine';
 
@@ -12,5 +12,7 @@ export const templateEngine: SystemChatEngine = {
   id: 'template',
   isReady: () => true,
   greeting: (ctx) => Promise.resolve(getSystemGreeting(ctx)),
+  // Ignora contextNote: su bilingüismo y su contexto viven en la clave i18n, no en un prompt.
   reply: (ctx, userMessage) => Promise.resolve(getSystemReply(ctx, userMessage)),
+  interjection: (ctx, trigger) => Promise.resolve(getSystemInterjection(ctx, trigger)),
 };

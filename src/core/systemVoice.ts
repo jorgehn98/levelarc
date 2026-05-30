@@ -14,6 +14,23 @@ export type SystemReply =
   | { kind: 'key'; key: string; params?: Record<string, string | number> }
   | { kind: 'text'; text: string };
 
+// Apariciones del Sistema: eventos del juego en los que el Sistema "salta" de forma autónoma con un
+// mensaje contextual (no responde a un mensaje del usuario, aparece solo).
+export type InterjectionTrigger =
+  | 'mission_complete' // completó la misión diaria
+  | 'comeback' // vuelve tras ausencia
+  | 'streak_milestone' // racha de hábito alcanza un hito (7/30)
+  | 'near_level' // muy cerca de subir de nivel
+  | 'mission_failed'; // cerró el día sin completar la misión
+
+// Tono de la aparición, que la UI del personaje (otra tarea) usa para elegir la pose.
+export type InterjectionTone = 'celebrate' | 'serious' | 'neutral';
+
+export interface SystemInterjection {
+  reply: SystemReply;
+  tone: InterjectionTone;
+}
+
 // Params comunes del estado, reutilizados por casi todas las frases.
 function statusParams(ctx: SystemContext): Record<string, string | number> {
   return {
@@ -144,4 +161,42 @@ export function getSystemReply(ctx: SystemContext, userMessage: string): SystemR
       }
       return keyReply(pick('sys_reply_unknown', 2, ctx, extra), params);
   }
+}
+
+// Tono de cada trigger, para que la UI del personaje elija la pose. Mapa fijo y exhaustivo: si se
+// añade un trigger, TypeScript obliga a darle tono aquí.
+const INTERJECTION_TONE: Record<InterjectionTrigger, InterjectionTone> = {
+  mission_complete: 'celebrate',
+  streak_milestone: 'celebrate',
+  mission_failed: 'serious',
+  comeback: 'neutral',
+  near_level: 'neutral',
+};
+
+export function getInterjectionTone(trigger: InterjectionTrigger): InterjectionTone {
+  return INTERJECTION_TONE[trigger];
+}
+
+// Prefijo de clave i18n por trigger. Cada uno tiene 2 variantes deterministas (`_1` / `_2`) que se
+// rotan con el mismo índice del contexto que usa el resto de la voz (sin Math.random: estable y
+// testeable).
+const INTERJECTION_KEY_PREFIX: Record<InterjectionTrigger, string> = {
+  mission_complete: 'sys_int_mission_complete',
+  comeback: 'sys_int_comeback',
+  streak_milestone: 'sys_int_streak',
+  near_level: 'sys_int_near_level',
+  mission_failed: 'sys_int_mission_failed',
+};
+
+// Frase de una aparición del Sistema según el trigger. Devuelve { kind: 'key' } como el resto del
+// core; el store traduce con i18n en el idioma activo. Interpola nombre/nivel/racha/falta según el
+// trigger (el set de params es superset: i18n solo usa los que aparecen en la plantilla).
+export function getSystemInterjection(ctx: SystemContext, trigger: InterjectionTrigger): SystemReply {
+  const params = {
+    ...statusParams(ctx),
+    falta: ctx.faltaParaNivel,
+    mejorRacha: ctx.mejorRachaHabito,
+    completados: ctx.completadosHoy,
+  };
+  return keyReply(pick(INTERJECTION_KEY_PREFIX[trigger], 2, ctx), params);
 }

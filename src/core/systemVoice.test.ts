@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import type { SystemContext } from './aiContext';
-import { detectIntent, getSystemGreeting, getSystemReply, normalizeMessage, type SystemReply } from './systemVoice';
+import {
+  detectIntent,
+  getInterjectionTone,
+  getSystemGreeting,
+  getSystemInterjection,
+  getSystemReply,
+  normalizeMessage,
+  type InterjectionTrigger,
+  type SystemReply,
+} from './systemVoice';
 
 // Tras el cambio a union, el core siempre devuelve la variante 'key'. Esta narrowing helper falla
 // el test si alguna vez devolviera 'text', y de paso da acceso tipado a key/params.
@@ -151,5 +160,47 @@ describe('getSystemReply', () => {
   it('is deterministic: same context and message produce the same key', () => {
     const ctx = makeContext({ pendientesHoy: 1 });
     expect(asKeyReply(getSystemReply(ctx, 'hola')).key).toBe(asKeyReply(getSystemReply(ctx, 'hola')).key);
+  });
+});
+
+describe('getInterjectionTone', () => {
+  it('maps each trigger to the expected pose tone', () => {
+    expect(getInterjectionTone('mission_complete')).toBe('celebrate');
+    expect(getInterjectionTone('streak_milestone')).toBe('celebrate');
+    expect(getInterjectionTone('mission_failed')).toBe('serious');
+    expect(getInterjectionTone('comeback')).toBe('neutral');
+    expect(getInterjectionTone('near_level')).toBe('neutral');
+  });
+});
+
+describe('getSystemInterjection', () => {
+  // Para cada trigger, las claves válidas son `sys_int_<prefix>_1` o `_2`.
+  const expectedKey: Record<InterjectionTrigger, RegExp> = {
+    mission_complete: /^sys_int_mission_complete_[12]$/,
+    comeback: /^sys_int_comeback_[12]$/,
+    streak_milestone: /^sys_int_streak_[12]$/,
+    near_level: /^sys_int_near_level_[12]$/,
+    mission_failed: /^sys_int_mission_failed_[12]$/,
+  };
+
+  it('returns a key from the expected set for each trigger', () => {
+    for (const trigger of Object.keys(expectedKey) as InterjectionTrigger[]) {
+      const reply = asKeyReply(getSystemInterjection(makeContext(), trigger));
+      expect(reply.key).toMatch(expectedKey[trigger]);
+    }
+  });
+
+  it('interpolates context params (name, level, streak, falta)', () => {
+    const reply = asKeyReply(getSystemInterjection(makeContext({ nivel: 12, faltaParaNivel: 40, mejorRachaHabito: 7 }), 'near_level'));
+    expect(reply.params?.nivel).toBe(12);
+    expect(reply.params?.falta).toBe(40);
+    expect(reply.params?.mejorRacha).toBe(7);
+  });
+
+  it('is deterministic: same context and trigger produce the same key', () => {
+    const ctx = makeContext({ completadosHoy: 2, nivel: 8 });
+    expect(asKeyReply(getSystemInterjection(ctx, 'comeback')).key).toBe(
+      asKeyReply(getSystemInterjection(ctx, 'comeback')).key,
+    );
   });
 });

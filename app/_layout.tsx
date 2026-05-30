@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, View } from 'react-native';
 
 import { CelebrationOverlay } from '@/components/CelebrationOverlay';
+import { SystemInterjectionOverlay } from '@/components/SystemInterjectionOverlay';
 import { colors } from '@/theme/colors';
 import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
@@ -156,7 +157,9 @@ export default function RootLayout() {
         <Stack.Screen name="system-chat" />
         <Stack.Screen name="system-ai" />
       </Stack>
+      {/* Celebración: toast ARRIBA. Aparición del Sistema: panel ABAJO. No se solapan. */}
       <CelebrationOverlay />
+      <SystemInterjectionOverlay />
     </>
   );
 }

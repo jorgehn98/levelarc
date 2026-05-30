@@ -11,9 +11,9 @@
 import { buildSystemContextText } from '@/core/aiContext';
 import type { Language } from '@/i18n';
 import type { SystemContext } from '@/core/aiContext';
-import type { SystemReply } from '@/core/systemVoice';
+import type { InterjectionTrigger, SystemReply } from '@/core/systemVoice';
 
-import type { SystemChatEngine } from './engine';
+import type { ChatContextNote, SystemChatEngine } from './engine';
 
 // Solo tipos: se borran al compilar, no generan require('llama.rn') en el bundle.
 import type { LlamaContext } from 'llama.rn';
@@ -46,6 +46,43 @@ const LANGUAGE_INSTRUCTION: Record<Language, string> = {
   es: 'Responde SIEMPRE en español.',
   en: 'Always respond in English.',
 };
+
+// Descripción del evento que dispara cada aparición del Sistema, por idioma. Se inyecta como
+// "mensaje de usuario" interno para que el LLM genere 1-2 frases comentando ese evento concreto.
+const INTERJECTION_DESCRIPTION: Record<InterjectionTrigger, Record<Language, string>> = {
+  mission_complete: {
+    es: 'El jugador acaba de completar todas sus misiones del día. Reconócelo en frío y empújalo a mantener el ritmo.',
+    en: 'The player just completed all their missions for the day. Acknowledge it coldly and push them to keep the pace.',
+  },
+  comeback: {
+    es: 'El jugador vuelve tras varios días sin aparecer. Señálalo sin dramatizar y dile que retome su ascenso.',
+    en: 'The player returns after several days away. Point it out without drama and tell them to resume their ascent.',
+  },
+  streak_milestone: {
+    es: 'El jugador ha alcanzado un hito de racha en un hábito. Reconoce la constancia con sequedad.',
+    en: 'The player reached a streak milestone on a habit. Acknowledge the consistency tersely.',
+  },
+  near_level: {
+    es: 'El jugador está muy cerca de subir de nivel. Empújalo a cerrar el último esfuerzo.',
+    en: 'The player is very close to leveling up. Push them to finish the last effort.',
+  },
+  mission_failed: {
+    es: 'El jugador cerró el día sin completar su misión diaria. Señálalo sin hundirlo y dile que lo recupere.',
+    en: 'The player closed the day without completing their daily mission. Point it out without crushing them and tell them to recover.',
+  },
+};
+
+// Nota que se antepone al system prompt cuando el chat hereda el contexto de una aparición: recuerda
+// al LLM por qué empezó la conversación para dar continuidad a la primera respuesta.
+function contextNotePrefix(note: ChatContextNote, language: Language): string {
+  const description = INTERJECTION_DESCRIPTION[note.trigger][language];
+  const label = language === 'es' ? 'Contexto de la conversación' : 'Conversation context';
+  const hint =
+    language === 'es'
+      ? 'Acabas de aparecer ante el jugador por este motivo y él te responde ahora. Tenlo en cuenta.'
+      : 'You just appeared before the player for this reason and they are now replying. Keep it in mind.';
+  return `${label}: ${description} ${hint}`;
+}
 
 // Construye el system prompt: tono de "EL SISTEMA" + estado serializado del jugador + idioma. No
 // inventa datos: solo usa el estado dado.
@@ -113,12 +150,22 @@ async function ensureContext(modelPath: string): Promise<LlamaContext> {
   }
 }
 
-// Genera una respuesta del Sistema a partir del system prompt y el mensaje del usuario.
-async function generate(ctx: SystemContext, userMessage: string, language: Language, modelPath: string): Promise<SystemReply> {
+// Genera una respuesta del Sistema a partir del system prompt y el mensaje del usuario. `systemNote`
+// opcional se añade al final del system prompt (lo usa el chat heredado de una aparición).
+async function generate(
+  ctx: SystemContext,
+  userMessage: string,
+  language: Language,
+  modelPath: string,
+  systemNote?: string,
+): Promise<SystemReply> {
   const llama = await ensureContext(modelPath);
+  const systemContent = systemNote
+    ? `${buildSystemPrompt(ctx, language)}\n\n${systemNote}`
+    : buildSystemPrompt(ctx, language);
   const result = await llama.completion({
     messages: [
-      { role: 'system', content: buildSystemPrompt(ctx, language) },
+      { role: 'system', content: systemContent },
       { role: 'user', content: userMessage },
     ],
     n_predict: N_PREDICT,
@@ -148,6 +195,11 @@ export function createLlamaEngine(modelPath: string): SystemChatEngine {
     id: 'llama',
     isReady: () => context !== null && loadedModelPath === modelPath,
     greeting: (ctx, language) => generate(ctx, GREETING_PROMPT[language], language, modelPath),
-    reply: (ctx, userMessage, language) => generate(ctx, userMessage, language, modelPath),
+    reply: (ctx, userMessage, language, contextNote) =>
+      generate(ctx, userMessage, language, modelPath, contextNote ? contextNotePrefix(contextNote, language) : undefined),
+    // Aparición: describimos el evento del trigger como "mensaje de usuario" interno y pedimos al LLM
+    // que comente ese momento concreto con el tono del Sistema.
+    interjection: (ctx, trigger, language) =>
+      generate(ctx, INTERJECTION_DESCRIPTION[trigger][language], language, modelPath),
   };
 }
