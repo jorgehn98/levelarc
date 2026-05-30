@@ -3,6 +3,7 @@ import { BarChart3, CalendarDays, Check, Clock, Flame, Gem, Shield, Sparkles, St
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AttributeRadar } from '@/components/AttributeRadar';
+import { AttributeRow } from '@/components/AttributeRow';
 import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import { RankBadge } from '@/components/RankBadge';
@@ -10,6 +11,7 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { StatTile } from '@/components/StatTile';
+import { attributeIds, getAttributeLevelProgress, normalizeAttributeXp } from '@/core/attributes';
 import { getLevelProgress } from '@/core/ranks';
 import type { EventRecord, HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
@@ -33,6 +35,10 @@ export default function ProgressScreen() {
   const activeHabits = habits.filter((habit) => !habit.archivado).length;
   const weekActivity = getWeekActivity(events, habits);
   const heatMap = getHeatMap(events);
+  const attributeXp = normalizeAttributeXp(player?.atributosXp);
+  const sortedAttributes = [...attributeIds].sort(
+    (a, b) => getAttributeLevelProgress(attributeXp[b]).level - getAttributeLevelProgress(attributeXp[a]).level,
+  );
 
   return (
     <Screen>
@@ -57,6 +63,15 @@ export default function ProgressScreen() {
         </View>
 
         <AttributeRadar attributeXp={player?.atributosXp} />
+
+        <View style={styles.panel}>
+          <SectionHeader label={t(language, 'attributes')} />
+          <View style={styles.attributeBreakdown}>
+            {sortedAttributes.map((id) => (
+              <AttributeRow key={id} id={id} language={language} xp={attributeXp[id]} />
+            ))}
+          </View>
+        </View>
 
         <View style={styles.panel}>
           <View style={styles.panelTitleRow}>
@@ -468,6 +483,10 @@ const styles = StyleSheet.create({
   currentRank: {
     fontFamily: typography.font.displayMedium,
     fontSize: 8,
+  },
+  attributeBreakdown: {
+    gap: 14,
+    marginTop: 14,
   },
   statsGrid: {
     gap: 10,

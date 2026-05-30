@@ -7,7 +7,7 @@ import { useFonts } from 'expo-font';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, View } from 'react-native';
 
-import { AchievementToast } from '@/components/AchievementToast';
+import { CelebrationOverlay } from '@/components/CelebrationOverlay';
 import { colors } from '@/theme/colors';
 import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
@@ -27,6 +27,8 @@ export default function RootLayout() {
   const isReady = useAppStore((state) => state.isReady);
   const language = useAppStore((state) => state.language);
   const player = useAppStore((state) => state.player);
+  const pendingRankUp = useAppStore((state) => state.pendingRankUp);
+  const consumeRankUp = useAppStore((state) => state.consumeRankUp);
   const pathname = usePathname();
   const router = useRouter();
   const [entryShown, setEntryShown] = useState(false);
@@ -114,6 +116,19 @@ export default function RootLayout() {
     }
   }, [entryShown, fontsLoaded, isReady, pathname, player?.nombre, router]);
 
+  // Dispara la cinemática de ascenso cuando una acción de juego sube el rango del jugador. El estado
+  // parte de null y consumeRankUp lo devuelve a null antes de navegar, así que el efecto solo actúa
+  // en la transición null → valor provocada por una acción real (nunca en boot ni en el primer render).
+  // Si ya estamos en /rank-up (segundo salto encadenado sin cerrar la cinemática), no apilamos otra
+  // pantalla: solo limpiamos el estado. El rango del jugador ya es el correcto.
+  useEffect(() => {
+    if (!pendingRankUp) return;
+    const { from, to } = pendingRankUp;
+    consumeRankUp();
+    if (pathname === '/rank-up') return;
+    router.push({ pathname: '/rank-up', params: { from, to } });
+  }, [pendingRankUp, consumeRankUp, pathname, router]);
+
   if (!fontsLoaded || !isReady) {
     return (
       <View style={{ alignItems: 'center', backgroundColor: colors.background.void, flex: 1, justifyContent: 'center' }}>
@@ -139,7 +154,7 @@ export default function RootLayout() {
         <Stack.Screen name="shop" />
         <Stack.Screen name="achievements" />
       </Stack>
-      <AchievementToast />
+      <CelebrationOverlay />
     </>
   );
 }

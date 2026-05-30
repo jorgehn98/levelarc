@@ -2,8 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Share } from 'react-native';
 import { create } from 'zustand';
 
+import { attributeIds, getAttributeLevelProgress } from '@/core/attributes';
+import { compareRanks } from '@/core/ranks';
 import { createBackupPayload, parseBackupPayload } from '@/lib/backup';
 import type { Language } from '@/i18n';
+import type { Rank } from '@/theme/colors';
 import { getDateKeysBetween, getYesterdayDateKey, toDateKey } from '@/lib/date';
 import {
   archiveHabit,
@@ -45,6 +48,13 @@ import {
   type TodayHabit,
 } from '@/db/repository';
 
+// Canal único de celebraciones que el overlay global consume en secuencia. Cada tipo de progreso
+// se traduce a una de estas variantes y renderiza su propia tarjeta reutilizando la misma animación.
+export type Celebration =
+  | { kind: 'achievement'; id: string; essenceReward: number }
+  | { kind: 'level'; level: number }
+  | { kind: 'attribute'; attribute: string; level: number };
+
 type AppState = {
   isReady: boolean;
   isBusy: boolean;
@@ -56,11 +66,13 @@ type AppState = {
   events: EventRecord[];
   ownedRewards: string[];
   unlockedAchievements: string[];
-  recentlyUnlocked: { id: string; essenceReward: number }[];
+  celebrations: Celebration[];
+  pendingRankUp: { from: Rank; to: Rank } | null;
   boot: () => Promise<void>;
   refresh: () => Promise<void>;
   runAchievementCheck: (celebrate: boolean) => Promise<void>;
-  consumeRecentAchievements: () => void;
+  consumeCelebrations: () => void;
+  consumeRankUp: () => void;
   saveHabit: (input: HabitInput, id?: string) => Promise<void>;
   getHabitById: (id: string) => Promise<HabitRecord | null>;
   getHabitInsightById: (id: string) => Promise<HabitInsightRecord | null>;
@@ -92,6 +104,57 @@ const LAST_ACTIVE_DATE_KEY = 'levelarc.lastActiveDate';
 // el INSERT OR IGNORE del repo).
 let achievementCheckInFlight = false;
 
+// Compara el jugador antes/después de una acción con XP positivo y devuelve las celebraciones de
+// progreso a encolar: subida de nivel del jugador y subidas de nivel de atributo.
+//
+// Coordinación con rank-up: cuando un nivel cruza un umbral de rango (nextPlayer.rango distinto),
+// la cinemática de ascenso ya cubre ese momento, así que NO encolamos toast de nivel para no
+// duplicar la celebración. Si solo cambia el nivel (mismo rango), encolamos un único toast con el
+// nivel final aunque hayan subido varios, para no spamear.
+function queueProgressCelebrations(
+  prevPlayer: PlayerRecord | null,
+  nextPlayer: PlayerRecord | null,
+): Celebration[] {
+  if (!prevPlayer || !nextPlayer) return [];
+
+  const celebrations: Celebration[] = [];
+
+  const rankChanged = nextPlayer.rango !== prevPlayer.rango;
+  if (nextPlayer.nivel > prevPlayer.nivel && !rankChanged) {
+    celebrations.push({ kind: 'level', level: nextPlayer.nivel });
+  }
+
+  for (const attribute of attributeIds) {
+    const prevLevel = getAttributeLevelProgress(prevPlayer.atributosXp[attribute]).level;
+    const nextLevel = getAttributeLevelProgress(nextPlayer.atributosXp[attribute]).level;
+    if (nextLevel > prevLevel) {
+      celebrations.push({ kind: 'attribute', attribute, level: nextLevel });
+    }
+  }
+
+  return celebrations;
+}
+
+// Encola celebraciones de progreso en el canal único, sin pisar las que ya estén pendientes.
+function appendCelebrations(set: (partial: (state: AppState) => Partial<AppState>) => void, celebrations: Celebration[]) {
+  if (celebrations.length === 0) return;
+  set((state) => ({ celebrations: [...state.celebrations, ...celebrations] }));
+}
+
+// Tras una acción con XP positivo, si el rango subió de verdad marca pendingRankUp para que el
+// layout dispare la cinemática de ascenso. Se llama solo desde acciones de juego (nunca boot/refresh),
+// así que el pending solo pasa de null a valor por una acción real del jugador.
+function flagRankUp(
+  set: (partial: (state: AppState) => Partial<AppState>) => void,
+  prevPlayer: PlayerRecord | null,
+  nextPlayer: PlayerRecord | null,
+) {
+  if (!prevPlayer || !nextPlayer) return;
+  if (compareRanks(nextPlayer.rango, prevPlayer.rango) > 0) {
+    set(() => ({ pendingRankUp: { from: prevPlayer.rango, to: nextPlayer.rango } }));
+  }
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   isReady: false,
   isBusy: false,
@@ -103,7 +166,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   events: [],
   ownedRewards: [],
   unlockedAchievements: [],
-  recentlyUnlocked: [],
+  celebrations: [],
+  pendingRankUp: null,
   boot: async () => {
     set({ isBusy: true });
     await initializeDatabase();
@@ -132,7 +196,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ habits, todayHabits, player, dailyMission, events, ownedRewards, unlockedAchievements });
   },
   // Evalúa y desbloquea logros tras una mutación del jugador. Si hay nuevos y celebrate es true,
-  // los encola en recentlyUnlocked para que la UI los muestre. Siempre refresca el estado para
+  // los encola como celebraciones para que la UI los muestre. Siempre refresca el estado para
   // reflejar la Esencia otorgada y la lista de logros desbloqueados.
   runAchievementCheck: async (celebrate) => {
     if (achievementCheckInFlight) return;
@@ -141,7 +205,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newlyUnlocked = await evaluateAndUnlockAchievements();
       if (newlyUnlocked.length > 0) {
         if (celebrate) {
-          set((state) => ({ recentlyUnlocked: [...state.recentlyUnlocked, ...newlyUnlocked] }));
+          const queued: Celebration[] = newlyUnlocked.map((entry) => ({ kind: 'achievement', ...entry }));
+          set((state) => ({ celebrations: [...state.celebrations, ...queued] }));
         }
         await get().refresh();
       }
@@ -149,8 +214,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       achievementCheckInFlight = false;
     }
   },
-  consumeRecentAchievements: () => {
-    set({ recentlyUnlocked: [] });
+  consumeCelebrations: () => {
+    set({ celebrations: [] });
+  },
+  consumeRankUp: () => {
+    set({ pendingRankUp: null });
   },
   saveHabit: async (input, id) => {
     set({ isBusy: true });
@@ -178,8 +246,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isBusy: false });
   },
   incrementHabit: async (id) => {
+    const prev = get().player;
     await incrementHabitProgress(id);
     await get().refresh();
+    appendCelebrations(set, queueProgressCelebrations(prev, get().player));
+    flagRankUp(set, prev, get().player);
     await get().runAchievementCheck(true);
   },
   failHabit: async (id) => {
@@ -193,13 +264,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().runAchievementCheck(true);
   },
   claimMission: async () => {
+    const prev = get().player;
     await claimDailyMission();
     await get().refresh();
+    appendCelebrations(set, queueProgressCelebrations(prev, get().player));
+    flagRankUp(set, prev, get().player);
     await get().runAchievementCheck(true);
   },
   claimPerfectWeekMission: async () => {
+    const prev = get().player;
     await claimPerfectWeekMissionRepo();
     await get().refresh();
+    appendCelebrations(set, queueProgressCelebrations(prev, get().player));
+    flagRankUp(set, prev, get().player);
     await get().runAchievementCheck(true);
   },
   closeMissedDays: async () => {
