@@ -3,7 +3,7 @@ import { Alert, Share } from 'react-native';
 import { create } from 'zustand';
 
 import { attributeIds, getAttributeLevelProgress } from '@/core/attributes';
-import { compareRanks } from '@/core/ranks';
+import { compareRanks, getLevelProgress } from '@/core/ranks';
 import { createBackupPayload, parseBackupPayload } from '@/lib/backup';
 import type { Language } from '@/i18n';
 import type { Rank } from '@/theme/colors';
@@ -106,6 +106,31 @@ const COMEBACK_MIN_DAYS = 2;
 // para detectar la transición pendiente→completada que dispara la aparición del Sistema.
 function isMissionComplete(mission: DailyMissionRecord | null): boolean {
   return !!mission && mission.objetivo > 0 && mission.completados >= mission.objetivo;
+}
+
+// ¿La misión diaria cerró INCOMPLETA? (tenía objetivo>0 y los completados no lo alcanzaron). Helper
+// para disparar 'mission_failed' al cerrar el día, simétrico a isMissionComplete.
+function isMissionIncomplete(mission: DailyMissionRecord | null): boolean {
+  return !!mission && mission.objetivo > 0 && mission.completados < mission.objetivo;
+}
+
+// Hitos de racha de hábito que disparan la aparición 'streak_milestone'. El trigger salta solo cuando
+// la racha ALCANZA EXACTAMENTE uno de estos valores (no en cada día por encima), evitando spam.
+const STREAK_MILESTONES = [7, 30];
+
+// Ratio de progreso de nivel (0..1) a partir del cual el Sistema avisa de que estás "cerca de subir".
+// Coincide con el umbral de sys_near_level en la voz del Sistema (systemVoice.ts).
+const NEAR_LEVEL_RATIO = 0.8;
+
+// ¿El progreso de nivel CRUZA el umbral de "cerca de subir" con esta acción, SIN subir de nivel?
+// Compara el ratio antes/después: dispara solo en la transición <0.8 → >=0.8 (no si ya estaba por
+// encima), y nunca si la acción subió de nivel (ese momento ya lo cubre la celebración de nivel).
+function crossedNearLevel(prevPlayer: PlayerRecord | null, nextPlayer: PlayerRecord | null): boolean {
+  if (!prevPlayer || !nextPlayer) return false;
+  if (nextPlayer.nivel !== prevPlayer.nivel) return false;
+  const prevRatio = getLevelProgress(prevPlayer.xpTotal).ratio;
+  const nextRatio = getLevelProgress(nextPlayer.xpTotal).ratio;
+  return prevRatio < NEAR_LEVEL_RATIO && nextRatio >= NEAR_LEVEL_RATIO;
 }
 
 // Dispara una aparición del Sistema sin bloquear ni romper la acción de juego. Import dinámico del
@@ -267,6 +292,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   incrementHabit: async (id) => {
     const prev = get().player;
     const prevMissionComplete = isMissionComplete(get().dailyMission);
+    // Estado del hábito ANTES del incremento: solo nos interesa la transición a 'completado' para
+    // evaluar su hito de racha (un hábito que ya estaba completado no vuelve a saltar).
+    const prevHabitState = get().todayHabits.find((habit) => habit.id === id)?.estado;
     await incrementHabitProgress(id);
     await get().refresh();
     appendCelebrations(set, queueProgressCelebrations(prev, get().player));
@@ -274,6 +302,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     // La misión diaria acaba de pasar a completada con este incremento → aparición del Sistema.
     if (!prevMissionComplete && isMissionComplete(get().dailyMission)) {
       fireInterjection('mission_complete');
+    }
+    // Cerca de subir de nivel: el progreso cruzó el umbral con este incremento sin subir de nivel.
+    if (crossedNearLevel(prev, get().player)) {
+      fireInterjection('near_level');
+    }
+    // Hito de racha: si el hábito acaba de pasar a 'completado', leemos su racha actual y, si alcanza
+    // exactamente un hito (7/30), el Sistema lo celebra. Lectura puntual solo en la transición (no en
+    // cada +1), con el getter existente; no añadimos datos al refresh por algo tan acotado.
+    const nextHabitState = get().todayHabits.find((habit) => habit.id === id)?.estado;
+    if (prevHabitState !== 'completado' && nextHabitState === 'completado') {
+      const insight = await getHabitInsight(id);
+      if (insight && STREAK_MILESTONES.includes(insight.currentStreak)) {
+        fireInterjection('streak_milestone');
+      }
     }
     await get().runAchievementCheck(true);
   },
@@ -333,6 +375,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeToday: async () => {
     await closeDay();
     await get().refresh();
+    // El día se cerró con la misión diaria INCOMPLETA (tenía objetivo>0 y no se alcanzó) → aparición
+    // del Sistema. Simétrico a 'mission_complete'; si el día no tenía objetivo o la misión se
+    // completó, no salta.
+    if (isMissionIncomplete(get().dailyMission)) {
+      fireInterjection('mission_failed');
+    }
     await get().runAchievementCheck(true);
   },
   setLanguage: async (language) => {

@@ -40,7 +40,8 @@ export async function resolveEngine(profile: EngineProfile): Promise<SystemChatE
   try {
     const { createLlamaEngine } = await import('./llamaEngine');
     return createLlamaEngine(profile.modelPath);
-  } catch {
+  } catch (err) {
+    if (__DEV__) console.warn('[ai] resolveEngine: fallo cargando llamaEngine, degradando a plantillas', err);
     return templateEngine;
   }
 }
