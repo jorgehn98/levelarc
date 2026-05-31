@@ -9,32 +9,18 @@
 import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import {
+  MODEL_HASH_NAME,
+  MODEL_NAME,
+  MODEL_SHA256,
+  MODEL_SIZE_BYTES,
+  MODEL_URL,
+  formatModelSize,
+  MODEL_DISPLAY_NAME,
+} from '@/ai/modelMetadata';
 import { Sha256 } from '@/lib/sha256';
 
-// URL pública (redirige a la CDN de Hugging Face) y nombre del fichero. Modelo Gemma 4 E2B (~3,1 GB).
-// Uso interno del módulo (la descarga y la ruta del fichero); no se exportan.
-const MODEL_URL =
-  'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf';
-const MODEL_NAME = 'gemma-4-E2B-it-Q4_K_M.gguf';
-const MODEL_HASH_NAME = `${MODEL_NAME}.sha256`;
-// Tamaño exacto y SHA-256 publicados por Hugging Face para este GGUF. La validación de tamaño evita
-// aceptar parciales; la de hash evita aceptar un fichero corrupto o distinto aunque tenga el tamaño.
-const MODEL_SIZE_BYTES = 3_106_731_392;
-const MODEL_SHA256 = '9378bc471710229ef165709b62e34bfb62231420ddaf6d729e727305b5b8672d';
-// Tamaño aproximado en MB, para mostrarlo en la UI sin hardcodear el número en la pantalla. Interno:
-// la UI consume formatModelSize, no este número crudo.
-const MODEL_SIZE_MB = 3106;
-// Nombre legible del modelo, para mostrarlo en la UI sin acoplar el texto al ID del fichero.
-export const MODEL_DISPLAY_NAME = 'Gemma 4 E2B';
-
-// Tamaño formateado para la UI. A partir de ~1 GB lo mostramos en GB con un decimal (es: "3,1 GB",
-// en: "3.1 GB"); por debajo, en MB. Evita mostrar "3106 MB", que es poco legible.
-export function formatModelSize(language: 'es' | 'en'): string {
-  if (MODEL_SIZE_MB < 1024) return `${MODEL_SIZE_MB} MB`;
-  const gb = (MODEL_SIZE_MB / 1024).toFixed(1);
-  const decimal = language === 'es' ? gb.replace('.', ',') : gb;
-  return `${decimal} GB`;
-}
+export { MODEL_DISPLAY_NAME, formatModelSize };
 
 // Subcarpeta dentro del directorio de documentos (persistente, no la borra el sistema).
 const MODELS_DIR = 'models';
