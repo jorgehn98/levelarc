@@ -147,7 +147,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Resolver o validar `expo-doctor` duplicado `expo-constants`.
 - [x] Resolver `pnpm audit --prod`: override de `uuid` transitivo de `xcode` a `11.1.1`.
 - [x] Validar EAS Update end-to-end en preview.
-- [x] Activar code signing de EAS Update (`certs/certificate.pem` + `app.json`; private key local ignorada).
+- [x] Desactivar code signing de EAS Update: Expo lo bloquea sin plan Enterprise y rompía `eas update` en `preview`.
 - [ ] Añadir tests de repositorio o integración local.
 - [x] Revisar warnings estructurales de React Doctor.
 - [x] Revisar rendimiento de SQLite sync/async: añadidos índices para consultas frecuentes de `events`.
