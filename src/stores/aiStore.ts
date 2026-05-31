@@ -253,12 +253,15 @@ function resolveReply(reply: SystemReply): string {
   }
 }
 
-// Si el LLM local falla (OOM, timeout, fichero corrupto, incompatibilidad nativa), el chat no debe
-// quedarse devolviendo "no responde" en bucle. Degradamos el perfil a plantillas y dejamos constancia
-// en BD para que el siguiente intento sea inmediato y funcional.
+// Si el LLM local falla (OOM, timeout, incompatibilidad nativa), el chat no debe quedarse devolviendo
+// "no responde" en bucle. Degradamos SOLO el motor a plantillas para que el siguiente mensaje sea
+// inmediato y funcional. Si el fichero sigue existiendo y tiene tamaño correcto, NO marcamos
+// modelStatus='error': la descarga no falló, falló la ejecución del motor.
 async function downgradeToTemplateAfterLlmFailure(profile: AiProfileState): Promise<AiProfileState> {
   if (profile.engine !== 'llama') return profile;
-  await setAiModelStatus('error');
+  if (profile.modelStatus !== 'ready' || !modelManager.modelExists()) {
+    await setAiModelStatus('error');
+  }
   await setAiEngine('template');
   return toProfileState(await getAiProfile());
 }

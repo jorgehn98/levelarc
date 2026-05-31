@@ -280,6 +280,21 @@ function buildGemmaPrompt(systemContent: string, userContent: string): string {
   );
 }
 
+type CompletionTextResult = {
+  content?: string;
+  text?: string;
+};
+
+// llama.rn 0.12.x documenta `text` como salida principal, pero algunos tipos también exponen
+// `content` filtrado. Usamos ambos para no tratar una respuesta válida como fallo y caer a plantillas.
+function getCompletionText(result: CompletionTextResult): string {
+  const text = result.content?.trim() || result.text?.trim() || '';
+  if (!text) {
+    throw new Error('Llama completion returned empty text');
+  }
+  return text;
+}
+
 // Genera una respuesta del Sistema a partir del system prompt y el mensaje del usuario. `systemNote`
 // opcional se añade al final del system prompt (lo usa el chat heredado de una aparición).
 async function generate(
@@ -312,7 +327,7 @@ async function generate(
       void llama.stopCompletion().catch(() => undefined);
     },
   );
-  return { kind: 'text', text: result.content.trim() };
+  return { kind: 'text', text: getCompletionText(result) };
 }
 
 // Briefing diario accionable generado por el LLM. Reusa `generate` con el prompt de briefing: el
@@ -368,7 +383,7 @@ export async function generateHabitInsight(
       void llama.stopCompletion().catch(() => undefined);
     },
   );
-  return result.content.trim();
+  return getCompletionText(result);
 }
 
 // Aborta la generación en curso del contexto cargado (si lo hay). La usa el store para cancelar una
