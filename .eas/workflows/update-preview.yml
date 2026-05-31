@@ -1,0 +1,10 @@
+name: Publish preview update manually
+on:
+  workflow_dispatch:
+
+jobs:
+  publish_update:
+    name: Publish OTA update to preview
+    type: update
+    params:
+      channel: preview

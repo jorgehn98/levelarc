@@ -86,6 +86,14 @@ Keep `@babel/plugin-transform-react-jsx` as an explicit devDependency. After ena
 
 EAS Update is configured. Use `preview` for internal APK QA and `production` for future Play Store builds. Only publish updates for JS/assets/UI changes compatible with the current native runtime. If native code/config changes, bump app version/runtime as needed and create a new build.
 
+EAS workflows are manual by design. Do not trigger full builds on every push to `main`.
+
+- `.eas/workflows/build.yml` is manual and creates a `preview` Android APK.
+- `.eas/workflows/update-preview.yml` is manual and publishes an OTA update to the `preview` channel.
+- Normal commits/pushes to `main` should not launch EAS Build automatically.
+- Prefer OTA update for JS/TS/UI/i18n/assets changes that are compatible with the installed runtime.
+- Use full EAS Build only for native/runtime changes: `app.json` native config, Expo plugins, permissions, native dependencies, Expo SDK/RN changes, `version`/`versionCode`/`runtimeVersion`, or anything that changes the native binary.
+
 ## Arquitectura
 
 - `app/` — Expo Router screens.
@@ -209,9 +217,11 @@ Before publishing:
 
 1. `pnpm check`
 2. `pnpm doctor`
-3. `pnpm build:android:preview`
+3. Decide delivery mode:
+   - OTA preview: `pnpm update:preview --message "Short description"` or run `.eas/workflows/update-preview.yml` manually.
+   - Full preview build: `pnpm build:android:preview` or run `.eas/workflows/build.yml` manually.
 4. Test on real Android device/emulator.
-5. Validate LevelArc logo/icon/splash/adaptive icon on real Android sizes.
+5. Validate LevelArc logo/icon/splash/adaptive icon on real Android sizes after full builds.
 
 Latest valid preview APK is documented in `README.md` and `docs/ESTADO-ACTUAL.md`.
 

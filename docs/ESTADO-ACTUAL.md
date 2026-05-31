@@ -247,6 +247,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Canal `production` para futura Play Store.
 - Ajustes incluye acción para buscar update, descargarlo y reiniciar la app.
 - La APK anterior no puede usar este flujo; hace falta instalar una nueva build que incluya `expo-updates`.
+- Workflows EAS separados y manuales: `.eas/workflows/build.yml` crea APK `preview` solo bajo demanda, y `.eas/workflows/update-preview.yml` publica OTA `preview` solo bajo demanda. Los pushes a `main` no deben disparar builds completos automáticamente.
 
 ## Desviaciones conscientes frente a la biblia inicial
 

@@ -1,11 +1,10 @@
-name: Build on push
+name: Build preview manually
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build_android:
+    name: Build Android preview APK
     type: build
     params:
       platform: android

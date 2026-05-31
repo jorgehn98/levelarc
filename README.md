@@ -116,6 +116,19 @@ Antes de publicar:
 ```bash
 pnpm check
 npx expo-doctor
+```
+
+Después decide el modo de entrega:
+
+- OTA preview para cambios compatibles con el runtime instalado:
+
+```bash
+pnpm update:preview --message "Fix UI copy"
+```
+
+- Build preview completo solo si cambia el binario nativo:
+
+```bash
 pnpm build:android:preview
 ```
 
@@ -150,6 +163,19 @@ EAS Update usa code signing:
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
 Crear APK/AAB nuevo cuando cambie algo nativo: librerías nativas, permisos, plugins, icono/splash, `app.json` nativo, SDK Expo o `runtimeVersion`.
+
+## EAS Workflows
+
+Los workflows EAS son manuales. Un push a `main` no debe crear builds completos.
+
+- `.eas/workflows/build.yml`: manual, crea APK Android `preview`.
+- `.eas/workflows/update-preview.yml`: manual, publica OTA al canal `preview`.
+
+Regla rápida:
+
+- JS/TS/UI/i18n/assets compatibles → OTA `preview`.
+- Native/config/runtime/dependencias nativas → build `preview`.
+- `production` siempre manual cuando toque release real.
 
 Para lanzar EAS desde esta máquina hace falta iniciar sesión:
 
