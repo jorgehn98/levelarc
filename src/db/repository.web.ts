@@ -24,11 +24,11 @@ import {
   getAttributeDeltas,
   getAttributeLevelProgress,
   normalizeAttributeXp,
-  serializeAttributeXp,
   serializeHabitAttributes,
   type AttributeXp,
 } from '@/core/attributes';
 import { evaluateUnlocked, getAchievement, type AchievementContext } from '@/core/achievements';
+import { BACKUP_LIMITS, asLimitedBackupArray, boundedBackupString } from '@/lib/backupValidation';
 import { toDateKey, toIsoTimestamp } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
@@ -1046,17 +1046,18 @@ function createDefaultAiProfile(): AiProfile {
 function normalizeBackupData(data: unknown): WebDb {
   if (!isRecord(data)) throw new Error('Invalid backup data');
   const empty = createEmptyDb();
-  const habits = asArray(data.habits).map(normalizeHabit);
-  const events = asArray(data.events).map(normalizeEvent);
-  const progress = asArray(data.habitDailyProgress ?? data.progress).map(normalizeProgress);
+  const habits = asArray(data.habits, 'habits', BACKUP_LIMITS.habits).map(normalizeHabit);
+  const events = asArray(data.events, 'events', BACKUP_LIMITS.events).map(normalizeEvent);
+  const progress = asArray(data.habitDailyProgress ?? data.progress, 'progress', BACKUP_LIMITS.habitDailyProgress).map(normalizeProgress);
   const player = normalizePlayer(asArray(data.player)[0] ?? data.player) ?? empty.player;
-  const missions = asArray(data.dailyMissions ?? data.missions).map(normalizeMission);
-  const rewards = asArray(data.playerRewards ?? data.rewards).map(normalizeReward);
+  const missions = asArray(data.dailyMissions ?? data.missions, 'missions', BACKUP_LIMITS.dailyMissions).map(normalizeMission);
+  const rewards = asArray(data.playerRewards ?? data.rewards, 'rewards', BACKUP_LIMITS.playerRewards).map(normalizeReward);
   // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
-  const achievements = asArray(data.achievementsUnlocked ?? data.achievements).map(normalizeAchievement);
-  // Backups antiguos sin IA → defaults / [].
-  const aiProfile = normalizeAiProfile(asArray(data.aiProfile)[0] ?? data.aiProfile) ?? createDefaultAiProfile();
-  const aiMessages = asArray(data.aiMessages).map(normalizeAiMessage);
+  const achievements = asArray(data.achievementsUnlocked ?? data.achievements, 'achievements', BACKUP_LIMITS.achievementsUnlocked).map(normalizeAchievement);
+  // No restauramos engine/model_status/model_path desde JSON: el fichero GGUF vive en este
+  // dispositivo y su ruta local no es portable. Tras importar, la IA vuelve a plantilla segura.
+  const aiProfile = createDefaultAiProfile();
+  const aiMessages = asArray(data.aiMessages, 'aiMessages', BACKUP_LIMITS.aiMessages).map(normalizeAiMessage);
 
   return { habits, events, progress, player, missions, rewards, achievements, aiProfile, aiMessages };
 }
@@ -1080,7 +1081,7 @@ function normalizeAiMessage(row: unknown): AiMessage {
   return {
     id: asString(row.id),
     rol,
-    contenido: typeof row.contenido === 'string' ? row.contenido : '',
+    contenido: typeof row.contenido === 'string' ? boundedString(row.contenido, BACKUP_LIMITS.aiMessageLength) : '',
     fecha: asString((row.fecha as string) || toDateKey()),
     creadoEn: asString((row.creadoEn ?? row.creado_en) || toIsoTimestamp()),
   };
@@ -1213,13 +1214,17 @@ function clampImportance(value: number): HabitImportance {
   return Math.round(value) as HabitImportance;
 }
 
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
+function asArray(value: unknown, label = 'array', maxItems = Number.POSITIVE_INFINITY): unknown[] {
+  return asLimitedBackupArray(value, label, maxItems);
 }
 
 function asString(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error('Invalid backup field');
-  return value;
+  return boundedBackupString(value, BACKUP_LIMITS.stringLength);
+}
+
+function boundedString(value: string, maxLength: number): string {
+  return boundedBackupString(value, maxLength);
 }
 
 function nullableString(value: unknown): string | null {

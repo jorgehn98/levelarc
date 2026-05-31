@@ -15,18 +15,26 @@ export const habits = sqliteTable('habits', {
   creadoEn: text('creado_en').notNull(),
 });
 
-export const events = sqliteTable('events', {
-  id: text('id').primaryKey(),
-  habitId: text('habit_id')
-    .notNull()
-    .references(() => habits.id),
-  fecha: text('fecha').notNull(),
-  tipoEvento: text('tipo_evento', { enum: ['completado', 'fallado'] }).notNull(),
-  xpDelta: integer('xp_delta').notNull(),
-  attributeDelta: text('attribute_delta').notNull().default('{}'),
-  esenciaOtorgada: integer('esencia_otorgada').notNull().default(0),
-  registradoEn: text('registrado_en').notNull(),
-});
+export const events = sqliteTable(
+  'events',
+  {
+    id: text('id').primaryKey(),
+    habitId: text('habit_id')
+      .notNull()
+      .references(() => habits.id),
+    fecha: text('fecha').notNull(),
+    tipoEvento: text('tipo_evento', { enum: ['completado', 'fallado'] }).notNull(),
+    xpDelta: integer('xp_delta').notNull(),
+    attributeDelta: text('attribute_delta').notNull().default('{}'),
+    esenciaOtorgada: integer('esencia_otorgada').notNull().default(0),
+    registradoEn: text('registrado_en').notNull(),
+  },
+  (table) => [
+    index('events_registrado_en_idx').on(table.registradoEn),
+    index('events_habit_registrado_idx').on(table.habitId, table.registradoEn),
+    index('events_habit_tipo_fecha_idx').on(table.habitId, table.tipoEvento, table.fecha),
+  ],
+);
 
 export const habitDailyProgress = sqliteTable(
   'habit_daily_progress',

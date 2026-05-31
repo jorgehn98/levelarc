@@ -134,6 +134,12 @@ EAS Update está configurado para parches internos compatibles:
 
 La app incluye en Ajustes un botón para buscar updates, descargarlos y reiniciar LevelArc. También puede recibir updates al arrancar según el comportamiento por defecto de `expo-updates`.
 
+EAS Update usa code signing:
+
+- Certificado público versionado: `certs/certificate.pem`.
+- Private key local ignorada por git: `private-code-signing-keys/private-key.pem`.
+- Para publicar updates firmados, añade `--private-key-path private-code-signing-keys/private-key.pem` al comando de `eas update` o guarda esa clave como secreto seguro en CI.
+
 Último update `preview` publicado:
 
 - Update group: `bb5fb7cc-ea82-4ffb-a930-8527cbf862ec`

@@ -9,11 +9,18 @@
 import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { Sha256 } from '@/lib/sha256';
+
 // URL pública (redirige a la CDN de Hugging Face) y nombre del fichero. Modelo Gemma 4 E2B (~3,1 GB).
 // Uso interno del módulo (la descarga y la ruta del fichero); no se exportan.
 const MODEL_URL =
   'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf';
 const MODEL_NAME = 'gemma-4-E2B-it-Q4_K_M.gguf';
+const MODEL_HASH_NAME = `${MODEL_NAME}.sha256`;
+// Tamaño exacto y SHA-256 publicados por Hugging Face para este GGUF. La validación de tamaño evita
+// aceptar parciales; la de hash evita aceptar un fichero corrupto o distinto aunque tenga el tamaño.
+const MODEL_SIZE_BYTES = 3_106_731_392;
+const MODEL_SHA256 = '9378bc471710229ef165709b62e34bfb62231420ddaf6d729e727305b5b8672d';
 // Tamaño aproximado en MB, para mostrarlo en la UI sin hardcodear el número en la pantalla. Interno:
 // la UI consume formatModelSize, no este número crudo.
 const MODEL_SIZE_MB = 3106;
@@ -54,10 +61,46 @@ function getModelFile(): File {
   return new File(Paths.document, MODELS_DIR, MODEL_NAME);
 }
 
+function getModelHashFile(): File {
+  return new File(Paths.document, MODELS_DIR, MODEL_HASH_NAME);
+}
+
 // ¿Está el modelo descargado? En web siempre false.
 export function modelExists(): boolean {
   if (!isNative) return false;
-  return getModelFile().exists;
+  const file = getModelFile();
+  const hashFile = getModelHashFile();
+  return file.exists && file.size === MODEL_SIZE_BYTES && hashFile.exists && hashFile.textSync().trim() === MODEL_SHA256;
+}
+
+async function hashFile(file: File): Promise<string> {
+  const hasher = new Sha256();
+  const reader = file.readableStream().getReader();
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) hasher.update(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return hasher.digestHex();
+}
+
+async function validateAndStampModel(file: File): Promise<void> {
+  if (!file.exists || file.size !== MODEL_SIZE_BYTES) {
+    throw new Error('Downloaded model has invalid size');
+  }
+
+  const digest = await hashFile(file);
+  if (digest !== MODEL_SHA256) {
+    throw new Error('Downloaded model failed SHA-256 check');
+  }
+
+  getModelHashFile().write(digest);
 }
 
 // Descarga el modelo con progreso (ratio 0..1) y soporte de cancelación vía AbortSignal.
@@ -76,6 +119,10 @@ export async function downloadModel(
   if (file.exists) {
     file.delete();
   }
+  const hashFile = getModelHashFile();
+  if (hashFile.exists) {
+    hashFile.delete();
+  }
 
   const task = File.createDownloadTask(MODEL_URL, file, {
     onProgress: ({ bytesWritten, totalBytes }) => {
@@ -89,6 +136,13 @@ export async function downloadModel(
   });
 
   await task.downloadAsync();
+  try {
+    await validateAndStampModel(file);
+  } catch (error) {
+    file.delete();
+    if (hashFile.exists) hashFile.delete();
+    throw error;
+  }
   return file.uri;
 }
 
@@ -98,5 +152,9 @@ export function deleteModel(): void {
   const file = getModelFile();
   if (file.exists) {
     file.delete();
+  }
+  const hashFile = getModelHashFile();
+  if (hashFile.exists) {
+    hashFile.delete();
   }
 }

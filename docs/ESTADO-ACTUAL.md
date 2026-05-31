@@ -185,12 +185,13 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Arquitectura enchufable: interface `SystemChatEngine` en `src/ai/engine.ts` con dos adapters, `templateEngine` (activo) y `llamaEngine` (STUB que delega en plantillas hasta que haya build nativo); selector en `src/ai/index.ts`.
 - Contexto determinista armado desde SQLite en `src/core/aiContext.ts` (`SystemContext` + serialización) y voz por reglas en `src/core/systemVoice.ts` (greeting proactivo según estado y respuestas por intención), ambos puros y testeados.
 - Bilingüe sin acoplar el motor al idioma: el motor devuelve `{key, params}` y el store `src/stores/aiStore.ts` traduce con i18n y guarda el texto resuelto. Banco de frases `sys_*` en ES/EN.
-- Persistencia en tablas `ai_profile` (singleton: enabled, engine `'template'|'llama'`, modelStatus, modelPath) y `ai_messages` (historial), migración 0010. Export/import y reset cubren ambas.
+- Persistencia en tablas `ai_profile` (singleton: enabled, engine `'template'|'llama'`, modelStatus, modelPath) y `ai_messages` (historial), migración 0010. Export cubre ambas; import restaura mensajes pero reinicia el perfil IA a plantilla segura porque `modelPath` es una ruta local del dispositivo y no es portable.
 - Entregado por OTA (es JS puro). El motor de plantillas funciona en runtime `1.0.2`.
 - Mensaje del Sistema en Hoy: un banner que te recibe cada día con una línea contextual del Sistema. Instantáneo con plantillas; cuando la IA está activa lo genera Gemma y se cachea por día. Componente `SystemMessageCard`.
-- Apariciones autónomas del Sistema: la IA no es solo chat. El Sistema salta solo en momentos clave (completar la misión diaria, volver tras ausencia) con un personaje y bocadillo (overlay `SystemInterjectionOverlay`), con cooldown (1/sesión, 1/día por trigger). El botón "Continuar" abre el chat heredando el contexto de por qué saltó. Personaje placeholder enchufable (sprites en `assets/character/`). Toggle "Apariciones del Sistema" en Ajustes. Funciona offline con plantillas; con IA activa lo genera Gemma. Triggers extra preparados (`streak`, `near_level`, `mission_failed`) pero no cableados aún.
+- Apariciones autónomas del Sistema: la IA no es solo chat. El Sistema salta solo en momentos clave (completar la misión diaria, volver tras ausencia, hito de racha, cercanía a nivel, misión fallida, subida de nivel y racha rota) con un personaje y bocadillo (overlay `SystemInterjectionOverlay`), con cooldown (1/sesión, 1/día por trigger). El botón "Continuar" abre el chat heredando el contexto de por qué saltó. Personaje placeholder enchufable (sprites en `assets/character/`). Toggle "Apariciones del Sistema" en Ajustes. Funciona offline con plantillas; con IA activa lo genera Gemma.
 - La IA es OPCIONAL: la app funciona perfecta sin modelo. Se activa con un botón que descarga el modelo dentro de la app (Ajustes → Sistema → "IA avanzada"). El modelo NO viene por OTA ni en el APK: se descarga on-device bajo demanda.
-- LLM local real (Fase 5B) implementado en código (commit `3d5d509`) detrás de la misma arquitectura enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB) en `src/ai/llamaEngine.ts` (motor real con carga perezosa), descarga del modelo on-device (`src/ai/modelManager.ts`, NEW File API) y pantalla de gestión `app/system-ai.tsx` (Ajustes → Sistema → "IA avanzada" y cabecera del chat).
+- LLM local real (Fase 5B) implementado en código (commit `3d5d509`) detrás de la misma arquitectura enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB) en `src/ai/llamaEngine.ts` (motor real con carga perezosa, prompt manual Gemma 4 y stops correctos), descarga del modelo on-device (`src/ai/modelManager.ts`, NEW File API) con validación de tamaño exacto + SHA-256 y pantalla de gestión `app/system-ai.tsx` (Ajustes → Sistema → "IA avanzada" y cabecera del chat).
+- Si el LLM falla en device (OOM, timeout, fichero inválido o incompatibilidad nativa), el chat degrada automáticamente al motor por plantillas y marca el perfil como `error`/`template` para no dejar al usuario en un bucle de "El Sistema no responde".
 - El LLM NO llega por OTA: solo por el build nativo nuevo (runtime `1.1.0`), que ya está conseguido (build `1c04b308`). Pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
 ### Persistencia
@@ -202,6 +203,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - `habits.icono` guarda el icono seleccionado y se conserva en backup/importación.
 - `habits.atributos` guarda los atributos seleccionados y se conserva en backup/importación.
 - Fallback web con AsyncStorage en `src/db/repository.web.ts`.
+- Índices nativos añadidos en `events` para historial global, historial por hábito y cálculo de rachas (`0011_sour_hemingway.sql`).
 
 ### Backup
 
@@ -209,6 +211,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - Importación/restauración pegando el JSON exportado desde Ajustes.
 - La restauración pide confirmación antes de sobrescribir datos locales y en native se aplica dentro de una transacción exclusiva para evitar estados parciales si falla.
 - La restauración reemplaza los datos locales y reprograma recordatorios nativos para hábitos activos.
+- La importación tiene límites básicos de tamaño/cantidad para evitar backups absurdamente grandes y reinicia el estado/ruta del modelo IA a plantilla segura.
 
 ### Idiomas
 

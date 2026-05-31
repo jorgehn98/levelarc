@@ -95,6 +95,8 @@ type AppState = {
   resetAll: () => Promise<void>;
 };
 
+type AppSet = (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void;
+
 const LANGUAGE_KEY = 'levelarc.language';
 const LAST_ACTIVE_DATE_KEY = 'levelarc.lastActiveDate';
 
@@ -185,6 +187,15 @@ function queueProgressCelebrations(
 }
 
 // Encola celebraciones de progreso en el canal único, sin pisar las que ya estén pendientes.
+async function withBusy<T>(set: AppSet, task: () => Promise<T>): Promise<T> {
+  set({ isBusy: true });
+  try {
+    return await task();
+  } finally {
+    set({ isBusy: false });
+  }
+}
+
 function appendCelebrations(set: (partial: (state: AppState) => Partial<AppState>) => void, celebrations: Celebration[]) {
   if (celebrations.length === 0) return;
   set((state) => ({ celebrations: [...state.celebrations, ...celebrations] }));
@@ -280,29 +291,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ pendingRankUp: null });
   },
   saveHabit: async (input, id) => {
-    set({ isBusy: true });
-    if (id) {
-      await updateHabit(id, input);
-    } else {
-      await createHabit(input);
-    }
-    await get().refresh();
-    await get().runAchievementCheck(true);
-    set({ isBusy: false });
+    await withBusy(set, async () => {
+      if (id) {
+        await updateHabit(id, input);
+      } else {
+        await createHabit(input);
+      }
+      await get().refresh();
+      await get().runAchievementCheck(true);
+    });
   },
   getHabitById: (id) => getHabit(id),
   getHabitInsightById: (id) => getHabitInsight(id),
   archiveHabitById: async (id) => {
-    set({ isBusy: true });
-    await archiveHabit(id);
-    await get().refresh();
-    set({ isBusy: false });
+    await withBusy(set, async () => {
+      await archiveHabit(id);
+      await get().refresh();
+    });
   },
   unarchiveHabitById: async (id) => {
-    set({ isBusy: true });
-    await unarchiveHabit(id);
-    await get().refresh();
-    set({ isBusy: false });
+    await withBusy(set, async () => {
+      await unarchiveHabit(id);
+      await get().refresh();
+    });
   },
   incrementHabit: async (id) => {
     const prev = get().player;
@@ -415,43 +426,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ language });
   },
   setPlayerName: async (name) => {
-    set({ isBusy: true });
-    try {
+    await withBusy(set, async () => {
       await updatePlayerName(name);
       await get().refresh();
-    } finally {
-      set({ isBusy: false });
-    }
+    });
   },
   purchaseReward: async (id) => {
-    set({ isBusy: true });
-    try {
+    return withBusy(set, async () => {
       const result = await purchaseReward(id);
       await get().refresh();
       await get().runAchievementCheck(true);
       return result;
-    } finally {
-      set({ isBusy: false });
-    }
+    });
   },
   equipReward: async (id) => {
-    set({ isBusy: true });
-    try {
+    return withBusy(set, async () => {
       const result = await equipReward(id);
       await get().refresh();
       return result;
-    } finally {
-      set({ isBusy: false });
-    }
+    });
   },
   unequipTitle: async () => {
-    set({ isBusy: true });
-    try {
+    await withBusy(set, async () => {
       await unequipTitle();
       await get().refresh();
-    } finally {
-      set({ isBusy: false });
-    }
+    });
   },
   exportBackup: async () => {
     const data = await exportAllData();
@@ -462,25 +461,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   importBackup: async (rawBackup) => {
-    set({ isBusy: true });
-    try {
+    await withBusy(set, async () => {
       const payload = parseBackupPayload(rawBackup);
       await importAllData(payload.data);
       await get().refresh();
-    } catch (error) {
+    }).catch((error) => {
       Alert.alert('Backup inválido', error instanceof Error ? error.message : 'No se pudo importar el backup.');
       throw error;
-    } finally {
-      set({ isBusy: false });
-    }
+    });
   },
   resetAll: async () => {
-    set({ isBusy: true });
-    try {
+    await withBusy(set, async () => {
       await resetAllData();
       await get().refresh();
-    } finally {
-      set({ isBusy: false });
-    }
+    });
   },
 }));

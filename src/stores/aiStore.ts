@@ -253,6 +253,16 @@ function resolveReply(reply: SystemReply): string {
   }
 }
 
+// Si el LLM local falla (OOM, timeout, fichero corrupto, incompatibilidad nativa), el chat no debe
+// quedarse devolviendo "no responde" en bucle. Degradamos el perfil a plantillas y dejamos constancia
+// en BD para que el siguiente intento sea inmediato y funcional.
+async function downgradeToTemplateAfterLlmFailure(profile: AiProfileState): Promise<AiProfileState> {
+  if (profile.engine !== 'llama') return profile;
+  await setAiModelStatus('error');
+  await setAiEngine('template');
+  return toProfileState(await getAiProfile());
+}
+
 // Lee el perfil de IA de la BD y lo proyecta al estado del store (incluye modelPath, que el selector
 // de motor necesita para construir el llamaEngine).
 function toProfileState(profile: Awaited<ReturnType<typeof getAiProfile>>): AiProfileState {
@@ -328,16 +338,18 @@ export const useAiStore = create<AiState>((set, get) => ({
     // El saludo del LLM puede tardar (carga del modelo + inferencia): marcamos isGenerating para que
     // la UI muestre el indicador de escritura. El try/catch evita romper la apertura si el LLM peta.
     set({ isGenerating: true });
+    const language = useAppStore.getState().language;
+    const ctx = await buildSystemContext();
     try {
-      const language = useAppStore.getState().language;
       const engine = await resolveEngine(get().profile);
-      const ctx = await buildSystemContext();
       const text = resolveReply(await engine.greeting(ctx, language));
       await addAiMessage('assistant', text);
     } catch (err) {
       if (__DEV__) console.warn('[ai] openChat: fallo en el saludo del Sistema', err);
-      const language = useAppStore.getState().language;
-      await addAiMessage('assistant', t(language, 'systemChatError'));
+      const profile = await downgradeToTemplateAfterLlmFailure(get().profile);
+      const fallback = resolveReply(await templateEngine.greeting(ctx, language));
+      await addAiMessage('assistant', fallback);
+      set({ profile });
     } finally {
       set({ messages: await listAiMessages(), isReady: true, isGenerating: false });
     }
@@ -379,9 +391,12 @@ export const useAiStore = create<AiState>((set, get) => ({
       if (__DEV__) console.warn('[ai] sendMessage: fallo en la respuesta del Sistema', err);
       if (token !== chatGenerationToken) return;
       const language = useAppStore.getState().language;
-      await addAiMessage('assistant', t(language, 'systemChatError'));
+      const ctx = await buildSystemContext();
+      const profile = await downgradeToTemplateAfterLlmFailure(get().profile);
+      const fallback = resolveReply(await templateEngine.reply(ctx, trimmed, language, contextNote ?? undefined));
+      await addAiMessage('assistant', fallback);
       // Limpiamos el contextNote igualmente: el intento ya consumió el contexto inicial.
-      set({ messages: await listAiMessages(), chatContextNote: null });
+      set({ messages: await listAiMessages(), chatContextNote: null, profile });
     } finally {
       // isGenerating SIEMPRE se resetea, también ante timeout/error, para no dejar el chat colgado.
       // Solo si seguimos siendo la generación vigente: una cancelación posterior ya lo reseteó.

@@ -30,6 +30,7 @@ import {
 } from '@/core/attributes';
 import { evaluateUnlocked, getAchievement, type AchievementContext } from '@/core/achievements';
 import { getTodayWeekday, toDateKey, toIsoTimestamp } from '@/lib/date';
+import { BACKUP_LIMITS, asLimitedBackupArray, boundedBackupString } from '@/lib/backupValidation';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
 import { cancelHabitReminder, scheduleHabitReminder } from '@/lib/notifications';
@@ -1577,29 +1578,18 @@ function normalizeBackupData(data: unknown): NormalizedBackupData {
   if (!isRecord(data)) throw new Error('Invalid backup data');
 
   return {
-    habits: asArray(data.habits).map(normalizeHabit),
-    events: asArray(data.events).map(normalizeEvent),
-    habitDailyProgress: asArray(data.habitDailyProgress ?? data.progress).map(normalizeProgress),
+    habits: asArray(data.habits, 'habits', BACKUP_LIMITS.habits).map(normalizeHabit),
+    events: asArray(data.events, 'events', BACKUP_LIMITS.events).map(normalizeEvent),
+    habitDailyProgress: asArray(data.habitDailyProgress ?? data.progress, 'habitDailyProgress', BACKUP_LIMITS.habitDailyProgress).map(normalizeProgress),
     player: normalizePlayer(asArray(data.player)[0] ?? data.player),
-    dailyMissions: asArray(data.dailyMissions ?? data.missions).map(normalizeMission),
-    playerRewards: asArray(data.playerRewards ?? data.rewards).map(normalizeReward),
+    dailyMissions: asArray(data.dailyMissions ?? data.missions, 'dailyMissions', BACKUP_LIMITS.dailyMissions).map(normalizeMission),
+    playerRewards: asArray(data.playerRewards ?? data.rewards, 'playerRewards', BACKUP_LIMITS.playerRewards).map(normalizeReward),
     // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
-    achievementsUnlocked: asArray(data.achievementsUnlocked ?? data.achievements).map(normalizeAchievement),
-    // Backups antiguos sin IA → defaults / []. El singleton se reasegura tras importar.
-    aiProfile: normalizeAiProfile(asArray(data.aiProfile)[0] ?? data.aiProfile),
-    aiMessages: asArray(data.aiMessages).map(normalizeAiMessage),
-  };
-}
-
-function normalizeAiProfile(row: unknown): AiProfile | null {
-  if (!isRecord(row)) return null;
-  const engine = row.engine === 'llama' ? 'llama' : 'template';
-  return {
-    enabled: asBoolean(row.enabled),
-    engine,
-    modelStatus: isAiModelStatus(row.model_status ?? row.modelStatus) ? (row.model_status ?? row.modelStatus) as AiModelStatus : 'none',
-    modelPath: nullableString(row.model_path ?? row.modelPath),
-    actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
+    achievementsUnlocked: asArray(data.achievementsUnlocked ?? data.achievements, 'achievementsUnlocked', BACKUP_LIMITS.achievementsUnlocked).map(normalizeAchievement),
+    // No restauramos engine/model_status/model_path desde JSON: el fichero GGUF vive en este
+    // dispositivo y su ruta local no es portable. Tras importar, la IA vuelve a plantilla segura.
+    aiProfile: null,
+    aiMessages: asArray(data.aiMessages, 'aiMessages', BACKUP_LIMITS.aiMessages).map(normalizeAiMessage),
   };
 }
 
@@ -1609,7 +1599,7 @@ function normalizeAiMessage(row: unknown): AiMessage {
   return {
     id: asString(row.id),
     rol,
-    contenido: typeof row.contenido === 'string' ? row.contenido : '',
+    contenido: typeof row.contenido === 'string' ? boundedString(row.contenido, BACKUP_LIMITS.aiMessageLength) : '',
     fecha: asString((row.fecha as string) || toDateKey()),
     creadoEn: asString((row.creado_en ?? row.creadoEn) || toIsoTimestamp()),
   };
@@ -1726,13 +1716,17 @@ function normalizeProgressState(value: unknown): ProgressState {
   return 'pendiente';
 }
 
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
+function asArray(value: unknown, label = 'array', maxItems = Number.POSITIVE_INFINITY): unknown[] {
+  return asLimitedBackupArray(value, label, maxItems);
 }
 
 function asString(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error('Invalid backup field');
-  return value;
+  return boundedBackupString(value, BACKUP_LIMITS.stringLength);
+}
+
+function boundedString(value: string, maxLength: number): string {
+  return boundedBackupString(value, maxLength);
 }
 
 function nullableString(value: unknown): string | null {

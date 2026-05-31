@@ -14,7 +14,7 @@ import { getAuraColor } from '@/core/shop';
 import { t } from '@/i18n';
 import { getEquippedTitle } from '@/lib/equippedTitle';
 import { useAppStore } from '@/stores/appStore';
-import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
+import { colors, radii, typography, type Rank } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
 
 const RANK_SEQUENCE: Rank[] = ['E', 'D', 'C', 'B', 'A', 'S'];

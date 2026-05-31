@@ -32,6 +32,8 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+!certs/certificate.pem
+private-code-signing-keys/
 
 # local env files
 .env*.local

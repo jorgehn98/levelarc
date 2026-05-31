@@ -112,14 +112,15 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Implementar descarga de modelo (NEW File API de `expo-file-system`, `src/ai/modelManager.ts`) + pantalla de gestión `app/system-ai.tsx` con progreso/cancelación.
 - [x] Implementar `llamaEngine` real (`initLlama` + `completion`, carga perezosa) sobre la interface `SystemChatEngine`.
 - [x] Bump de `runtimeVersion` a `1.1.0` (corta OTA: requiere instalar el build nativo nuevo).
-- [x] Cambiar el modelo a Gemma 4 E2B GGUF Q4_K_M (`unsloth/gemma-4-E2B-it-GGUF`, ~3,1 GB, stop `<end_of_turn>`).
+- [x] Cambiar el modelo a Gemma 4 E2B GGUF Q4_K_M (`unsloth/gemma-4-E2B-it-GGUF`, ~3,1 GB, prompt manual Gemma 4 con stop `<turn|>`).
+- [x] Validar tamaño exacto + SHA-256 del GGUF tras descarga para no marcar como listo un modelo parcial/corrupto.
 - [x] Mensaje del Sistema en Hoy (banner `SystemMessageCard`, cacheado por día con IA activa).
 - [x] Apariciones autónomas del Sistema (`SystemInterjectionOverlay`, triggers misión completada / vuelta tras ausencia, cooldown 1/sesión y 1/día por trigger, "Continuar" abre el chat con contexto).
 - [x] Build nativo conseguido (preview Android `1c04b308-ea9a-44a9-afb1-da7ecb837927`, runtime `1.1.0`, versionCode `5`; resuelto con `EAS_NO_VCS=1` por el bug de git clone en Windows).
 - [ ] Validar en device real: instalar APK `1c04b308`, descargar Gemma 4 E2B (~3,1 GB) y probar chat y apariciones (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
-- [ ] Cablear triggers extra de apariciones (`streak`, `near_level`, `mission_failed`).
+- [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).
 - [ ] EAS Build production.
 
 ## Datos / lógica
@@ -144,11 +145,14 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 ## Calidad técnica
 
 - [x] Resolver o validar `expo-doctor` duplicado `expo-constants`.
+- [x] Resolver `pnpm audit --prod`: override de `uuid` transitivo de `xcode` a `11.1.1`.
 - [x] Validar EAS Update end-to-end en preview.
+- [x] Activar code signing de EAS Update (`certs/certificate.pem` + `app.json`; private key local ignorada).
 - [ ] Añadir tests de repositorio o integración local.
 - [x] Revisar warnings estructurales de React Doctor.
-- [ ] Revisar rendimiento de SQLite sync/async.
-- [ ] Revisar imports y dead code antes de release.
+- [x] Revisar rendimiento de SQLite sync/async: añadidos índices para consultas frecuentes de `events`.
+- [x] Revisar imports y dead code antes de release.
+- [x] Endurecer importación de backup: límites básicos y no restaurar rutas/estado local del modelo IA.
 - [ ] Añadir manejo de errores visible para backup/notificaciones.
 
 ## Store / release

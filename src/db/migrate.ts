@@ -31,6 +31,15 @@ export async function migrateDb(sqlite: SQLiteDatabase) {
       FOREIGN KEY (habit_id) REFERENCES habits(id) ON UPDATE no action ON DELETE no action
     );
 
+    CREATE INDEX IF NOT EXISTS events_registrado_en_idx
+      ON events (registrado_en);
+
+    CREATE INDEX IF NOT EXISTS events_habit_registrado_idx
+      ON events (habit_id, registrado_en);
+
+    CREATE INDEX IF NOT EXISTS events_habit_tipo_fecha_idx
+      ON events (habit_id, tipo_evento, fecha);
+
     CREATE TABLE IF NOT EXISTS habit_daily_progress (
       id text PRIMARY KEY NOT NULL,
       habit_id text NOT NULL,
