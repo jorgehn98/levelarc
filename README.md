@@ -151,12 +151,17 @@ EAS Update no usa code signing por ahora. Expo lo reserva para cuentas Enterpris
 cuenta bloquea `eas update`. Replantearlo solo si se sube de plan o si se acepta crear builds
 nativos firmados con esa restricción.
 
+Ojo: cambiar esta configuración es cambio nativo. Un APK creado cuando code signing estaba activo
+seguirá esperando updates firmadas y no podrá consumir OTAs sin firma; el botón de buscar update puede
+fallar con un error genérico aunque haya conexión. En ese caso toca instalar un nuevo APK `preview`
+generado con la configuración actual sin code signing.
+
 Último update `preview` publicado:
 
-- Update group: `bb5fb7cc-ea82-4ffb-a930-8527cbf862ec`
-- Runtime: `1.0.2`
-- Mensaje: `Use identical primary button visuals`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/bb5fb7cc-ea82-4ffb-a930-8527cbf862ec>
+- Update group: `7b28fb3e-d793-42ac-90be-520c46cde00c`
+- Runtime: `1.1.0`
+- Mensaje: `Fix AI model download finalization`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/7b28fb3e-d793-42ac-90be-520c46cde00c>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 

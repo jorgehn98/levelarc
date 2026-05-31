@@ -93,6 +93,9 @@ EAS workflows are manual by design. Do not trigger full builds on every push to 
 - Normal commits/pushes to `main` should not launch EAS Build automatically.
 - Prefer OTA update for JS/TS/UI/i18n/assets changes that are compatible with the installed runtime.
 - Use full EAS Build only for native/runtime changes: `app.json` native config, Expo plugins, permissions, native dependencies, Expo SDK/RN changes, `version`/`versionCode`/`runtimeVersion`, or anything that changes the native binary.
+- EAS Update code signing is disabled. Do not re-enable `updates.codeSigningCertificate`, `updates.codeSigningMetadata`, or `--private-key-path` unless the Expo account has EAS Enterprise. On the current account it blocks `eas update`.
+- Important gotcha: changing EAS Update native config (including enabling/disabling code signing) requires a new APK/AAB. Devices already installed with a binary that expects signed updates cannot receive later unsigned OTAs; they will show generic update check failures even with good WiFi.
+- Current recovery path after code-signing mismatch: create/install a new `preview` APK from the unsigned config, then use OTA again for JS-compatible fixes. If EAS Free build quota is exhausted, wait for quota reset or use an older compatible unsigned `runtimeVersion: 1.1.0` APK if available.
 
 ## Arquitectura
 

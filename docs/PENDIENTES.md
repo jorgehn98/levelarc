@@ -148,6 +148,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Resolver `pnpm audit --prod`: override de `uuid` transitivo de `xcode` a `11.1.1`.
 - [x] Validar EAS Update end-to-end en preview.
 - [x] Desactivar code signing de EAS Update: Expo lo bloquea sin plan Enterprise y rompía `eas update` en `preview`.
+- [ ] Crear nuevo APK preview sin code signing cuando se resetee la cuota EAS Free; los APK firmados anteriores no pueden consumir OTAs sin firma.
 - [ ] Añadir tests de repositorio o integración local.
 - [x] Revisar warnings estructurales de React Doctor.
 - [x] Revisar rendimiento de SQLite sync/async: añadidos índices para consultas frecuentes de `events`.
