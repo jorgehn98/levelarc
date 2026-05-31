@@ -2,3 +2,6 @@ allowBuilds:
   esbuild: true
   llama.rn: true
   msgpackr-extract: false
+
+overrides:
+  uuid: 11.1.1
