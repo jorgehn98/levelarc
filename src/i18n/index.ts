@@ -362,6 +362,9 @@ const dictionary = {
     aiModelReady: 'Modelo listo',
     aiUseAdvanced: 'Usar IA avanzada',
     aiUseAdvancedHint: 'Activa el modelo local para las respuestas del Sistema.',
+    aiRuntimeDisabled: 'IA avanzada desactivada',
+    aiRuntimeDisabledCopy:
+      'El modelo sigue descargado, pero el motor local falló al generar. LevelArc ha vuelto a plantillas para no bloquear el chat.',
     aiDeleteModel: 'Eliminar modelo',
     aiRetry: 'Reintentar',
     aiDownloadError: 'La descarga falló. Inténtalo de nuevo.',
@@ -793,6 +796,9 @@ const dictionary = {
     aiModelReady: 'Model ready',
     aiUseAdvanced: 'Use advanced AI',
     aiUseAdvancedHint: 'Enable the local model for the System responses.',
+    aiRuntimeDisabled: 'Advanced AI disabled',
+    aiRuntimeDisabledCopy:
+      'The model is still downloaded, but the local engine failed while generating. LevelArc fell back to templates to avoid blocking the chat.',
     aiDeleteModel: 'Delete model',
     aiRetry: 'Retry',
     aiDownloadError: 'The download failed. Try again.',

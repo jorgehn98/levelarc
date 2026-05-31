@@ -197,6 +197,41 @@ const INTERJECTIONS_KEY = 'levelarc.interjections';
 // Clave de AsyncStorage de la preferencia "Apariciones del Sistema" (que el Sistema salte solo).
 // Default ON: solo está desactivada si el usuario guardó explícitamente 'false'.
 const INTERJECTIONS_ENABLED_KEY = 'levelarc.interjectionsEnabled';
+const LLM_RUNTIME_ERROR_KEY = 'levelarc.ai.llmRuntimeError';
+
+function describeError(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
+async function saveLlmRuntimeError(error: unknown): Promise<void> {
+  try {
+    await AsyncStorage.setItem(LLM_RUNTIME_ERROR_KEY, describeError(error).slice(0, 500));
+  } catch {
+    // Diagnóstico best-effort: no debe romper el fallback del chat.
+  }
+}
+
+export async function getLlmRuntimeError(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(LLM_RUNTIME_ERROR_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function clearLlmRuntimeError(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(LLM_RUNTIME_ERROR_KEY);
+  } catch {
+    // Best-effort.
+  }
+}
 
 // Lee la preferencia. Default true: cualquier valor distinto de 'false' (incluida la ausencia de
 // clave o un fallo de AsyncStorage) cuenta como activada.
@@ -257,8 +292,9 @@ function resolveReply(reply: SystemReply): string {
 // "no responde" en bucle. Degradamos SOLO el motor a plantillas para que el siguiente mensaje sea
 // inmediato y funcional. Si el fichero sigue existiendo y tiene tamaño correcto, NO marcamos
 // modelStatus='error': la descarga no falló, falló la ejecución del motor.
-async function downgradeToTemplateAfterLlmFailure(profile: AiProfileState): Promise<AiProfileState> {
+async function downgradeToTemplateAfterLlmFailure(profile: AiProfileState, error: unknown): Promise<AiProfileState> {
   if (profile.engine !== 'llama') return profile;
+  await saveLlmRuntimeError(error);
   if (profile.modelStatus !== 'ready' || !modelManager.modelExists()) {
     await setAiModelStatus('error');
   }
@@ -356,7 +392,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       await addAiMessage('assistant', text);
     } catch (err) {
       if (__DEV__) console.warn('[ai] openChat: fallo en el saludo del Sistema', err);
-      const profile = await downgradeToTemplateAfterLlmFailure(get().profile);
+      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err);
       const fallback = resolveReply(await templateEngine.greeting(ctx, language));
       await addAiMessage('assistant', fallback);
       set({ profile });
@@ -402,7 +438,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       if (token !== chatGenerationToken) return;
       const language = useAppStore.getState().language;
       const ctx = await buildSystemContext();
-      const profile = await downgradeToTemplateAfterLlmFailure(get().profile);
+      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err);
       const fallback = resolveReply(await templateEngine.reply(ctx, trimmed, language, contextNote ?? undefined));
       await addAiMessage('assistant', fallback);
       // Limpiamos el contextNote igualmente: el intento ya consumió el contexto inicial.
@@ -665,6 +701,7 @@ export const useAiStore = create<AiState>((set, get) => ({
   // Cambia el motor (template/llama) en la BD y recarga el perfil. Es el gancho que la pantalla de
   // gestión usa para alternar entre el chat por plantillas y el LLM local.
   setEngine: async (engine) => {
+    if (engine === 'llama') await clearLlmRuntimeError();
     await setAiEngine(engine);
     set({ profile: toProfileState(await getAiProfile()) });
   },
@@ -692,6 +729,7 @@ export const useAiStore = create<AiState>((set, get) => ({
         (ratio) => set({ modelProgress: ratio }),
         downloadController.signal,
       );
+      await clearLlmRuntimeError();
       await setAiModelStatus('ready', uri);
       await setAiEngine('llama');
       // Recarga el profile para que modelPath/engine lleguen al estado; resolveEngine los lee de ahí.

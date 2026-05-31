@@ -21,9 +21,9 @@ import type { LlamaContext } from 'llama.rn';
 // Parámetros de carga del modelo. n_gpu_layers delega capas a GPU si hay; n_threads y mmap
 // mantienen el coste de RAM/CPU acotado en móvil.
 // CPU-only para el primer build; subir n_gpu_layers y reactivar enableOpenCL tras validar en device.
-const N_CTX = 2048;
+const N_CTX = 1024;
 const N_GPU_LAYERS = 0;
-const N_THREADS = 4;
+const N_THREADS = 2;
 
 // Parámetros de inferencia para gemma-4 E2B: respuestas cortas (la voz del Sistema es seca), con
 // penalización de repetición. Sampling recomendado para gemma-4 (temperature baja para el tono seco).
@@ -45,7 +45,7 @@ const STOP = [TURN_END, TURN_START];
 // que no termina; LOAD_TIMEOUT_MS corta una carga de modelo que no resuelve. Al disparar, abortamos
 // la generación nativa (stopCompletion) y rechazamos para que el store degrade a plantilla/error.
 const COMPLETION_TIMEOUT_MS = 45_000;
-const LOAD_TIMEOUT_MS = 120_000;
+const LOAD_TIMEOUT_MS = 180_000;
 
 // Error con el que rechazamos al vencer un timeout, para que el store pueda distinguirlo si quiere.
 export class LlamaTimeoutError extends Error {
@@ -230,6 +230,7 @@ async function ensureContext(modelPath: string): Promise<LlamaContext> {
       n_gpu_layers: N_GPU_LAYERS,
       n_threads: N_THREADS,
       use_mmap: true,
+      no_extra_bufts: true,
     });
     // Si nos abortaron mientras cargábamos (un releaseLlama concurrente), este ctx es huérfano:
     // libéralo en el acto y propaga el aborto como fallo en vez de cachear un contexto que el usuario

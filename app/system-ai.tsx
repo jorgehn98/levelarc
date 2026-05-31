@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Check, ChevronLeft, CircleAlert, Cpu, Download, Trash2 } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -10,7 +10,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { MODEL_DISPLAY_NAME, formatModelSize } from '@/ai/modelManager';
 import { t, type Language } from '@/i18n';
 import { confirmAction } from '@/lib/confirm';
-import { useAiStore } from '@/stores/aiStore';
+import { getLlmRuntimeError, useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
@@ -24,12 +24,23 @@ export default function SystemAiScreen() {
   const cancelDownload = useAiStore((state) => state.cancelDownload);
   const deleteModel = useAiStore((state) => state.deleteModel);
   const setEngine = useAiStore((state) => state.setEngine);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
 
   // Carga el perfil al montar si todavía no está listo (la pantalla puede abrirse sin pasar por el
   // chat, que es quien normalmente llama a loadAi).
   useEffect(() => {
     if (!isReady) void loadAi();
   }, [isReady, loadAi]);
+
+  useEffect(() => {
+    let active = true;
+    void getLlmRuntimeError().then((error) => {
+      if (active) setRuntimeError(error);
+    });
+    return () => {
+      active = false;
+    };
+  }, [profile.engine, profile.modelStatus]);
 
   const isWeb = Platform.OS === 'web';
   const status = profile.modelStatus;
@@ -60,7 +71,10 @@ export default function SystemAiScreen() {
   }
 
   function handleToggleEngine() {
-    void setEngine(usingLlama ? 'template' : 'llama');
+    void (async () => {
+      await setEngine(usingLlama ? 'template' : 'llama');
+      if (!usingLlama) setRuntimeError(null);
+    })();
   }
 
   return (
@@ -97,6 +111,7 @@ export default function SystemAiScreen() {
                 language={language}
                 onDelete={handleDelete}
                 onToggleEngine={handleToggleEngine}
+                runtimeError={runtimeError}
                 usingLlama={usingLlama}
               />
             ) : (
@@ -144,11 +159,13 @@ function ReadyState({
   language,
   onDelete,
   onToggleEngine,
+  runtimeError,
   usingLlama,
 }: {
   language: Language;
   onDelete: () => void;
   onToggleEngine: () => void;
+  runtimeError: string | null;
   usingLlama: boolean;
 }) {
   return (
@@ -165,6 +182,17 @@ function ReadyState({
         </View>
         <Toggle active={usingLlama} onPress={onToggleEngine} />
       </View>
+
+      {!usingLlama && runtimeError ? (
+        <View style={styles.runtimeNotice}>
+          <CircleAlert color={colors.state.failed} size={16} />
+          <View style={styles.runtimeNoticeCopy}>
+            <Text style={styles.runtimeNoticeTitle}>{t(language, 'aiRuntimeDisabled')}</Text>
+            <Text style={styles.runtimeNoticeText}>{t(language, 'aiRuntimeDisabledCopy')}</Text>
+            <Text style={styles.runtimeError}>{runtimeError}</Text>
+          </View>
+        </View>
+      ) : null}
 
       <Button icon={Trash2} label={t(language, 'aiDeleteModel')} onPress={onDelete} variant="danger" />
     </View>
@@ -281,6 +309,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     padding: 14,
+  },
+  runtimeNotice: {
+    alignItems: 'flex-start',
+    backgroundColor: `${colors.state.failed}12`,
+    borderColor: `${colors.state.failed}66`,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  runtimeNoticeCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  runtimeNoticeTitle: {
+    color: colors.state.failed,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 13,
+  },
+  runtimeNoticeText: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  runtimeError: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 6,
   },
   toggleCopy: {
     flex: 1,
