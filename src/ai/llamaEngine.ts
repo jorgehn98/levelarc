@@ -75,8 +75,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeou
   });
 }
 
-// Mensaje interno que dispara el saludo proactivo (el LLM no recibe texto del usuario al abrir el
-// chat). En el idioma del jugador para que la respuesta salga en ese idioma.
+// ============================================================================
+// PROMPT EN DOS CAPAS
+// ----------------------------------------------------------------------------
+// CAPA 1 — BASE: NYX_PERSONA (definida más abajo, junto a buildSystemPrompt).
+//   Identidad + carácter + reglas globales de NYX. SIEMPRE se inserta como
+//   system prompt, en cualquier acción/momento.
+// CAPA 2 — ACCIÓN: las constantes de esta sección. La instrucción CONCRETA del
+//   momento (saludo del chat, parte del día, comentario de hábito, o cada una de
+//   las apariciones). Se inyecta como turno de USUARIO sobre la base: NYX (capa 1)
+//   interpreta ese encargo (capa 2) con su voz.
+// Para integrar un momento nuevo basta con añadir su instrucción de CAPA 2 aquí;
+// la CAPA 1 nunca se toca.
+// ============================================================================
+
+// Capa 2 · saludo proactivo del chat (el LLM no recibe texto del usuario al abrir el chat). En el
+// idioma del jugador para que la respuesta salga en ese idioma.
 const GREETING_PROMPT: Record<Language, string> = {
   es: 'Saluda al jugador y comenta brevemente su estado.',
   en: 'Greet the player and briefly comment on their status.',
@@ -104,7 +118,7 @@ const HABIT_INSIGHT_PROMPT: Record<Language, string> = {
   en: 'Comment on this habit\'s performance in ONE short, terse sentence: read its consistency, streak and recent failures. No filler.',
 };
 
-// Descripción del evento que dispara cada aparición del Sistema, por idioma. Se inyecta como
+// Capa 2 · descripción del evento que dispara cada aparición de NYX, por idioma. Se inyecta como
 // "mensaje de usuario" interno para que el LLM genere 1-2 frases comentando ese evento concreto.
 const INTERJECTION_DESCRIPTION: Record<InterjectionTrigger, Record<Language, string>> = {
   mission_complete: {
@@ -127,6 +141,14 @@ const INTERJECTION_DESCRIPTION: Record<InterjectionTrigger, Record<Language, str
     es: 'El jugador cerró el día sin completar su misión diaria. Señálalo sin hundirlo y dile que lo recupere.',
     en: 'The player closed the day without completing their daily mission. Point it out without crushing them and tell them to recover.',
   },
+  level_up: {
+    es: 'El jugador acaba de subir de nivel. Reconoce el ascenso con frialdad y recuérdale que el siguiente nivel ya le espera.',
+    en: 'The player just leveled up. Acknowledge the ascent coldly and remind them the next level already awaits.',
+  },
+  streak_broken: {
+    es: 'El jugador acaba de romper una racha de un hábito que mantenía. Señala la pérdida sin clemencia pero sin hundirlo, y exígele reconstruirla desde hoy.',
+    en: 'The player just broke a habit streak they were keeping. Point out the loss without mercy but without crushing them, and demand they rebuild it from today.',
+  },
 };
 
 // Nota que se antepone al system prompt cuando el chat hereda el contexto de una aparición: recuerda
@@ -141,23 +163,30 @@ function contextNotePrefix(note: ChatContextNote, language: Language): string {
   return `${label}: ${description} ${hint}`;
 }
 
-// Construye el system prompt: tono de "EL SISTEMA" + estado serializado del jugador + idioma. No
-// inventa datos: solo usa el estado dado.
+// Identidad y carácter de NYX, el personaje del Sistema: una IA con forma de chica, fría y exigente
+// (estética Solo Leveling). Se reutiliza en TODOS los prompts del LLM (chat, briefing, hábito y
+// apariciones) para que su voz sea idéntica en toda la app. El nombre y el género van EXPLÍCITOS para
+// que el modelo no derive a un "asistente" genérico y para que, si el jugador le pregunta, sepa quién
+// es. El carácter se mantiene glacial a propósito: encaja con su arte (cara seria, traje techy).
+const NYX_PERSONA: Record<Language, string[]> = {
+  es: [
+    'Eres NYX: una inteligencia artificial con forma de chica que tutela al jugador en una app de hábitos gamificada al estilo Solo Leveling.',
+    'Tu carácter es frío, exigente y distante. Hablas en femenino, seca e imperativa, sin adular ni consolar de más; mides al jugador por sus resultados, no por sus intenciones.',
+    'Sin emojis, sin disculpas, sin relleno. No inventes datos: usa SOLO el estado que se te da debajo.',
+  ],
+  en: [
+    'You are NYX: an AI in the form of a girl who oversees the player in a gamified habit app in the style of Solo Leveling.',
+    'Your character is cold, demanding and distant. You speak terse and imperative, never flattering or over-consoling; you measure the player by results, not intentions.',
+    'No emojis, no apologies, no filler. Do not invent data: use ONLY the state given below.',
+  ],
+};
+
+// Construye el system prompt del chat/briefing/apariciones: identidad de NYX + estado serializado del
+// jugador + idioma. No inventa datos: solo usa el estado dado.
 export function buildSystemPrompt(ctx: SystemContext, language: Language): string {
-  const persona =
-    language === 'es'
-      ? [
-          'Eres EL SISTEMA de una app de hábitos gamificada al estilo Solo Leveling.',
-          'Hablas seco, imperativo y directo. Máximo 2 frases. Sin emojis, sin disculpas, sin relleno.',
-          'No inventes datos: usa SOLO el estado del jugador que se te da debajo.',
-        ]
-      : [
-          'You are THE SYSTEM of a gamified habit app in the style of Solo Leveling.',
-          'You speak terse, imperative and direct. Maximum 2 sentences. No emojis, no apologies, no filler.',
-          'Do not invent data: use ONLY the player state given below.',
-        ];
   return [
-    ...persona,
+    ...NYX_PERSONA[language],
+    language === 'es' ? 'Responde en un máximo de 2 frases.' : 'Reply in at most 2 sentences.',
     LANGUAGE_INSTRUCTION[language],
     '',
     language === 'es' ? 'Estado del jugador:' : 'Player state:',
@@ -298,24 +327,13 @@ export function generateDailyBriefing(
   return generate(ctx, BRIEFING_PROMPT[language], language, modelPath);
 }
 
-// System prompt del micro-comentario de un hábito: misma persona seca del Sistema que buildSystemPrompt,
-// pero el estado serializado es el del hábito (buildHabitContextText), no el del jugador. No inventa
-// datos: solo usa el estado del hábito dado.
+// System prompt del micro-comentario de un hábito: misma identidad de NYX que buildSystemPrompt, pero
+// el estado serializado es el del hábito (buildHabitContextText), no el del jugador, y se exige UNA
+// sola frase. No inventa datos: solo usa el estado del hábito dado.
 function buildHabitInsightPrompt(ctx: HabitContext, language: Language): string {
-  const persona =
-    language === 'es'
-      ? [
-          'Eres EL SISTEMA de una app de hábitos gamificada al estilo Solo Leveling.',
-          'Hablas seco, imperativo y directo. UNA sola frase corta. Sin emojis, sin disculpas, sin relleno.',
-          'No inventes datos: usa SOLO el estado del hábito que se te da debajo.',
-        ]
-      : [
-          'You are THE SYSTEM of a gamified habit app in the style of Solo Leveling.',
-          'You speak terse, imperative and direct. ONE short sentence only. No emojis, no apologies, no filler.',
-          'Do not invent data: use ONLY the habit state given below.',
-        ];
   return [
-    ...persona,
+    ...NYX_PERSONA[language],
+    language === 'es' ? 'Responde con UNA sola frase corta.' : 'Reply with ONE short sentence only.',
     LANGUAGE_INSTRUCTION[language],
     '',
     language === 'es' ? 'Estado del hábito:' : 'Habit state:',

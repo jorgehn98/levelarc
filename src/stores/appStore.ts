@@ -118,6 +118,11 @@ function isMissionIncomplete(mission: DailyMissionRecord | null): boolean {
 // la racha ALCANZA EXACTAMENTE uno de estos valores (no en cada día por encima), evitando spam.
 const STREAK_MILESTONES = [7, 30];
 
+// Racha mínima de un hábito cuya RUPTURA merece una reacción de NYX (aparición 'streak_broken'). Por
+// debajo de esto, romperla es poco significativo y no salta. El cap de 1/sesión limita igualmente la
+// frecuencia de apariciones, así que esto solo filtra qué fallos son dignos de comentario.
+const STREAK_BROKEN_MIN = 3;
+
 // Ratio de progreso de nivel (0..1) a partir del cual el Sistema avisa de que estás "cerca de subir".
 // Coincide con el umbral de sys_near_level en la voz del Sistema (systemVoice.ts).
 const NEAR_LEVEL_RATIO = 0.8;
@@ -197,6 +202,16 @@ function flagRankUp(
   if (compareRanks(nextPlayer.rango, prevPlayer.rango) > 0) {
     set(() => ({ pendingRankUp: { from: prevPlayer.rango, to: nextPlayer.rango } }));
   }
+}
+
+// Dispara 'level_up' si la acción subió de nivel al jugador SIN cambiar de rango. El ascenso de rango
+// tiene su propia cinemática y no queremos pisarla; el salto de nivel "normal" sí es un buen momento
+// para que NYX asome. Mismo criterio que el toast de nivel de queueProgressCelebrations, pero como
+// aparición de NYX. El cap de 1/sesión evita que coincida con avalanchas.
+function fireLevelUp(prevPlayer: PlayerRecord | null, nextPlayer: PlayerRecord | null): void {
+  if (!prevPlayer || !nextPlayer) return;
+  if (nextPlayer.rango !== prevPlayer.rango) return;
+  if (nextPlayer.nivel > prevPlayer.nivel) fireInterjection('level_up');
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -299,6 +314,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().refresh();
     appendCelebrations(set, queueProgressCelebrations(prev, get().player));
     flagRankUp(set, prev, get().player);
+    // Subió de nivel (mismo rango) con este incremento → aparición de NYX.
+    fireLevelUp(prev, get().player);
     // La misión diaria acaba de pasar a completada con este incremento → aparición del Sistema.
     if (!prevMissionComplete && isMissionComplete(get().dailyMission)) {
       fireInterjection('mission_complete');
@@ -320,8 +337,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().runAchievementCheck(true);
   },
   failHabit: async (id) => {
+    // Racha del hábito ANTES de fallar: si era una racha que merecía la pena (>= STREAK_BROKEN_MIN),
+    // NYX reacciona a su ruptura en el acto (feedback inmediato del fallo, no solo al cerrar el día).
+    // Lectura puntual con el getter existente, solo en esta transición.
+    const insightBefore = await getHabitInsight(id);
+    const brokenStreak = insightBefore?.currentStreak ?? 0;
     await markHabitFailed(id);
     await get().refresh();
+    if (brokenStreak >= STREAK_BROKEN_MIN) {
+      fireInterjection('streak_broken');
+    }
     await get().runAchievementCheck(true);
   },
   undoHabit: async (id) => {
@@ -335,6 +360,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().refresh();
     appendCelebrations(set, queueProgressCelebrations(prev, get().player));
     flagRankUp(set, prev, get().player);
+    fireLevelUp(prev, get().player);
     await get().runAchievementCheck(true);
   },
   claimPerfectWeekMission: async () => {
@@ -343,6 +369,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().refresh();
     appendCelebrations(set, queueProgressCelebrations(prev, get().player));
     flagRankUp(set, prev, get().player);
+    fireLevelUp(prev, get().player);
     await get().runAchievementCheck(true);
   },
   closeMissedDays: async () => {

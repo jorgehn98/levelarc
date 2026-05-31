@@ -21,7 +21,9 @@ export type InterjectionTrigger =
   | 'comeback' // vuelve tras ausencia
   | 'streak_milestone' // racha de hábito alcanza un hito (7/30)
   | 'near_level' // muy cerca de subir de nivel
-  | 'mission_failed'; // cerró el día sin completar la misión
+  | 'mission_failed' // cerró el día sin completar la misión
+  | 'level_up' // subió de nivel (mismo rango: el ascenso de rango ya tiene su cinemática)
+  | 'streak_broken'; // rompió una racha de hábito que merecía la pena (feedback inmediato al fallar)
 
 // Tono de la aparición, que la UI del personaje (otra tarea) usa para elegir la pose.
 export type InterjectionTone = 'celebrate' | 'serious' | 'neutral';
@@ -183,7 +185,9 @@ export function getSystemReply(ctx: SystemContext, userMessage: string): SystemR
 const INTERJECTION_TONE: Record<InterjectionTrigger, InterjectionTone> = {
   mission_complete: 'celebrate',
   streak_milestone: 'celebrate',
+  level_up: 'celebrate',
   mission_failed: 'serious',
+  streak_broken: 'serious',
   comeback: 'neutral',
   near_level: 'neutral',
 };
@@ -201,6 +205,8 @@ const INTERJECTION_KEY_PREFIX: Record<InterjectionTrigger, string> = {
   streak_milestone: 'sys_int_streak',
   near_level: 'sys_int_near_level',
   mission_failed: 'sys_int_mission_failed',
+  level_up: 'sys_int_level_up',
+  streak_broken: 'sys_int_streak_broken',
 };
 
 // Frase de una aparición del Sistema según el trigger. Devuelve { kind: 'key' } como el resto del

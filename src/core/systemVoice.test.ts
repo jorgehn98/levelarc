@@ -170,7 +170,9 @@ describe('getInterjectionTone', () => {
   it('maps each trigger to the expected pose tone', () => {
     expect(getInterjectionTone('mission_complete')).toBe('celebrate');
     expect(getInterjectionTone('streak_milestone')).toBe('celebrate');
+    expect(getInterjectionTone('level_up')).toBe('celebrate');
     expect(getInterjectionTone('mission_failed')).toBe('serious');
+    expect(getInterjectionTone('streak_broken')).toBe('serious');
     expect(getInterjectionTone('comeback')).toBe('neutral');
     expect(getInterjectionTone('near_level')).toBe('neutral');
   });
@@ -184,6 +186,8 @@ describe('getSystemInterjection', () => {
     streak_milestone: /^sys_int_streak_[12]$/,
     near_level: /^sys_int_near_level_[12]$/,
     mission_failed: /^sys_int_mission_failed_[12]$/,
+    level_up: /^sys_int_level_up_[12]$/,
+    streak_broken: /^sys_int_streak_broken_[12]$/,
   };
 
   it('returns a key from the expected set for each trigger', () => {
