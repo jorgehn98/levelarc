@@ -10,15 +10,13 @@ import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import {
-  MODEL_HASH_NAME,
   MODEL_NAME,
-  MODEL_SHA256,
   MODEL_SIZE_BYTES,
+  MODEL_STAMP_NAME,
   MODEL_URL,
   formatModelSize,
   MODEL_DISPLAY_NAME,
 } from '@/ai/modelMetadata';
-import { Sha256 } from '@/lib/sha256';
 
 export { MODEL_DISPLAY_NAME, formatModelSize };
 
@@ -47,46 +45,40 @@ function getModelFile(): File {
   return new File(Paths.document, MODELS_DIR, MODEL_NAME);
 }
 
-function getModelHashFile(): File {
-  return new File(Paths.document, MODELS_DIR, MODEL_HASH_NAME);
+function getModelStampFile(): File {
+  return new File(Paths.document, MODELS_DIR, MODEL_STAMP_NAME);
 }
 
 // ¿Está el modelo descargado? En web siempre false.
 export function modelExists(): boolean {
   if (!isNative) return false;
   const file = getModelFile();
-  const hashFile = getModelHashFile();
-  return file.exists && file.size === MODEL_SIZE_BYTES && hashFile.exists && hashFile.textSync().trim() === MODEL_SHA256;
+  const stampFile = getModelStampFile();
+  return file.exists && file.size === MODEL_SIZE_BYTES && stampFile.exists;
 }
 
-async function hashFile(file: File): Promise<string> {
-  const hasher = new Sha256();
-  const reader = file.readableStream().getReader();
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) hasher.update(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  return hasher.digestHex();
-}
-
-async function validateAndStampModel(file: File): Promise<void> {
+function validateAndStampModel(file: File): void {
   if (!file.exists || file.size !== MODEL_SIZE_BYTES) {
     throw new Error('Downloaded model has invalid size');
   }
 
-  const digest = await hashFile(file);
-  if (digest !== MODEL_SHA256) {
-    throw new Error('Downloaded model failed SHA-256 check');
-  }
+  // No calculamos SHA-256 aquí: hacerlo en JS sobre ~3,1 GB bloquea el cierre de la descarga en
+  // Android y deja la UI clavada en 100%. `downloadAsync()` + tamaño exacto cubre parciales, y el
+  // stamp evita marcar como listo un fichero viejo que no haya pasado esta validación.
+  getModelStampFile().write(String(MODEL_SIZE_BYTES));
+}
 
-  getModelHashFile().write(digest);
+// Recupera una descarga completa que se quedó en estado "downloading" antes de escribir el stamp.
+// Esto evita obligar al usuario a redescargar 3,1 GB si el fichero ya estaba entero en disco.
+export function recoverDownloadedModel(): string | null {
+  if (!isNative) return null;
+  const file = getModelFile();
+  try {
+    validateAndStampModel(file);
+    return file.uri;
+  } catch {
+    return null;
+  }
 }
 
 // Descarga el modelo con progreso (ratio 0..1) y soporte de cancelación vía AbortSignal.
@@ -105,9 +97,9 @@ export async function downloadModel(
   if (file.exists) {
     file.delete();
   }
-  const hashFile = getModelHashFile();
-  if (hashFile.exists) {
-    hashFile.delete();
+  const stampFile = getModelStampFile();
+  if (stampFile.exists) {
+    stampFile.delete();
   }
 
   const task = File.createDownloadTask(MODEL_URL, file, {
@@ -115,7 +107,9 @@ export async function downloadModel(
       // totalBytes es -1 si el servidor no envía Content-Length; en ese caso no podemos calcular un
       // ratio fiable, así que dejamos el progreso quieto (la UI muestra el último valor conocido).
       if (totalBytes > 0) {
-        onProgress(bytesWritten / totalBytes);
+        // Reservamos el 100% para cuando `downloadAsync()` ya terminó y el fichero pasó la
+        // validación ligera. Así la UI no parece colgada en 100% durante el cierre del stream.
+        onProgress(Math.min(bytesWritten / totalBytes, 0.99));
       }
     },
     signal,
@@ -123,10 +117,10 @@ export async function downloadModel(
 
   await task.downloadAsync();
   try {
-    await validateAndStampModel(file);
+    validateAndStampModel(file);
   } catch (error) {
     file.delete();
-    if (hashFile.exists) hashFile.delete();
+    if (stampFile.exists) stampFile.delete();
     throw error;
   }
   return file.uri;
@@ -139,8 +133,8 @@ export function deleteModel(): void {
   if (file.exists) {
     file.delete();
   }
-  const hashFile = getModelHashFile();
-  if (hashFile.exists) {
-    hashFile.delete();
+  const stampFile = getModelStampFile();
+  if (stampFile.exists) {
+    stampFile.delete();
   }
 }

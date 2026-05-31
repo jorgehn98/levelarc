@@ -289,6 +289,13 @@ async function reconcileModelState(
   if (Platform.OS === 'web') return false;
 
   if (profile.modelStatus === 'downloading' && !downloadController) {
+    const recoveredModelPath = modelManager.recoverDownloadedModel();
+    if (recoveredModelPath) {
+      await setAiModelStatus('ready', recoveredModelPath);
+      await setAiEngine('llama');
+      return true;
+    }
+
     modelManager.deleteModel();
     await setAiModelStatus('none');
     await setAiEngine('template');
