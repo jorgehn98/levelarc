@@ -125,8 +125,8 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Lanzar build `1.1.4` / versionCode `9` con espera robusta de bindings JSI (`f95b548a`).
 - [x] Investigar tercera causa del fallo persistente: en RN 0.85 bridgeless no se debe capturar `JavaScriptContextHolder` como puntero crudo; el `CallInvoker` entrega el `jsi::Runtime&` correcto a la lambda.
 - [x] Parchear `llama.rn` para instalar JSI usando el runtime del `CallInvoker` y subir a `1.1.5` / versionCode `10`.
-- [ ] Lanzar build `1.1.5` / versionCode `10` con el patch de runtime JSI.
-- [ ] Validar en device real: instalar APK `1.1.5`, confirmar que Ajustes IA muestra `LevelArc 1.1.5 · build 10`, descargar/reusar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Lanzar build `1.1.5` / versionCode `10` con el patch de runtime JSI (`5cf2587d`).
+- [ ] Validar en device real: instalar APK `1.1.5` (`5cf2587d`, <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>), confirmar que Ajustes IA muestra `LevelArc 1.1.5 · build 10`, descargar/reusar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).

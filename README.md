@@ -106,11 +106,11 @@ Proyecto EAS enlazado:
 
 Último APK preview válido:
 
-- Build ID: `f95b548a-d6d1-4379-91f2-bfee60649269`
-- APK: <https://expo.dev/artifacts/eas/wMV4BwbAmNUZJH8ch8xwEe.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/f95b548a-d6d1-4379-91f2-bfee60649269>
-- Versión: `1.1.4`, Android versionCode `9`, runtimeVersion `1.1.4`.
-- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI, compila `:llama.rn:compileReleaseJavaWithJavac` y el bundle incluye la espera robusta de bindings JSI antes de consumirlos.
+- Build ID: `5cf2587d-df9d-4020-a247-2dffdb48fa79`
+- APK: <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/5cf2587d-df9d-4020-a247-2dffdb48fa79>
+- Versión: `1.1.5`, Android versionCode `10`, runtimeVersion `1.1.5`.
+- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI con el runtime del `CallInvoker`, compila el build EAS y el bundle incluye la espera robusta de bindings JSI antes de consumirlos.
 
 Antes de publicar:
 

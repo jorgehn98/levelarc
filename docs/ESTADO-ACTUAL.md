@@ -193,7 +193,7 @@ La QA inicial en Android real ya está validada por el usuario: la app funciona 
 - LLM local real (Fase 5B) implementado en código detrás de la misma arquitectura enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB) en `src/ai/llamaEngine.ts` (motor real con carga perezosa, prompt manual Gemma 4 y stops correctos), descarga del modelo on-device (`src/ai/modelManager.ts`, NEW File API) con validación práctica de tamaño exacto + stamp local. No se calcula SHA-256 completo en JS porque en Android deja la descarga clavada al 100% durante el cierre. Pantalla de gestión en `app/system-ai.tsx` (Ajustes → Sistema → "IA avanzada" y cabecera del chat).
 - Si el LLM falla en device (OOM, timeout, fichero inválido o incompatibilidad nativa), el chat degrada automáticamente al motor por plantillas para no dejar al usuario en un bucle de "El Sistema no responde".
 - Ajuste posterior: si el fichero del modelo sigue descargado y válido, un fallo del motor LLM ya no marca la descarga como fallida. Solo apaga `engine` a `template`, guarda el error runtime en AsyncStorage y Ajustes → IA del Sistema lo muestra. La carga de `llama.rn` usa parámetros más conservadores (`n_ctx=1024`, `n_threads=2`, `no_extra_bufts`) para reducir riesgo de OOM en Android. Además preinstala JSI antes de `initLlama`, parchea `llama.rn` para esperar a que aparezcan todos los bindings JSI antes de consumirlos, y el patch nativo ya no oculta el motivo real si Android no puede instalarlos. El siguiente patch nativo (`1.1.5`) deja de capturar `JavaScriptContextHolder` y usa el runtime que RN 0.85 entrega por `CallInvoker`.
-- El LLM NO llega por OTA: solo por build nativo nuevo. El APK preview actual es `f95b548a-d6d1-4379-91f2-bfee60649269` (`1.1.4`, versionCode `9`, runtime `1.1.4`), URL `https://expo.dev/artifacts/eas/wMV4BwbAmNUZJH8ch8xwEe.apk`. Está verificado con 14 librerías `lib/arm64-v8a/librnllama*.so`, wrapper JNI recompilado y bundle con espera robusta de bindings JSI; pendiente de validación funcional en device real. Detalle en `docs/IA-SISTEMA.md`.
+- El LLM NO llega por OTA: solo por build nativo nuevo. El APK preview actual es `5cf2587d-df9d-4020-a247-2dffdb48fa79` (`1.1.5`, versionCode `10`, runtime `1.1.5`), URL `https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk`. Está verificado con 14 librerías `lib/arm64-v8a/librnllama*.so`, wrapper JNI recompilado con runtime del `CallInvoker` y bundle con espera robusta de bindings JSI; pendiente de validación funcional en device real. Detalle en `docs/IA-SISTEMA.md`.
 
 ### Persistencia
 
@@ -370,6 +370,17 @@ Build preview Android actual con patch JSI bridgeless:
 - Commit: `9f2887b` (`Pin pnpm version for EAS builds`).
 - Verificación del APK: contiene 14 librerías `lib/arm64-v8a/librnllama*.so` y compila con `patches/llama.rn@0.12.4.patch`, que evita `getCatalystInstance()` en Android bridgeless.
 - Pendiente: instalar en Android real y validar IA local completa.
+
+Build preview Android actual con runtime JSI vía CallInvoker:
+
+- ID: `5cf2587d-df9d-4020-a247-2dffdb48fa79`
+- APK: <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/5cf2587d-df9d-4020-a247-2dffdb48fa79>
+- Estado: terminado correctamente.
+- Perfil: `preview`, distribución interna, runtimeVersion `1.1.5`, version `1.1.5`, versionCode `10`.
+- Commit: `c45e521` (`Fix llama JSI runtime install`).
+- Verificación del APK: contiene 14 librerías `lib/arm64-v8a/librnllama*.so`; `librnllama_jni*.so` contiene las trazas `CallInvoker runtime` / `installing JSI bindings on JS invoker runtime`; el bundle contiene `LevelArc 1.1.5` y la espera robusta de JSI.
+- Pendiente: instalar en Android real, confirmar en Ajustes IA `LevelArc 1.1.5 · build 10` y validar que el chat usa Gemma sin caer a plantillas.
 
 Build preview Android actual con espera robusta de bindings JSI:
 
@@ -664,7 +675,7 @@ Gamificación avanzada (v2.0): en marcha. El primer bloque (economía de Esencia
 
 El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. La IA se ha ampliado más allá del chat: banner del Sistema en Hoy (`SystemMessageCard`) y apariciones autónomas en momentos clave (`SystemInterjectionOverlay`), ambas offline con plantillas y generadas por Gemma cuando la IA está activa. El LLM local real (Fase 5B) ya está implementado en código (commit `3d5d509`) detrás de la misma interface enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB), descarga del modelo on-device bajo demanda y pantalla de gestión. La IA es opcional: la app funciona sin modelo. Solo se entrega por build nativo (runtime `1.1.0`), no por OTA, y queda pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
-Build nativo EAS con LLM: build actual `f95b548a-d6d1-4379-91f2-bfee60649269` (runtime `1.1.4`, versionCode `9`) incluye las librerías nativas `librnllama*.so`, el patch Android bridgeless y la espera robusta de bindings JSI para `llama.rn` 0.12.4. Pendiente de validación funcional en device real.
+Build nativo EAS con LLM: build actual `5cf2587d-df9d-4020-a247-2dffdb48fa79` (runtime `1.1.5`, versionCode `10`) incluye las librerías nativas `librnllama*.so`, el patch Android bridgeless, instalación JSI con runtime del `CallInvoker` y la espera robusta de bindings JSI para `llama.rn` 0.12.4. Pendiente de validación funcional en device real.
 
 Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas y Gemma 4:
 
@@ -675,7 +686,7 @@ Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas 
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a1d8f4ab-79b3-42e8-9604-890c5b5847b3>
 - Llega a los APK runtime 1.1.0, incluido el build actual `e37eafc1`; no llega a los APK 1.0.x.
 
-Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código con Gemma 4 E2B y ya tiene build nativo `1.1.4` actual (`f95b548a`) con `.so` de `llama.rn` verificadas, patch Android bridgeless aplicado y espera robusta de bindings JSI. Entra en validación funcional en device.
+Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código con Gemma 4 E2B y ya tiene build nativo `1.1.5` actual (`5cf2587d`) con `.so` de `llama.rn` verificadas, patch Android bridgeless aplicado, runtime JSI vía `CallInvoker` y espera robusta de bindings JSI. Entra en validación funcional en device.
 
 Update `preview` con el chat del Sistema (IA base por reglas):
 

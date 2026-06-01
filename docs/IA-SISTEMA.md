@@ -55,7 +55,7 @@ El LLM on-device ya está implementado en código sobre la misma interface `Syst
 
 - NO funciona en Expo Go.
 - NO se entrega por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
-- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`, el patch bridgeless y la espera robusta de JSI. Usar el build `f95b548a` (`1.1.4`, versionCode `9`), ya verificado a nivel de APK.
+- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`, el patch bridgeless, la instalación JSI vía runtime del `CallInvoker` y la espera robusta de JSI. Usar el build `5cf2587d` (`1.1.5`, versionCode `10`), ya verificado a nivel de APK.
 - El modelo NO viene en el APK ni por OTA: la IA es **opcional** y el GGUF se descarga bajo demanda dentro de la app. La app funciona perfecta sin modelo.
 - El chat por plantillas (runtime `1.0.2`) sigue funcionando por OTA para quien no instale el build nuevo.
 
@@ -120,9 +120,9 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 
 ## Cómo validar 5B (pendiente — única tarea abierta)
 
-El build válido actual es `f95b548a`; lo que queda es la validación en device:
+El build válido actual es `5cf2587d`; lo que queda es la validación en device:
 
-1. Instalar el APK del build `f95b548a` (`1.1.4`, versionCode `9`): <https://expo.dev/artifacts/eas/wMV4BwbAmNUZJH8ch8xwEe.apk>.
+1. Instalar el APK del build `5cf2587d` (`1.1.5`, versionCode `10`): <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>.
 2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
 3. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
 4. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
@@ -138,4 +138,4 @@ El build válido actual es `f95b548a`; lo que queda es la validación en device:
 
 ## Resumen de la decisión
 
-Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B. Tras el build `aad21dd9` (`1.1.2` / versionCode `7`) el usuario seguía viendo `JSI bindings not installed`; el build actual `f95b548a` (`1.1.4` / versionCode `9`) endurece el propio `installJsi` de `llama.rn`: espera hasta 8s a que existan todos los bindings globales, evita consumir bindings parciales y mantiene diagnósticos nativos para saber si falla librería, contexto JS o call invoker. La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo y descargar el GGUF de ~3,1 GB on-device. Queda pendiente la validación en device real y el build de production.
+Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B. Tras el build `aad21dd9` (`1.1.2` / versionCode `7`) el usuario seguía viendo `JSI bindings not installed`; el build actual `5cf2587d` (`1.1.5` / versionCode `10`) instala JSI usando el `jsi::Runtime&` entregado por RN 0.85 `CallInvoker`, espera hasta 8s a que existan todos los bindings globales, evita consumir bindings parciales y mantiene diagnósticos nativos para saber si falla librería o call invoker. La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo y descargar el GGUF de ~3,1 GB on-device. Queda pendiente la validación en device real y el build de production.
