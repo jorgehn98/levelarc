@@ -479,27 +479,33 @@ export async function runLlamaSurfaceDiagnostics(
     }
   }
 
-  if (
-    !(await runStep('surface: daily briefing', async () => {
-      const reply = await generateDailyBriefing(systemContext, language, modelPath);
+  try {
+    if (
+      !(await runStep('surface: daily briefing', async () => {
+        const reply = await generateDailyBriefing(systemContext, language, modelPath);
+        return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
+      }))
+    ) {
+      return steps;
+    }
+
+    if (
+      !(await runStep('surface: habit insight', async () => {
+        return generateHabitInsight(habitContext, language, modelPath);
+      }))
+    ) {
+      return steps;
+    }
+
+    await runStep('surface: interjection', async () => {
+      const reply = await generate(systemContext, INTERJECTION_DESCRIPTION.mission_complete[language], language, modelPath);
       return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
-    }))
-  ) {
-    return steps;
+    });
+  } finally {
+    // Es una prueba manual desde Ajustes, no una conversación en curso: al terminar liberamos el
+    // contexto para no dejar el GGUF cargado en RAM si el usuario solo estaba diagnosticando.
+    await releaseLlama().catch(() => undefined);
   }
-
-  if (
-    !(await runStep('surface: habit insight', async () => {
-      return generateHabitInsight(habitContext, language, modelPath);
-    }))
-  ) {
-    return steps;
-  }
-
-  await runStep('surface: interjection', async () => {
-    const reply = await generate(systemContext, INTERJECTION_DESCRIPTION.mission_complete[language], language, modelPath);
-    return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
-  });
 
   return steps;
 }
