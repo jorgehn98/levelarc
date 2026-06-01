@@ -338,7 +338,7 @@ Build preview Android con LLM (llama.rn + Gemma 4 E2B):
 - Gotcha del build: el primer intento falló por un bug de `eas-cli` en Windows (git clone `file:///C:/...` con git 2.53 da código 128, "does not appear to be a git repository"). Se resolvió con `EAS_NO_VCS=1` para empaquetar el working dir sin git clone.
 - Estado posterior: este build quedó superado por `1.1.6`; se mantiene aquí como histórico.
 
-Build preview Android actual con LLM diagnostics y EAS Update sin code signing:
+Build preview Android histórico con LLM diagnostics y EAS Update sin code signing:
 
 - ID: `e37eafc1-40a9-49db-a913-5c58201e902d`
 - APK: <https://expo.dev/artifacts/eas/u6kBoGBLi8EzzfmEdZtEet.apk>
@@ -348,7 +348,7 @@ Build preview Android actual con LLM diagnostics y EAS Update sin code signing:
 - Perfil: `preview`, distribución interna, runtimeVersion `1.1.0`, version `1.1.0`, versionCode `5`.
 - Commit: `84264be` (`Add LLM runtime diagnostics`).
 - Nota posterior: este APK NO es válido para IA local; al inspeccionarlo no contiene `lib/arm64-v8a/librnllama*.so` porque EAS/pnpm ignoró el postinstall de `llama.rn`. Sí compiló, pero en device sigue dando `JSI bindings not installed`.
-- Pendiente: sustituir por build `1.1.1` / versionCode `6` con `llama.rn` aprobado en `pnpm.onlyBuiltDependencies` y verificar el APK antes de instalar.
+- Estado posterior: sustituido por builds posteriores; se mantiene como histórico del fallo de postinstall sin `.so`.
 
 
 Patch Android bridgeless para llama.rn 0.12.4:
@@ -359,7 +359,7 @@ Patch Android bridgeless para llama.rn 0.12.4:
 - Build nativo generado: `aad21dd9`, `1.1.2`, Android versionCode `7`, runtimeVersion `1.1.2`.
 
 
-Build preview Android actual con patch JSI bridgeless:
+Build preview Android histórico con patch JSI bridgeless:
 
 - ID: `aad21dd9-d706-4e48-b1ec-f835ccf28374`
 - APK: <https://expo.dev/artifacts/eas/n6r8rLtNE1HaZ5Mk9QcKq1.apk>
@@ -369,9 +369,9 @@ Build preview Android actual con patch JSI bridgeless:
 - Perfil: `preview`, distribución interna, runtimeVersion `1.1.2`, version `1.1.2`, versionCode `7`.
 - Commit: `9f2887b` (`Pin pnpm version for EAS builds`).
 - Verificación del APK: contiene 14 librerías `lib/arm64-v8a/librnllama*.so` y compila con `patches/llama.rn@0.12.4.patch`, que evita `getCatalystInstance()` en Android bridgeless.
-- Pendiente: instalar en Android real y validar IA local completa.
+- Estado posterior: sustituido por builds posteriores; se mantiene como histórico.
 
-Build preview Android actual con runtime JSI vía CallInvoker:
+Build preview Android histórico con runtime JSI vía CallInvoker:
 
 - ID: `5cf2587d-df9d-4020-a247-2dffdb48fa79`
 - APK: <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>
@@ -382,7 +382,7 @@ Build preview Android actual con runtime JSI vía CallInvoker:
 - Verificación del APK: contiene 14 librerías `lib/arm64-v8a/librnllama*.so`; `librnllama_jni*.so` contiene las trazas `CallInvoker runtime` / `installing JSI bindings on JS invoker runtime`; el bundle contiene `LevelArc 1.1.5` y la espera robusta de JSI.
 - Estado posterior: instalado en Android real y descartado; seguía cayendo a `JSI bindings not installed`. Lo sustituye `1.1.6`.
 
-Build preview Android actual con espera robusta de bindings JSI:
+Build preview Android histórico con espera robusta de bindings JSI:
 
 - ID: `f95b548a-d6d1-4379-91f2-bfee60649269`
 - APK: <https://expo.dev/artifacts/eas/wMV4BwbAmNUZJH8ch8xwEe.apk>
@@ -391,9 +391,9 @@ Build preview Android actual con espera robusta de bindings JSI:
 - Perfil: `preview`, distribución interna, runtimeVersion `1.1.4`, version `1.1.4`, versionCode `9`.
 - Commit: `c2fbb03` (`Harden llama JSI binding install`).
 - Verificación del APK: contiene 14 librerías `lib/arm64-v8a/librnllama*.so`, recompila `librnllama_jni*.so` y el bundle contiene los mensajes de espera robusta (`JSI bindings not installed after native install`, `Native install returned false`).
-- Pendiente: instalar en Android real, confirmar en Ajustes IA `LevelArc 1.1.4 · build 9` y validar que el chat usa Gemma sin caer a plantillas.
+- Estado posterior: sustituido por `1.1.5` y luego por el build válido `1.1.6`; se mantiene como histórico.
 
-Build preview Android válido con LLM native libs verificadas:
+Build preview Android histórico con LLM native libs verificadas:
 
 - ID: `114d891f-0f8e-4dd9-8706-b6dec7d886e1`
 - APK: <https://expo.dev/artifacts/eas/38VCEbYsGPo5eFAYrXCVJZ.apk>
@@ -403,7 +403,7 @@ Build preview Android válido con LLM native libs verificadas:
 - Perfil: `preview`, distribución interna, runtimeVersion `1.1.1`, version `1.1.1`, versionCode `6`.
 - Commit: `68b8412` (`Fix llama native artifact build approval`).
 - Verificación del APK: contiene 14 librerías `lib/arm64-v8a/librnllama*.so`, incluyendo `librnllama.so` y `librnllama_jni*.so`. Este sí corrige la causa raíz del error `JSI bindings not installed` causado por el APK anterior sin `.so` nativas.
-- Pendiente: instalar en Android real y validar IA local completa.
+- Estado posterior: sustituido por builds posteriores; se mantiene como histórico.
 
 Update `preview` inicial publicado:
 

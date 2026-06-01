@@ -102,7 +102,7 @@ El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y
 
 ### Gotcha del build en Windows (`EAS_NO_VCS`)
 
-El primer intento de build falló por un bug de `eas-cli` en Windows: al hacer git clone de `file:///C:/...` con git 2.53 devuelve código 128 ("does not appear to be a git repository"). Se resolvió con `EAS_NO_VCS=1`, que empaqueta el working dir directamente sin pasar por git clone. El build histórico `1c04b308` se lanzó así; el APK actual `e37eafc1` salió desde el commit `84264be`.
+El primer intento de build falló por un bug de `eas-cli` en Windows: al hacer git clone de `file:///C:/...` con git 2.53 devuelve código 128 ("does not appear to be a git repository"). Se resolvió con `EAS_NO_VCS=1`, que empaqueta el working dir directamente sin pasar por git clone. El build histórico `1c04b308` se lanzó así; el APK `e37eafc1` también es histórico y quedó superado; el APK válido actual para IA local es `9b238105` (`1.1.6`).
 
 ### Integración de la IA en la app (más allá del chat)
 
