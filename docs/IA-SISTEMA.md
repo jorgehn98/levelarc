@@ -34,7 +34,7 @@ Funciona **OFFLINE con un motor determinista por plantillas (reglas)**, no un LL
 
 ## Fase 5B — LLM local real (implementada en código, commit `3d5d509`; build nativo conseguido)
 
-El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. Tras validar que el build `114d891f` sí incluía `librnllama*.so`, el mismo error `JSI bindings not installed` apuntó a una segunda causa raíz: `llama.rn` 0.12.4 instala JSI en Android usando `context.getCatalystInstance().getJSCallInvokerHolder()`, incompatible con Expo SDK 56 / RN 0.85 bridgeless. Se añadió `patches/llama.rn@0.12.4.patch` para usar `ReactApplicationContext.getJSCallInvokerHolder()` y se prepara build `1.1.2` / versionCode `7`.
+El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. Tras validar que el build `114d891f` sí incluía `librnllama*.so`, el mismo error `JSI bindings not installed` apuntó a una segunda causa raíz: `llama.rn` 0.12.4 instala JSI en Android usando `context.getCatalystInstance().getJSCallInvokerHolder()`, incompatible con Expo SDK 56 / RN 0.85 bridgeless. Se añadió `patches/llama.rn@0.12.4.patch` para usar `ReactApplicationContext.getJSCallInvokerHolder()` y se generó el build `aad21dd9` (`1.1.2` / versionCode `7`).
 
 ### Librería y dependencias
 
@@ -55,7 +55,7 @@ El LLM on-device ya está implementado en código sobre la misma interface `Syst
 
 - NO funciona en Expo Go.
 - NO se entrega por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
-- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`. Usar el build `114d891f` (`1.1.1`, versionCode `6`), ya verificado a nivel de APK.
+- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn` y el patch bridgeless. Usar el build `aad21dd9` (`1.1.2`, versionCode `7`), ya verificado a nivel de APK.
 - El modelo NO viene en el APK ni por OTA: la IA es **opcional** y el GGUF se descarga bajo demanda dentro de la app. La app funciona perfecta sin modelo.
 - El chat por plantillas (runtime `1.0.2`) sigue funcionando por OTA para quien no instale el build nuevo.
 
@@ -120,9 +120,9 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 
 ## Cómo validar 5B (pendiente — única tarea abierta)
 
-El build válido actual es `114d891f`; lo que queda es la validación en device:
+El build válido actual es `aad21dd9`; lo que queda es la validación en device:
 
-1. Instalar el APK del build `114d891f` (`1.1.1`, versionCode `6`): <https://expo.dev/artifacts/eas/38VCEbYsGPo5eFAYrXCVJZ.apk>.
+1. Instalar el APK del build `aad21dd9` (`1.1.2`, versionCode `7`): <https://expo.dev/artifacts/eas/n6r8rLtNE1HaZ5Mk9QcKq1.apk>.
 2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
 3. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
 4. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
@@ -138,4 +138,4 @@ El build válido actual es `114d891f`; lo que queda es la validación en device:
 
 ## Resumen de la decisión
 
-Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B y **build nativo EAS actual conseguido** (runtime `1.1.0`, build `114d891f`, `1.1.1` / versionCode `6`). La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo y descargar el GGUF de ~3,1 GB on-device. Queda pendiente la validación en device real y el build de production.
+Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B y **build nativo EAS actual conseguido** (runtime `1.1.0`, build `aad21dd9`, `1.1.2` / versionCode `7`). La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo y descargar el GGUF de ~3,1 GB on-device. Queda pendiente la validación en device real y el build de production.

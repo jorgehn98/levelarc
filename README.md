@@ -106,11 +106,11 @@ Proyecto EAS enlazado:
 
 Último APK preview válido:
 
-- Build ID: `114d891f-0f8e-4dd9-8706-b6dec7d886e1`
-- APK: <https://expo.dev/artifacts/eas/38VCEbYsGPo5eFAYrXCVJZ.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/114d891f-0f8e-4dd9-8706-b6dec7d886e1>
-- Versión: `1.1.1`, Android versionCode `6`, runtimeVersion `1.1.1`.
-- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), así que sí incluye el runtime nativo de `llama.rn`.
+- Build ID: `aad21dd9-d706-4e48-b1ec-f835ccf28374`
+- APK: <https://expo.dev/artifacts/eas/n6r8rLtNE1HaZ5Mk9QcKq1.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/aad21dd9-d706-4e48-b1ec-f835ccf28374>
+- Versión: `1.1.2`, Android versionCode `7`, runtimeVersion `1.1.2`.
+- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64) y aplica el patch Android bridgeless de `llama.rn` 0.12.4.
 
 Antes de publicar:
 
