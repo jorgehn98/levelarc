@@ -111,6 +111,7 @@ Proyecto EAS enlazado:
 - Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/5cf2587d-df9d-4020-a247-2dffdb48fa79>
 - Versión: `1.1.5`, Android versionCode `10`, runtimeVersion `1.1.5`. El siguiente build nativo es `1.1.6` / versionCode `11` porque cambia el patch nativo de `llama.rn`.
 - Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI con el runtime del `CallInvoker`, compila el build EAS y el bundle incluye la espera robusta de bindings JSI antes de consumirlos. La pantalla de IA puede recibir por OTA un diagnóstico manual por fases compatible con este runtime.
+- Build preview `1.1.6` / versionCode `11` en cola: `116ff7cb-7ec5-4fdc-bfe9-f2919ae5b8ea`. Commit `e9b85a6`. Sustituirá al APK anterior si compila y se valida en Android real.
 
 Antes de publicar:
 

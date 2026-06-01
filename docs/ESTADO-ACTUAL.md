@@ -677,6 +677,8 @@ El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con 
 
 Build nativo EAS con LLM: build actual instalado `5cf2587d-df9d-4020-a247-2dffdb48fa79` (runtime `1.1.5`, versionCode `10`) sigue reproduciendo `JSI bindings not installed` en Android real. El siguiente build debe ser `1.1.6` / versionCode `11` con el patch nativo `TurboModuleWithJSIBindings` + `BindingsInstallerHolder`; pendiente de build y QA completa.
 
+Build preview `1.1.6` lanzado y en cola en EAS: `116ff7cb-7ec5-4fdc-bfe9-f2919ae5b8ea` (commit `e9b85a6`, runtime `1.1.6`, versionCode `11`). Pendiente de compilar, descargar APK, inspeccionar `.so` y validar en Android real.
+
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
 - Grupo: `85cefc2c-f00f-4f85-80af-48e4b3655626`

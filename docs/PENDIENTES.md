@@ -136,7 +136,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Detectar que el fallo persiste tras OTA `856cc783`: el usuario vuelve a ver `JSI bindings not installed` y la IA se apaga al primer mensaje.
 - [x] Replantear el patch nativo a patrón oficial RN 0.85: `TurboModuleWithJSIBindings` + `BindingsInstallerHolder` en `llama.rn`, en vez de instalar JSI manualmente desde `install()` con `CallInvoker.invokeAsync`.
 - [x] Cambiar política de fallback: un fallo runtime ya no persiste `engine=template` si el modelo sigue descargado/válido; solo la respuesta actual cae a plantillas y se guarda diagnóstico.
-- [ ] Lanzar build `1.1.6` / versionCode `11` con el patch nativo nuevo.
+- [x] Lanzar build `1.1.6` / versionCode `11` con el patch nativo nuevo (EAS build `116ff7cb-7ec5-4fdc-bfe9-f2919ae5b8ea` en cola).
 - [ ] Validar en Android real: instalar APK `1.1.6`, confirmar en Ajustes IA `LevelArc 1.1.6 · build 11`, probar primer mensaje, varias conversaciones seguidas, briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
