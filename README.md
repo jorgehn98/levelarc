@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `4e512853-03a3-4381-a0f3-7a24ae24d15a`
-- Android update ID: `019e8537-183d-7e56-95fe-83270e876a08`
+- Update group: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`
+- Android update ID: `019e8546-7385-77c1-8e77-5ca56ef8a6c7`
 - Runtime: `1.1.6`
-- Mensaje: `Persist AI surface diagnostic evidence`
-- Commit: `b96987f`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/4e512853-03a3-4381-a0f3-7a24ae24d15a>
+- Mensaje: `Soften NYX conversational tone`
+- Commit: `8e583187da0644129a108dd0953291afa5d28fe9`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/5b3eaf73-d1d3-4f9c-95ed-e020e47caa37>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 

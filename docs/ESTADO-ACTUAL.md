@@ -681,6 +681,13 @@ Build preview `1.1.6` válido: `9b238105-e0db-460e-a69e-92110759df24`, APK `http
 
 Ajuste de tono de NYX: el chat local funcionaba, pero el usuario detectó respuestas demasiado duras y robóticas. El prompt del LLM y las plantillas se han reajustado para mantener exigencia sin desprecio, responder a peticiones de ideas con opciones concretas y no reciclar el briefing de misiones ante cualquier mensaje casual.
 
+Update `preview` runtime `1.1.6` con tono conversacional de NYX:
+
+- Grupo: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`
+- Android update ID: `019e8546-7385-77c1-8e77-5ca56ef8a6c7`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/5b3eaf73-d1d3-4f9c-95ed-e020e47caa37>
+- Commit: `8e58318` (`Soften NYX conversational tone`).
+
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
 - Grupo: `85cefc2c-f00f-4f85-80af-48e4b3655626`
