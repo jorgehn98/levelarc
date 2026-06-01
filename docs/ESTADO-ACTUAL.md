@@ -679,6 +679,8 @@ Build nativo EAS con LLM: el build válido actual es `9b238105-e0db-460e-a69e-92
 
 Build preview `1.1.6` válido: `9b238105-e0db-460e-a69e-92110759df24`, APK `https://expo.dev/artifacts/eas/ka7LYDJr7W4QTMiu7Qbeqh.apk`, runtime `1.1.6`, versionCode `11`. APK inspeccionado: contiene `.so` de `llama.rn`, bundle JS parcheado y JNI con `TurboModuleWithJSIBindings`/`BindingsInstallerHolder`. Diagnóstico en Android real y chat IA local validados.
 
+Ajuste de tono de NYX: el chat local funcionaba, pero el usuario detectó respuestas demasiado duras y robóticas. El prompt del LLM y las plantillas se han reajustado para mantener exigencia sin desprecio, responder a peticiones de ideas con opciones concretas y no reciclar el briefing de misiones ante cualquier mensaje casual.
+
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
 - Grupo: `85cefc2c-f00f-4f85-80af-48e4b3655626`

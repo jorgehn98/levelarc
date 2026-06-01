@@ -110,6 +110,12 @@ describe('detectIntent', () => {
     expect(detectIntent('motivate me')).toBe('motivate');
   });
 
+  it('maps conversational repair intents', () => {
+    expect(detectIntent('No se me ocurren más ideas')).toBe('ideas');
+    expect(detectIntent('No seas tan dura conmigo')).toBe('tone');
+    expect(detectIntent('ya acabé los de hoy')).toBe('completed');
+  });
+
   it('returns unknown for unrecognized text', () => {
     expect(detectIntent('xyzzy plugh')).toBe('unknown');
     expect(detectIntent('')).toBe('unknown');
@@ -149,10 +155,15 @@ describe('getSystemReply', () => {
     expect(asKeyReply(getSystemReply(makeContext(), 'gracias')).key).toMatch(/^sys_reply_thanks_[12]$/);
   });
 
-  it('falls back to the greeting when the message is unknown but something stands out', () => {
-    // Sin intención reconocida pero con pendientes → reutiliza el saludo proactivo.
+  it('routes conversational repair intents', () => {
+    expect(asKeyReply(getSystemReply(makeContext(), 'Dame ideas')).key).toMatch(/^sys_reply_ideas_[123]$/);
+    expect(asKeyReply(getSystemReply(makeContext(), 'No seas tan dura conmigo')).key).toMatch(/^sys_reply_tone_[12]$/);
+    expect(asKeyReply(getSystemReply(makeContext(), 'ya acabé los de hoy')).key).toMatch(/^sys_reply_completed_[12]$/);
+  });
+
+  it('uses an unknown reply instead of recycling the briefing for casual text', () => {
     const reply = asKeyReply(getSystemReply(makeContext({ pendientesHoy: 2 }), 'blah blah'));
-    expect(reply.key).toMatch(/^sys_pending_[12]$/);
+    expect(reply.key).toMatch(/^sys_reply_unknown_[12]$/);
   });
 
   it('uses the unknown reply when the message is unknown and nothing stands out', () => {

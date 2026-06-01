@@ -112,13 +112,39 @@ export function getSystemGreeting(ctx: SystemContext): SystemReply {
   return keyReply(pick('sys_greet_state', 2, ctx), params);
 }
 
-type Intent = 'hello' | 'status' | 'help' | 'thanks' | 'motivate' | 'unknown';
+type Intent = 'hello' | 'status' | 'help' | 'ideas' | 'tone' | 'completed' | 'thanks' | 'motivate' | 'unknown';
 
 // Palabras clave por intención, ya normalizadas (sin tildes, minúsculas), ES y EN juntas. Las de
 // una sola palabra se buscan por token exacto (evita falsos positivos como 'hi' dentro de
 // "history"); las multi-palabra (con espacio) se buscan como substring sobre el mensaje.
 const INTENT_KEYWORDS: Array<{ intent: Intent; words: string[] }> = [
   { intent: 'thanks', words: ['gracias', 'thanks', 'thank you', 'thx'] },
+  {
+    intent: 'ideas',
+    words: [
+      'idea',
+      'ideas',
+      'sugerencia',
+      'sugerencias',
+      'ejemplo',
+      'ejemplos',
+      'no se me ocurren',
+      'que anada',
+      'anadir',
+      'crear habitos',
+      'mas habitos',
+      'habit ideas',
+      'suggestions',
+    ],
+  },
+  {
+    intent: 'tone',
+    words: ['dura', 'duro', 'borde', 'seca', 'seco', 'amable', 'suave', 'no seas', 'demasiado', 'hard on me', 'too harsh'],
+  },
+  {
+    intent: 'completed',
+    words: ['ya esta', 'ya acabe', 'acabe', 'termine', 'hecho', 'completado', 'done', 'finished'],
+  },
   { intent: 'help', words: ['ayuda', 'help', 'que hago', 'what do i do', 'what should', 'que debo'] },
   { intent: 'status', words: ['como voy', 'estado', 'progreso', 'status', 'how am i', 'progress'] },
   { intent: 'motivate', words: ['animo', 'animame', 'motiva', 'motivate', 'motivation', 'motivame'] },
@@ -165,17 +191,20 @@ export function getSystemReply(ctx: SystemContext, userMessage: string): SystemR
       return keyReply(pick('sys_reply_status', 2, ctx, extra), { ...params, completados: ctx.completadosHoy, falta: ctx.faltaParaNivel });
     case 'help':
       return keyReply(pick('sys_reply_help', 2, ctx, extra), params);
+    case 'ideas':
+      return keyReply(pick('sys_reply_ideas', 3, ctx, extra), params);
+    case 'tone':
+      return keyReply(pick('sys_reply_tone', 2, ctx, extra), params);
+    case 'completed':
+      return keyReply(pick('sys_reply_completed', 2, ctx, extra), params);
     case 'thanks':
       return keyReply(pick('sys_reply_thanks', 2, ctx, extra), params);
     case 'motivate':
       return keyReply(pick('sys_reply_motivate', 2, ctx, extra), params);
     case 'unknown':
     default:
-      // No reconoce intención: comenta el estado. Si hay algo destacable, reutiliza el saludo
-      // proactivo; si no, responde con la variante "no entiendo, pero el Sistema observa".
-      if (ctx.pendientesHoy > 0 || ctx.diaPerfecto || ctx.falladosHoy > 0) {
-        return getSystemGreeting(ctx);
-      }
+      // No reconoce intención: pide concreción sin machacar al usuario ni reciclar el briefing.
+      // Si reutilizamos el saludo proactivo aquí, cualquier frase casual acaba sonando a plantilla.
       return keyReply(pick('sys_reply_unknown', 2, ctx, extra), params);
   }
 }

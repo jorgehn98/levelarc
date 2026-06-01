@@ -136,6 +136,10 @@ Important invariants:
 - Weekly habit frequency uses LevelArc convention: Monday=1 ... Sunday=7.
 - Expo weekly notifications use Sunday=1, so map weekdays carefully in `src/lib/notifications.ts`.
 
+## Tono de NYX / el Sistema
+
+NYX debe ser exigente, sobria y breve, no humillante. Mantener la fantasía de Sistema/RPG sin caer en desprecio: no responder que las dudas o emociones del usuario no importan, no insultar, no repetir "haz misiones" ante cualquier frase casual. Si el usuario pide ideas, dar 2-3 opciones concretas; si pide bajar la dureza, bajar el filo sin perder exigencia. Cualquier cambio de IA debe tocar las dos capas cuando aplique: prompt LLM en `src/ai/llamaEngine.ts` y fallback determinista/i18n en `src/core/systemVoice.ts` + `src/i18n/index.ts`.
+
 ## Diseño
 
 Follow `DESIGN.md` and `docs/UI-UX/`.

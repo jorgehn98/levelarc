@@ -6,16 +6,18 @@ El camino de menor riesgo ya está tomado: hoy "el Sistema" funciona offline con
 
 ## Estado actual (Fase 5A — implementado)
 
-"El Sistema" es un chat con personalidad RPG (tono Solo Leveling: seco, imperativo, breve) accesible desde Hoy (tarjeta "Hablar con el Sistema") y Ajustes (sección Sistema). Pantalla `app/system-chat.tsx`.
+"El Sistema" es un chat con personalidad RPG accesible desde Hoy (tarjeta "Hablar con el Sistema") y Ajustes (sección Sistema). Pantalla `app/system-chat.tsx`.
 
-Funciona **OFFLINE con un motor determinista por plantillas (reglas)**, no un LLM todavía. La arquitectura es enchufable para poder cambiar el motor sin tocar el resto.
+Tono actual de NYX: exigente, sobrio y breve, pero útil. Puede apretar al jugador, no humillarlo: prohibido responder que sus dudas/emociones no importan, insultar o repetir "haz misiones" ante cualquier conversación. Si el usuario pide ideas, debe dar opciones concretas; si pide bajar la dureza, baja el filo sin perder exigencia.
+
+Funciona **OFFLINE con un motor determinista por plantillas (reglas)** y con LLM local cuando el modelo está activo. La arquitectura es enchufable para poder cambiar el motor sin tocar el resto.
 
 - **Arquitectura enchufable**: interface `SystemChatEngine` en `src/ai/engine.ts` con dos adapters:
   - `templateEngine` (activo): respuestas deterministas por reglas.
-  - `llamaEngine` (STUB): delega en plantillas hasta que haya build nativo con el modelo.
+  - `llamaEngine`: LLM local real sobre `llama.rn`, activo solo en build nativo compatible con modelo listo.
   - Selector de motor en `src/ai/index.ts`.
 - **Contexto determinista desde SQLite**: `src/core/aiContext.ts` arma el `SystemContext` y su serialización a partir del estado local (pendientes, racha, nivel, etc.).
-- **Voz por reglas**: `src/core/systemVoice.ts` genera el saludo proactivo según estado (pendientes / día perfecto / fallo / cerca de nivel / racha) y las respuestas por intención detectada por palabras (saludo, estado, ayuda, gracias, motivación). Todo puro y testeado.
+- **Voz por reglas**: `src/core/systemVoice.ts` genera el saludo proactivo según estado (pendientes / día perfecto / fallo / cerca de nivel / racha) y las respuestas por intención detectada por palabras (saludo, estado, ayuda, ideas, ajuste de tono, día completado, gracias, motivación). Todo puro y testeado.
 - **Bilingüe sin acoplar el motor al idioma**: el motor devuelve `{key, params}` (clave i18n abstracta); el store `src/stores/aiStore.ts` traduce con i18n y guarda el **texto ya resuelto**. Banco de frases `sys_*` en ES/EN.
 - **Persistencia**: tablas `ai_profile` (singleton: `enabled`, `engine` `'template'|'llama'`, `modelStatus`, `modelPath`) y `ai_messages` (historial). Migración 0010. Export/import y reset cubren ambas tablas.
 - **Entrega**: por OTA (EAS Update). Es JS puro, no requiere build nativo. Commit `f617d89`.
@@ -117,7 +119,7 @@ La IA no es solo una pantalla de chat: aparece en el flujo de juego.
 
 ### Prompt de sistema
 
-Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar datos, usa solo el estado proporcionado.
+Tono "NYX / el Sistema": máximo 2 frases, sin emojis, sin inventar datos, usa solo el estado proporcionado y el mensaje del jugador. Debe sonar firme y con autoridad, no antipática: exigente con la inacción, no despreciativa con la persona. Debe poder conversar de forma breve cuando el usuario pide ideas, matices o ayuda concreta.
 
 ## Cómo validar 5B (pendiente — única tarea abierta)
 
