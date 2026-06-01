@@ -270,6 +270,20 @@ async function clearLlmRuntimeError(): Promise<void> {
   }
 }
 
+async function saveLlamaResolvedAsTemplate(
+  source: LlmRuntimeErrorSource,
+  profile: AiProfileState,
+  extra: string[] = [],
+): Promise<void> {
+  if (profile.engine !== 'llama') return;
+  await saveLlmRuntimeError(
+    source,
+    profile,
+    new Error('resolveEngine returned template while profile requested llama'),
+    [`resolvedEngine=template`, ...extra],
+  );
+}
+
 // Lee la preferencia. Default true: cualquier valor distinto de 'false' (incluida la ausencia de
 // clave o un fallo de AsyncStorage) cuenta como activada.
 async function loadInterjectionsEnabled(): Promise<boolean> {
@@ -432,12 +446,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       const profileBeforeEngine = get().profile;
       const engine = await resolveEngine(get().profile);
       if (profileBeforeEngine.engine === 'llama' && engine.id !== 'llama') {
-        await saveLlmRuntimeError(
-          'openChat',
-          profileBeforeEngine,
-          new Error('resolveEngine returned template while profile requested llama'),
-          [`resolvedEngine=${engine.id}`],
-        );
+        await saveLlamaResolvedAsTemplate('openChat', profileBeforeEngine);
       }
       const text = resolveReply(await engine.greeting(ctx, language));
       await addAiMessage('assistant', text);
@@ -475,12 +484,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       const profileBeforeEngine = get().profile;
       const engine = await resolveEngine(profileBeforeEngine);
       if (profileBeforeEngine.engine === 'llama' && engine.id !== 'llama') {
-        await saveLlmRuntimeError(
-          'sendMessage',
-          profileBeforeEngine,
-          new Error('resolveEngine returned template while profile requested llama'),
-          [`resolvedEngine=${engine.id}`],
-        );
+        await saveLlamaResolvedAsTemplate('sendMessage', profileBeforeEngine);
       }
       const ctx = await buildSystemContext();
       const reply = resolveReply(await engine.reply(ctx, trimmed, language, contextNote ?? undefined));
@@ -577,7 +581,13 @@ export const useAiStore = create<AiState>((set, get) => ({
     try {
       const language = useAppStore.getState().language;
       const engine = await resolveEngine(get().profile);
-      if (engine.id !== 'llama') return;
+      if (engine.id !== 'llama') {
+        await saveLlamaResolvedAsTemplate('interjection', get().profile, [
+          `trigger=${trigger}`,
+          `resolvedSurface=interjection`,
+        ]);
+        return;
+      }
       const aiText = resolveReply(await engine.interjection(ctx, trigger, language));
       // La aparición pudo descartarse/cambiar mientras inferíamos: solo sustituye si sigue siendo esta.
       const current = get().interjection;
@@ -681,7 +691,13 @@ export const useAiStore = create<AiState>((set, get) => ({
       // Necesitamos la ruta del modelo para generar el briefing. Solo procede en nativo con modelo
       // listo y ruta presente (mismas condiciones que resolveEngine para usar el LLM).
       const modelPath = profile.modelPath;
-      if (Platform.OS === 'web' || profile.modelStatus !== 'ready' || !modelPath) return;
+      if (Platform.OS === 'web' || profile.modelStatus !== 'ready' || !modelPath) {
+        await saveLlamaResolvedAsTemplate('dailyMessage', profile, [
+          `date=${today}`,
+          `reason=llama_preconditions_not_met`,
+        ]);
+        return;
+      }
       const { generateDailyBriefing } = await import('@/ai/llamaEngine');
       const ctx = await buildSystemContext();
       const text = resolveReply(await generateDailyBriefing(ctx, language, modelPath));
@@ -738,7 +754,13 @@ export const useAiStore = create<AiState>((set, get) => ({
 
     // Mismas condiciones que el LLM en ensureDailyMessage: nativo, modelo listo y ruta presente.
     const modelPath = profile.modelPath;
-    if (Platform.OS === 'web' || profile.modelStatus !== 'ready' || !modelPath) return;
+    if (Platform.OS === 'web' || profile.modelStatus !== 'ready' || !modelPath) {
+      await saveLlamaResolvedAsTemplate('habitInsight', profile, [
+        `habitId=${habitId}`,
+        `reason=llama_preconditions_not_met`,
+      ]);
+      return;
+    }
 
     habitInsightInFlight.add(habitId);
     try {
