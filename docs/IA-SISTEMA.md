@@ -55,7 +55,7 @@ El LLM on-device ya está implementado en código sobre la misma interface `Syst
 
 - NO funciona en Expo Go.
 - NO se entrega por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
-- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`, el patch bridgeless, la instalación JSI vía runtime del `CallInvoker` y la espera robusta de JSI. El build `5cf2587d` (`1.1.5`, versionCode `10`) está verificado a nivel de APK, pero el usuario volvió a reproducir `JSI bindings not installed` al primer mensaje. El siguiente build válido debe ser `1.1.6` / versionCode `11` con el patch nativo `TurboModuleWithJSIBindings` + `BindingsInstallerHolder`.
+- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`, el patch bridgeless, la instalación JSI vía `TurboModuleWithJSIBindings` + `BindingsInstallerHolder` y la espera robusta de JSI. El build `5cf2587d` (`1.1.5`, versionCode `10`) está verificado a nivel de APK, pero el usuario volvió a reproducir `JSI bindings not installed` al primer mensaje. El primer intento `1.1.6` (`d212dc78`) falló compilando porque `BindingsInstallerHolder` requiere C++20 y `llama.rn` seguía con C++17; el patch ahora fuerza C++20 en CMake. El siguiente build válido debe ser `1.1.6` / versionCode `11` con ese ajuste.
 - El modelo NO viene en el APK ni por OTA: la IA es **opcional** y el GGUF se descarga bajo demanda dentro de la app. La app funciona perfecta sin modelo.
 - El chat por plantillas (runtime `1.0.2`) sigue funcionando por OTA para quien no instale el build nuevo.
 
@@ -122,12 +122,13 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 
 El build `5cf2587d` ya no se considera suficiente para validar IA local; lo que queda es generar e instalar `1.1.6`:
 
-1. Instalar el APK del build `1.1.6` (versionCode `11`) cuando EAS lo genere.
-2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
-3. Si el chat vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla. El diagnóstico prueba por fases: `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`; copiar el primer paso con `ERROR`.
-4. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
-5. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
-6. EAS Build `production`.
+1. Relanzar EAS build `1.1.6` (versionCode `11`) desde el commit que compila `llama.rn` con C++20; el build `d212dc78` falló y `8c47b918` se canceló por usar el patch anterior.
+2. Instalar el APK resultante cuando EAS lo genere.
+3. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
+4. Si el chat vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla. El diagnóstico prueba por fases: `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`; copiar el primer paso con `ERROR`.
+5. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
+6. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
+7. EAS Build `production`.
 
 ## Riesgos
 

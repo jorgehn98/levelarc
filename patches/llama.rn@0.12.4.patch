@@ -1,3 +1,26 @@
+diff --git a/android/src/main/CMakeLists.txt b/android/src/main/CMakeLists.txt
+index 3f64914ac7c535ee71ee45aa7795c4041263c764..71701403a023a16fe99ccee4c613ac7bee4ca178 100644
+--- a/android/src/main/CMakeLists.txt
++++ b/android/src/main/CMakeLists.txt
+@@ -8,7 +8,8 @@ find_package(ReactAndroid CONFIG REQUIRED)
+ # Try to find fbjni separately if not in ReactAndroid
+ find_package(fbjni CONFIG REQUIRED)
+ 
+-set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD 20)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
+ set(RNLLAMA_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../cpp)
+ 
+@@ -66,6 +67,8 @@ function(build_rnllama_jni jni_name rnllama_name arch cpu_flags)
+         ${JNI_SOURCE_FILES}
+     )
+ 
++    target_compile_features(${jni_name} PRIVATE cxx_std_20)
++
+     # Link JSI libraries
+     if(${REACT_NATIVE_MINOR_VERSION} GREATER_EQUAL 76)
+         target_link_libraries(${jni_name} PRIVATE
 diff --git a/android/src/main/RNLlamaJSI.cpp b/android/src/main/RNLlamaJSI.cpp
 index 312c87faea438eb8e8385ba92bf0ecbffa3fabd6..315d991abfb3a44c295d2c95453118b30cb0f9f6 100644
 --- a/android/src/main/RNLlamaJSI.cpp
