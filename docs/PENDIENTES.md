@@ -116,8 +116,8 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Validar tamaño exacto + SHA-256 del GGUF tras descarga para no marcar como listo un modelo parcial/corrupto.
 - [x] Mensaje del Sistema en Hoy (banner `SystemMessageCard`, cacheado por día con IA activa).
 - [x] Apariciones autónomas del Sistema (`SystemInterjectionOverlay`, triggers misión completada / vuelta tras ausencia, cooldown 1/sesión y 1/día por trigger, "Continuar" abre el chat con contexto).
-- [ ] Build nativo válido con `.so` de `llama.rn` incluidas (el build `e37eafc1` compiló pero queda descartado para IA local: APK sin `librnllama*.so`, error `JSI bindings not installed`).
-- [ ] Validar en device real: instalar próximo APK `1.1.1` / versionCode `6`, descargar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Build nativo válido con `.so` de `llama.rn` incluidas (`114d891f`, runtime `1.1.1`, versionCode `6`; APK verificado con 14 librerías `lib/arm64-v8a/librnllama*.so`).
+- [ ] Validar en device real: instalar APK `114d891f`, descargar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).
@@ -149,7 +149,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Validar EAS Update end-to-end en preview.
 - [x] Desactivar code signing de EAS Update: Expo lo bloquea sin plan Enterprise y rompía `eas update` en `preview`.
 - [x] Crear nuevo APK preview sin code signing tras reset de cuota EAS Free (`e37eafc1-40a9-49db-a913-5c58201e902d`), aunque queda descartado para IA local porque faltan las `.so` de `llama.rn`.
-- [ ] Verificar próximo APK preview inspeccionando que contiene `lib/arm64-v8a/librnllama*.so` antes de entregar URL.
+- [x] Verificar APK preview inspeccionando que contiene `lib/arm64-v8a/librnllama*.so` antes de entregar URL (`114d891f`).
 - [ ] Añadir tests de repositorio o integración local.
 - [x] Revisar warnings estructurales de React Doctor.
 - [x] Revisar rendimiento de SQLite sync/async: añadidos índices para consultas frecuentes de `events`.

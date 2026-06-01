@@ -106,11 +106,11 @@ Proyecto EAS enlazado:
 
 Último APK preview válido:
 
-- Build ID: `e37eafc1-40a9-49db-a913-5c58201e902d`
-- APK: <https://expo.dev/artifacts/eas/u6kBoGBLi8EzzfmEdZtEet.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/e37eafc1-40a9-49db-a913-5c58201e902d>
-- Versión anterior rota: `1.1.0`, Android versionCode `5`, runtimeVersion `1.1.0`. Falta `librnllama*.so` porque pnpm ignoró el postinstall de `llama.rn`; no usar para validar IA local.
-- Incluye `llama.rn` + Gemma 4 E2B, diagnósticos de runtime LLM y configuración actual de EAS Update sin code signing.
+- Build ID: `114d891f-0f8e-4dd9-8706-b6dec7d886e1`
+- APK: <https://expo.dev/artifacts/eas/38VCEbYsGPo5eFAYrXCVJZ.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/114d891f-0f8e-4dd9-8706-b6dec7d886e1>
+- Versión: `1.1.1`, Android versionCode `6`, runtimeVersion `1.1.1`.
+- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), así que sí incluye el runtime nativo de `llama.rn`.
 
 Antes de publicar:
 
