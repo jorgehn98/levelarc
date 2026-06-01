@@ -200,7 +200,10 @@ const INTERJECTIONS_ENABLED_KEY = 'levelarc.interjectionsEnabled';
 const LLM_RUNTIME_ERROR_KEY = 'levelarc.ai.llmRuntimeError';
 
 function describeError(error: unknown): string {
-  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  if (error instanceof Error) {
+    const stack = error.stack && error.stack !== error.message ? `\n${error.stack}` : '';
+    return `${error.name}: ${error.message}${stack}`;
+  }
   if (typeof error === 'string') return error;
   try {
     return JSON.stringify(error);
@@ -209,9 +212,26 @@ function describeError(error: unknown): string {
   }
 }
 
-async function saveLlmRuntimeError(error: unknown): Promise<void> {
+function buildLlmRuntimeDiagnostic(source: 'openChat' | 'sendMessage', profile: AiProfileState, error: unknown): string {
+  return [
+    `source=${source}`,
+    `timestamp=${new Date().toISOString()}`,
+    `platform=${Platform.OS}`,
+    `engine=${profile.engine}`,
+    `modelStatus=${profile.modelStatus}`,
+    `hasModelPath=${Boolean(profile.modelPath)}`,
+    `modelExists=${Platform.OS === 'web' ? 'n/a' : modelManager.modelExists()}`,
+    describeError(error),
+  ].join('\n');
+}
+
+async function saveLlmRuntimeError(
+  source: 'openChat' | 'sendMessage',
+  profile: AiProfileState,
+  error: unknown,
+): Promise<void> {
   try {
-    await AsyncStorage.setItem(LLM_RUNTIME_ERROR_KEY, describeError(error).slice(0, 500));
+    await AsyncStorage.setItem(LLM_RUNTIME_ERROR_KEY, buildLlmRuntimeDiagnostic(source, profile, error).slice(0, 2000));
   } catch {
     // Diagnóstico best-effort: no debe romper el fallback del chat.
   }
@@ -292,9 +312,13 @@ function resolveReply(reply: SystemReply): string {
 // "no responde" en bucle. Degradamos SOLO el motor a plantillas para que el siguiente mensaje sea
 // inmediato y funcional. Si el fichero sigue existiendo y tiene tamaño correcto, NO marcamos
 // modelStatus='error': la descarga no falló, falló la ejecución del motor.
-async function downgradeToTemplateAfterLlmFailure(profile: AiProfileState, error: unknown): Promise<AiProfileState> {
+async function downgradeToTemplateAfterLlmFailure(
+  profile: AiProfileState,
+  error: unknown,
+  source: 'openChat' | 'sendMessage',
+): Promise<AiProfileState> {
   if (profile.engine !== 'llama') return profile;
-  await saveLlmRuntimeError(error);
+  await saveLlmRuntimeError(source, profile, error);
   if (profile.modelStatus !== 'ready' || !modelManager.modelExists()) {
     await setAiModelStatus('error');
   }
@@ -392,7 +416,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       await addAiMessage('assistant', text);
     } catch (err) {
       if (__DEV__) console.warn('[ai] openChat: fallo en el saludo del Sistema', err);
-      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err);
+      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err, 'openChat');
       const fallback = resolveReply(await templateEngine.greeting(ctx, language));
       await addAiMessage('assistant', fallback);
       set({ profile });
@@ -438,7 +462,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       if (token !== chatGenerationToken) return;
       const language = useAppStore.getState().language;
       const ctx = await buildSystemContext();
-      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err);
+      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err, 'sendMessage');
       const fallback = resolveReply(await templateEngine.reply(ctx, trimmed, language, contextNote ?? undefined));
       await addAiMessage('assistant', fallback);
       // Limpiamos el contextNote igualmente: el intento ya consumió el contexto inicial.
