@@ -9,7 +9,7 @@ overrides:
 
 patchedDependencies:
   llama.rn@0.12.4:
-    hash: f650b528eed06539e6a7280aea1f44a764041047c854f2d92c8f9dfb9028d728
+    hash: 79d1a1618f04f76799fdccbfc99ca35a07b7c710544516f229a87c021409d657
     path: patches/llama.rn@0.12.4.patch
 
 importers:
@@ -60,7 +60,7 @@ importers:
         version: 56.0.16(expo@56.0.4)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3)
       llama.rn:
         specifier: 0.12.4
-        version: 0.12.4(patch_hash=f650b528eed06539e6a7280aea1f44a764041047c854f2d92c8f9dfb9028d728)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3)
+        version: 0.12.4(patch_hash=79d1a1618f04f76799fdccbfc99ca35a07b7c710544516f229a87c021409d657)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3)
       lucide-react-native:
         specifier: ^1.16.0
         version: 1.16.0(react-native-svg@15.15.4(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3)
@@ -7220,7 +7220,7 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  llama.rn@0.12.4(patch_hash=f650b528eed06539e6a7280aea1f44a764041047c854f2d92c8f9dfb9028d728)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3):
+  llama.rn@0.12.4(patch_hash=79d1a1618f04f76799fdccbfc99ca35a07b7c710544516f229a87c021409d657)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-native: 0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3)

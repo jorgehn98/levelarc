@@ -1,57 +1,77 @@
 diff --git a/android/src/main/RNLlamaJSI.cpp b/android/src/main/RNLlamaJSI.cpp
-index 312c87faea438eb8e8385ba92bf0ecbffa3fabd6..9ea391582266ab96a654801f272abaeb8a76569f 100644
+index 312c87faea438eb8e8385ba92bf0ecbffa3fabd6..f8ecde758f1b12e00b492bf38c4e8984aa7b7d02 100644
 --- a/android/src/main/RNLlamaJSI.cpp
 +++ b/android/src/main/RNLlamaJSI.cpp
-@@ -16,6 +16,7 @@ Java_com_rnllama_RNLlamaModule_installJSIBindings(
+@@ -5,33 +5,37 @@
+ #include "llama-impl.h"
+ #include <android/log.h>
+ #include <string>
+-#include <cstdint>
+
+ extern "C" JNIEXPORT void JNICALL
+
+ Java_com_rnllama_RNLlamaModule_installJSIBindings(
+     JNIEnv *env,
+     jobject thiz,
+-    jlong runtimePtr,
      jobject callInvokerHolder
  ) {
-     if (runtimePtr == 0 || callInvokerHolder == nullptr) {
-+        __android_log_print(ANDROID_LOG_ERROR, "RNLlamaModule", "installJSIBindings skipped: runtimePtr=%lld callInvokerHolder=%p", (long long) runtimePtr, callInvokerHolder);
+-    if (runtimePtr == 0 || callInvokerHolder == nullptr) {
++    (void) env;
++    (void) thiz;
++
++    if (callInvokerHolder == nullptr) {
++        __android_log_print(ANDROID_LOG_ERROR, "RNLlamaModule", "installJSIBindings skipped: null callInvokerHolder");
          return;
      }
- 
-@@ -27,11 +28,15 @@ Java_com_rnllama_RNLlamaModule_installJSIBindings(
+
+-    auto runtime = reinterpret_cast<facebook::jsi::Runtime*>(runtimePtr);
+-
+     // Unwrap CallInvokerHolder
+     auto holder = facebook::jni::alias_ref<facebook::react::CallInvokerHolder::javaobject>{
+         reinterpret_cast<facebook::react::CallInvokerHolder::javaobject>(callInvokerHolder)
      };
      auto callInvoker = holder->cthis()->getCallInvoker();
      if (!callInvoker) {
 +        __android_log_print(ANDROID_LOG_ERROR, "RNLlamaModule", "installJSIBindings skipped: null callInvoker");
          return;
      }
- 
-+    __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "scheduling JSI binding install");
-     callInvoker->invokeAsync([runtime, callInvoker]() {
-+        __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "installing JSI bindings on JS invoker");
-         rnllama_jsi::installJSIBindings(*runtime, callInvoker);
-+        __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "installed JSI bindings on JS invoker");
+
+-    callInvoker->invokeAsync([runtime, callInvoker]() {
+-        rnllama_jsi::installJSIBindings(*runtime, callInvoker);
++    __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "scheduling JSI binding install with CallInvoker runtime");
++    callInvoker->invokeAsync([callInvoker](facebook::jsi::Runtime& runtime) {
++        __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "installing JSI bindings on JS invoker runtime");
++        rnllama_jsi::installJSIBindings(runtime, callInvoker);
++        __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "installed JSI bindings on JS invoker runtime");
      });
  }
- 
+
 diff --git a/android/src/main/java/com/rnllama/RNLlamaModule.java b/android/src/main/java/com/rnllama/RNLlamaModule.java
-index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..13d3e23ea6e1ec41253ad88db0939d3d7a7dfd60 100644
+index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..c60846e8d0c9f5cc2fa3a415fc3657f8a0f3825d 100644
 --- a/android/src/main/java/com/rnllama/RNLlamaModule.java
 +++ b/android/src/main/java/com/rnllama/RNLlamaModule.java
-@@ -1,15 +1,20 @@
+@@ -1,15 +1,19 @@
  package com.rnllama;
- 
+
 +import android.util.Log;
 +
  import androidx.annotation.NonNull;
- 
-+import com.facebook.react.bridge.JavaScriptContextHolder;
+
  import com.facebook.react.bridge.Promise;
  import com.facebook.react.bridge.ReactApplicationContext;
  import com.facebook.react.module.annotations.ReactModule;
  import com.facebook.react.turbomodule.core.CallInvokerHolderImpl;
 +import com.facebook.react.turbomodule.core.interfaces.CallInvokerHolder;
- 
+
  @ReactModule(name = RNLlama.NAME)
  public class RNLlamaModule extends NativeRNLlamaSpec {
    public static final String NAME = RNLlama.NAME;
 +  private static final String TAG = "RNLlamaModule";
- 
+
    private ReactApplicationContext context;
- 
-@@ -29,26 +34,47 @@ public class RNLlamaModule extends NativeRNLlamaSpec {
+
+@@ -29,29 +33,35 @@ public class RNLlamaModule extends NativeRNLlamaSpec {
      try {
        boolean loaded = RNLlama.loadNative(context);
        if (!loaded) {
@@ -59,16 +79,11 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..13d3e23ea6e1ec41253ad88db0939d3d
 +        promise.reject("ERR_RNLLAMA_LOAD_NATIVE", "RNLlama.loadNative returned false");
          return;
        }
- 
+
 -      long jsContextPointer = context.getJavaScriptContextHolder().get();
 -      CallInvokerHolderImpl holder =
 -        (CallInvokerHolderImpl) context.getCatalystInstance().getJSCallInvokerHolder();
-+      JavaScriptContextHolder jsContext = context.getJavaScriptContextHolder();
-+      if (jsContext == null) {
-+        promise.reject("ERR_RNLLAMA_JS_CONTEXT", "JavaScriptContextHolder is null; React instance is not ready");
-+        return;
-+      }
- 
+-
 -      if (jsContextPointer == 0 || holder == null) {
 -        promise.resolve(false);
 +      CallInvokerHolder callInvokerHolder = context.getJSCallInvokerHolder();
@@ -80,18 +95,9 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..13d3e23ea6e1ec41253ad88db0939d3d
 +        );
          return;
        }
- 
+
 -      installJSIBindings(jsContextPointer, holder);
-+      synchronized (jsContext) {
-+        long jsContextPointer = jsContext.get();
-+        if (jsContextPointer == 0) {
-+          promise.reject("ERR_RNLLAMA_JS_CONTEXT", "JavaScriptContextHolder pointer is 0");
-+          return;
-+        }
-+
-+        installJSIBindings(jsContextPointer, (CallInvokerHolderImpl) callInvokerHolder);
-+      }
-+
++      installJSIBindings((CallInvokerHolderImpl) callInvokerHolder);
        promise.resolve(true);
        return;
      } catch (UnsatisfiedLinkError e) {
@@ -105,16 +111,20 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..13d3e23ea6e1ec41253ad88db0939d3d
      }
 -    promise.resolve(false);
    }
- 
-   private native void installJSIBindings(long jsContextPointer, CallInvokerHolderImpl callInvokerHolder);
+
+-  private native void installJSIBindings(long jsContextPointer, CallInvokerHolderImpl callInvokerHolder);
++  private native void installJSIBindings(CallInvokerHolderImpl callInvokerHolder);
+   private native void cleanupJSIBindings();
+
+   @Override
 diff --git a/src/index.ts b/src/index.ts
 index 2f024aee392e243a7aa5d749eaa3ed5714406add..cbd26e750a5272a43eccfceaa8093f73b53d7dec 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -128,25 +128,23 @@ type JsiBindings = { [K in JsiBindingKey]: NonNullable<(typeof globalThis)[K]> }
- 
+
  let jsiBindings: JsiBindings | null = null
- 
+
 -const bindJsiFromGlobal = () => {
 -  const bindings: Partial<JsiBindings> = {}
 -  const missing: string[] = []
@@ -131,13 +141,13 @@ index 2f024aee392e243a7aa5d749eaa3ed5714406add..cbd26e750a5272a43eccfceaa8093f73
 -  })
 +const getMissingJsiBindingKeys = (): string[] =>
 +  jsiBindingKeys.filter((key) => typeof global[key] !== 'function')
- 
+
 +const bindJsiFromGlobal = () => {
 +  const missing = getMissingJsiBindingKeys()
    if (missing.length > 0) {
      throw new Error(`[RNLlama] Missing JSI bindings: ${missing.join(', ')}`)
    }
- 
+
 +  const bindings: Partial<JsiBindings> = {}
 +  jsiBindingKeys.forEach((key) => {
 +    ;(bindings as Record<string, unknown>)[key] = global[
@@ -148,10 +158,10 @@ index 2f024aee392e243a7aa5d749eaa3ed5714406add..cbd26e750a5272a43eccfceaa8093f73
 +
    jsiBindings = bindings as JsiBindings
  }
- 
+
 @@ -158,15 +156,41 @@ const getJsi = (): JsiBindings => {
  }
- 
+
  // JSI Installation
 +const JSI_INSTALL_TIMEOUT_MS = 8000
 +const JSI_INSTALL_POLL_MS = 50
