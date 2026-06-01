@@ -77,6 +77,9 @@
     ],
     "ignoredBuiltDependencies": [
       "msgpackr-extract"
-    ]
+    ],
+    "patchedDependencies": {
+      "llama.rn@0.12.4": "patches/llama.rn@0.12.4.patch"
+    }
   }
 }

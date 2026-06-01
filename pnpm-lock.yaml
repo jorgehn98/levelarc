@@ -8,7 +8,9 @@ overrides:
   uuid: 11.1.1
 
 patchedDependencies:
-  llama.rn@0.12.4: 7f6ef265ae0f9c66201deaf65bc8457cc0c6abeaaab12dbee7dbb3ce7272d42b
+  llama.rn@0.12.4:
+    hash: 7f6ef265ae0f9c66201deaf65bc8457cc0c6abeaaab12dbee7dbb3ce7272d42b
+    path: patches/llama.rn@0.12.4.patch
 
 importers:
 
