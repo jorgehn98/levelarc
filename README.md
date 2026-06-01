@@ -106,10 +106,11 @@ Proyecto EAS enlazado:
 
 Último APK preview válido:
 
-- Build ID: `6e5e6b06-bb05-481d-bcb0-85808bce2981`
-- APK: <https://expo.dev/artifacts/eas/eCtjS5na8CNGaV6SxaiN2X.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/6e5e6b06-bb05-481d-bcb0-85808bce2981>
-- Versión: `1.0.2`, Android versionCode `4`, runtimeVersion `1.0.2`.
+- Build ID: `e37eafc1-40a9-49db-a913-5c58201e902d`
+- APK: <https://expo.dev/artifacts/eas/u6kBoGBLi8EzzfmEdZtEet.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/e37eafc1-40a9-49db-a913-5c58201e902d>
+- Versión: `1.1.0`, Android versionCode `5`, runtimeVersion `1.1.0`.
+- Incluye `llama.rn` + Gemma 4 E2B, diagnósticos de runtime LLM y configuración actual de EAS Update sin code signing.
 
 Antes de publicar:
 
@@ -132,7 +133,7 @@ pnpm update:preview --message "Fix UI copy"
 pnpm build:android:preview
 ```
 
-Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `6e5e6b06-bb05-481d-bcb0-85808bce2981` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
+Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `e37eafc1-40a9-49db-a913-5c58201e902d` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
 
 `babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
 

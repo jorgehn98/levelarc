@@ -116,8 +116,8 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Validar tamaño exacto + SHA-256 del GGUF tras descarga para no marcar como listo un modelo parcial/corrupto.
 - [x] Mensaje del Sistema en Hoy (banner `SystemMessageCard`, cacheado por día con IA activa).
 - [x] Apariciones autónomas del Sistema (`SystemInterjectionOverlay`, triggers misión completada / vuelta tras ausencia, cooldown 1/sesión y 1/día por trigger, "Continuar" abre el chat con contexto).
-- [x] Build nativo conseguido (preview Android `1c04b308-ea9a-44a9-afb1-da7ecb837927`, runtime `1.1.0`, versionCode `5`; resuelto con `EAS_NO_VCS=1` por el bug de git clone en Windows).
-- [ ] Validar en device real: instalar APK `1c04b308`, descargar Gemma 4 E2B (~3,1 GB) y probar chat y apariciones (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Build nativo conseguido (preview Android actual `e37eafc1-40a9-49db-a913-5c58201e902d`, runtime `1.1.0`, versionCode `5`; incluye LLM diagnostics y EAS Update sin code signing).
+- [ ] Validar en device real: instalar APK `e37eafc1`, descargar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).
@@ -148,7 +148,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Resolver `pnpm audit --prod`: override de `uuid` transitivo de `xcode` a `11.1.1`.
 - [x] Validar EAS Update end-to-end en preview.
 - [x] Desactivar code signing de EAS Update: Expo lo bloquea sin plan Enterprise y rompía `eas update` en `preview`.
-- [ ] Crear nuevo APK preview sin code signing cuando se resetee la cuota EAS Free; los APK firmados anteriores no pueden consumir OTAs sin firma.
+- [x] Crear nuevo APK preview sin code signing tras reset de cuota EAS Free (`e37eafc1-40a9-49db-a913-5c58201e902d`); los APK firmados anteriores no pueden consumir OTAs sin firma.
 - [ ] Añadir tests de repositorio o integración local.
 - [x] Revisar warnings estructurales de React Doctor.
 - [x] Revisar rendimiento de SQLite sync/async: añadidos índices para consultas frecuentes de `events`.
