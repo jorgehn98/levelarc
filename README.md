@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `6c5028bc-3246-45d0-8b05-7ab3f00642a2`
-- Android update ID: `019e8530-0963-7c94-88c0-0d5a19b1f986`
+- Update group: `f42be399-af1b-49cc-a38c-a212b88ca838`
+- Android update ID: `019e8533-68f4-732a-a362-93e291a482b2`
 - Runtime: `1.1.6`
-- Mensaje: `Harden AI surface diagnostics`
-- Commit: `7b1c364`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6c5028bc-3246-45d0-8b05-7ab3f00642a2>
+- Mensaje: `Release LLM after surface diagnostics`
+- Commit: `1b6d7c5`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/f42be399-af1b-49cc-a38c-a212b88ca838>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
