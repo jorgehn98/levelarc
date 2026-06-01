@@ -11,6 +11,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { MODEL_DISPLAY_NAME, formatModelSize } from '@/ai/modelManager';
 import { t, type Language } from '@/i18n';
 import { confirmAction } from '@/lib/confirm';
+import type { LlamaDiagnosticStep } from '@/ai/llamaEngine';
 import { getLlmRuntimeError, useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
@@ -26,6 +27,8 @@ export default function SystemAiScreen() {
   const deleteModel = useAiStore((state) => state.deleteModel);
   const setEngine = useAiStore((state) => state.setEngine);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<LlamaDiagnosticStep[] | null>(null);
+  const [diagnosticsRunning, setDiagnosticsRunning] = useState(false);
 
   // Carga el perfil al montar si todavía no está listo (la pantalla puede abrirse sin pasar por el
   // chat, que es quien normalmente llama a loadAi).
@@ -80,6 +83,23 @@ export default function SystemAiScreen() {
     })();
   }
 
+  function handleRunDiagnostics() {
+    if (!profile.modelPath || diagnosticsRunning) return;
+    void (async () => {
+      setDiagnosticsRunning(true);
+      setDiagnostics(null);
+      try {
+        const { runLlamaDiagnostics } = await import('@/ai/llamaEngine');
+        setDiagnostics(await runLlamaDiagnostics(profile.modelPath!));
+      } catch (error) {
+        const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+        setDiagnostics([{ name: 'diagnostic bootstrap', status: 'error', detail, ms: 0 }]);
+      } finally {
+        setDiagnosticsRunning(false);
+      }
+    })();
+  }
+
   return (
     <Screen>
       <ScreenHeader
@@ -112,8 +132,11 @@ export default function SystemAiScreen() {
               <DownloadingState language={language} onCancel={cancelDownload} progress={modelProgress} />
             ) : status === 'ready' ? (
               <ReadyState
+                diagnostics={diagnostics}
+                diagnosticsRunning={diagnosticsRunning}
                 language={language}
                 onDelete={handleDelete}
+                onRunDiagnostics={handleRunDiagnostics}
                 onToggleEngine={handleToggleEngine}
                 runtimeError={runtimeError}
                 usingLlama={usingLlama}
@@ -160,14 +183,20 @@ function DownloadingState({
 }
 
 function ReadyState({
+  diagnostics,
+  diagnosticsRunning,
   language,
   onDelete,
+  onRunDiagnostics,
   onToggleEngine,
   runtimeError,
   usingLlama,
 }: {
+  diagnostics: LlamaDiagnosticStep[] | null;
+  diagnosticsRunning: boolean;
   language: Language;
   onDelete: () => void;
+  onRunDiagnostics: () => void;
   onToggleEngine: () => void;
   runtimeError: string | null;
   usingLlama: boolean;
@@ -198,7 +227,36 @@ function ReadyState({
         </View>
       ) : null}
 
+      <Button
+        disabled={diagnosticsRunning}
+        icon={Cpu}
+        label={diagnosticsRunning ? t(language, 'aiDiagnosticRunning') : t(language, 'aiRunDiagnostic')}
+        onPress={onRunDiagnostics}
+        variant="secondary"
+      />
+
+      {diagnostics ? <DiagnosticResult language={language} steps={diagnostics} /> : null}
+
       <Button icon={Trash2} label={t(language, 'aiDeleteModel')} onPress={onDelete} variant="danger" />
+    </View>
+  );
+}
+
+function DiagnosticResult({ language, steps }: { language: Language; steps: LlamaDiagnosticStep[] }) {
+  return (
+    <View style={styles.diagnosticCard}>
+      <Text style={styles.diagnosticTitle}>{t(language, 'aiDiagnosticTitle')}</Text>
+      <Text style={styles.diagnosticHint}>{t(language, 'aiDiagnosticHint')}</Text>
+      {steps.map((step) => (
+        <View key={`${step.name}-${step.ms}`} style={styles.diagnosticStep}>
+          <Text style={[styles.diagnosticStepName, step.status === 'error' && styles.diagnosticStepError]}>
+            {step.status === 'ok' ? 'OK' : 'ERROR'} · {step.name} · {step.ms}ms
+          </Text>
+          <Text selectable style={styles.diagnosticStepDetail}>
+            {step.detail}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -353,6 +411,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     marginTop: 6,
+  },
+  diagnosticCard: {
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: 10,
+    padding: 12,
+  },
+  diagnosticTitle: {
+    color: colors.brand.cyanCore,
+    fontFamily: typography.font.bodyMedium,
+    fontSize: 13,
+  },
+  diagnosticHint: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  diagnosticStep: {
+    gap: 4,
+  },
+  diagnosticStepName: {
+    color: colors.state.completed,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  diagnosticStepError: {
+    color: colors.state.failed,
+  },
+  diagnosticStepDetail: {
+    color: colors.brand.bone,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 11,
+    lineHeight: 16,
   },
   toggleCopy: {
     flex: 1,

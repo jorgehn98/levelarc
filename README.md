@@ -110,7 +110,7 @@ Proyecto EAS enlazado:
 - APK: <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>
 - Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/5cf2587d-df9d-4020-a247-2dffdb48fa79>
 - Versión: `1.1.5`, Android versionCode `10`, runtimeVersion `1.1.5`.
-- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI con el runtime del `CallInvoker`, compila el build EAS y el bundle incluye la espera robusta de bindings JSI antes de consumirlos.
+- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI con el runtime del `CallInvoker`, compila el build EAS y el bundle incluye la espera robusta de bindings JSI antes de consumirlos. La pantalla de IA puede recibir por OTA un diagnóstico manual por fases compatible con este runtime.
 
 Antes de publicar:
 

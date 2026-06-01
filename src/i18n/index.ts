@@ -365,6 +365,11 @@ const dictionary = {
     aiRuntimeDisabled: 'IA avanzada desactivada',
     aiRuntimeDisabledCopy:
       'El modelo sigue descargado, pero el motor local falló al generar. LevelArc ha vuelto a plantillas para no bloquear el chat.',
+    aiRunDiagnostic: 'Ejecutar diagnóstico IA',
+    aiDiagnosticRunning: 'Diagnosticando…',
+    aiDiagnosticTitle: 'Diagnóstico del motor local',
+    aiDiagnosticHint:
+      'Ejecuta importación nativa, instalación JSI, backend, lectura del modelo y carga inicial. Copia el primer ERROR si aparece.',
     aiDeleteModel: 'Eliminar modelo',
     aiRetry: 'Reintentar',
     aiDownloadError: 'La descarga falló. Inténtalo de nuevo.',
@@ -799,6 +804,11 @@ const dictionary = {
     aiRuntimeDisabled: 'Advanced AI disabled',
     aiRuntimeDisabledCopy:
       'The model is still downloaded, but the local engine failed while generating. LevelArc fell back to templates to avoid blocking the chat.',
+    aiRunDiagnostic: 'Run AI diagnostic',
+    aiDiagnosticRunning: 'Diagnosing…',
+    aiDiagnosticTitle: 'Local engine diagnostic',
+    aiDiagnosticHint:
+      'Runs native import, JSI install, backend, model metadata and initial load. Copy the first ERROR if one appears.',
     aiDeleteModel: 'Delete model',
     aiRetry: 'Retry',
     aiDownloadError: 'The download failed. Try again.',

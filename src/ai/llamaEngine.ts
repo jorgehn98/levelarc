@@ -330,6 +330,103 @@ function getCompletionText(result: CompletionTextResult): string {
   return text;
 }
 
+export type LlamaDiagnosticStatus = 'ok' | 'error';
+
+export type LlamaDiagnosticStep = {
+  name: string;
+  status: LlamaDiagnosticStatus;
+  detail: string;
+  ms: number;
+};
+
+function summarizeDiagnosticValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value).slice(0, 600);
+  } catch {
+    return String(value);
+  }
+}
+
+// Diagnóstico manual por fases para Android real. No cambia el motor activo ni degrada a plantillas:
+// solo ejecuta las mismas capas críticas que usa el chat y devuelve exactamente en qué fase falla.
+export async function runLlamaDiagnostics(modelPath: string): Promise<LlamaDiagnosticStep[]> {
+  const steps: LlamaDiagnosticStep[] = [];
+  let llamaModule: typeof import('llama.rn') | null = null;
+
+  async function runStep(name: string, action: () => Promise<string>): Promise<boolean> {
+    const startedAt = Date.now();
+    try {
+      const detail = await action();
+      steps.push({ name, status: 'ok', detail, ms: Date.now() - startedAt });
+      return true;
+    } catch (error) {
+      steps.push({ name, status: 'error', detail: getErrorMessage(error), ms: Date.now() - startedAt });
+      return false;
+    }
+  }
+
+  if (
+    !(await runStep('import llama.rn', async () => {
+      llamaModule = await import('llama.rn');
+      const build = llamaModule.BuildInfo;
+      return `BuildInfo number=${build.number} commit=${build.commit}`;
+    }))
+  ) {
+    return steps;
+  }
+
+  if (
+    !(await runStep('installJsi', async () => {
+      await installJsiWithRetry(llamaModule!.installJsi);
+      return 'JSI instalado y bindings movidos al closure interno de llama.rn';
+    }))
+  ) {
+    return steps;
+  }
+
+  if (
+    !(await runStep('getBackendDevicesInfo', async () => {
+      const devices = await llamaModule!.getBackendDevicesInfo();
+      return summarizeDiagnosticValue(devices);
+    }))
+  ) {
+    return steps;
+  }
+
+  if (
+    !(await runStep('loadLlamaModelInfo', async () => {
+      const info = await llamaModule!.loadLlamaModelInfo(modelPath);
+      return summarizeDiagnosticValue(info);
+    }))
+  ) {
+    return steps;
+  }
+
+  await runStep('initLlama + release', async () => {
+    const ctx = await withTimeout(
+      llamaModule!.initLlama({
+        model: modelPath,
+        n_ctx: N_CTX,
+        n_gpu_layers: N_GPU_LAYERS,
+        n_threads: N_THREADS,
+        use_mmap: true,
+        no_extra_bufts: true,
+      }),
+      LOAD_TIMEOUT_MS,
+      'diagnostic initLlama',
+    );
+    try {
+      await ctx.release();
+    } catch {
+      await llamaModule!.releaseAllLlama().catch(() => undefined);
+    }
+    return 'Contexto cargado y liberado correctamente';
+  });
+
+  return steps;
+}
+
 // Genera una respuesta del Sistema a partir del system prompt y el mensaje del usuario. `systemNote`
 // opcional se añade al final del system prompt (lo usa el chat heredado de una aparición).
 async function generate(

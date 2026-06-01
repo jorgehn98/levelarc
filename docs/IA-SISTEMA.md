@@ -124,9 +124,10 @@ El build válido actual es `5cf2587d`; lo que queda es la validación en device:
 
 1. Instalar el APK del build `5cf2587d` (`1.1.5`, versionCode `10`): <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>.
 2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
-3. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
-4. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
-5. EAS Build `production`.
+3. Si el chat vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla. El diagnóstico prueba por fases: `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`; copiar el primer paso con `ERROR`.
+4. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
+5. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
+6. EAS Build `production`.
 
 ## Riesgos
 
