@@ -127,7 +127,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Parchear `llama.rn` para instalar JSI usando el runtime del `CallInvoker` y subir a `1.1.5` / versionCode `10`.
 - [x] Lanzar build `1.1.5` / versionCode `10` con el patch de runtime JSI (`5cf2587d`).
 - [x] Añadir diagnóstico manual por fases en Ajustes → IA del Sistema: `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo`, `initLlama + release`.
-- [ ] Publicar OTA `preview` runtime `1.1.5` con diagnóstico IA.
+- [x] Publicar OTA `preview` runtime `1.1.5` con diagnóstico IA (`85cefc2c-f00f-4f85-80af-48e4b3655626`).
 - [ ] Validar en device real: instalar APK `1.1.5` (`5cf2587d`, <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>), confirmar que Ajustes IA muestra `LevelArc 1.1.5 · build 10`, descargar/reusar Gemma 4 E2B (~3,1 GB), ejecutar diagnóstico si cae a plantillas y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).

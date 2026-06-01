@@ -161,10 +161,10 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `7b28fb3e-d793-42ac-90be-520c46cde00c`
-- Runtime: `1.1.0`
-- Mensaje: `Fix AI model download finalization`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/7b28fb3e-d793-42ac-90be-520c46cde00c>
+- Update group: `85cefc2c-f00f-4f85-80af-48e4b3655626`
+- Runtime: `1.1.5`
+- Mensaje: `Add local AI engine diagnostics`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/85cefc2c-f00f-4f85-80af-48e4b3655626>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 

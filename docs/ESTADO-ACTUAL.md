@@ -677,6 +677,15 @@ El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con 
 
 Build nativo EAS con LLM: build actual `5cf2587d-df9d-4020-a247-2dffdb48fa79` (runtime `1.1.5`, versionCode `10`) incluye las librerías nativas `librnllama*.so`, el patch Android bridgeless, instalación JSI con runtime del `CallInvoker` y la espera robusta de bindings JSI para `llama.rn` 0.12.4. Pendiente de validación funcional en device real.
 
+Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
+
+- Grupo: `85cefc2c-f00f-4f85-80af-48e4b3655626`
+- Android update ID: `019e833e-4859-7cc6-b612-0310710254e6`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/85cefc2c-f00f-4f85-80af-48e4b3655626>
+- Commit: `9a55784` (`Add local AI engine diagnostics`).
+- Llega a los APK runtime `1.1.5`, incluido el build `5cf2587d`.
+- Añade en Ajustes → IA del Sistema un diagnóstico manual que prueba por fases `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`.
+
 Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas y Gemma 4:
 
 - Update group: `a1d8f4ab-79b3-42e8-9604-890c5b5847b3`
