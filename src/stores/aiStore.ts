@@ -199,6 +199,8 @@ const INTERJECTIONS_KEY = 'levelarc.interjections';
 const INTERJECTIONS_ENABLED_KEY = 'levelarc.interjectionsEnabled';
 const LLM_RUNTIME_ERROR_KEY = 'levelarc.ai.llmRuntimeError';
 
+type LlmRuntimeErrorSource = 'openChat' | 'sendMessage' | 'dailyMessage' | 'habitInsight' | 'interjection';
+
 function describeError(error: unknown): string {
   if (error instanceof Error) {
     const stack = error.stack && error.stack !== error.message ? `\n${error.stack}` : '';
@@ -213,7 +215,7 @@ function describeError(error: unknown): string {
 }
 
 function buildLlmRuntimeDiagnostic(
-  source: 'openChat' | 'sendMessage',
+  source: LlmRuntimeErrorSource,
   profile: AiProfileState,
   error: unknown,
   extra: string[] = [],
@@ -237,7 +239,7 @@ function buildLlmRuntimeDiagnostic(
 }
 
 async function saveLlmRuntimeError(
-  source: 'openChat' | 'sendMessage',
+  source: LlmRuntimeErrorSource,
   profile: AiProfileState,
   error: unknown,
   extra: string[] = [],
@@ -584,6 +586,10 @@ export const useAiStore = create<AiState>((set, get) => ({
       }
     } catch (err) {
       // El LLM falló: dejamos el texto de plantilla. No rompe nada.
+      await saveLlmRuntimeError('interjection', get().profile, err, [
+        `trigger=${trigger}`,
+        `resolvedSurface=interjection`,
+      ]);
       if (__DEV__) console.warn('[ai] triggerInterjection: fallo enriqueciendo con LLM, queda plantilla', err);
     }
   },
@@ -688,6 +694,7 @@ export const useAiStore = create<AiState>((set, get) => ({
     } catch (err) {
       // El LLM falló (modelo ausente/OOM/inferencia/timeout): el mensaje de plantilla ya seteado sigue
       // siendo válido. No mostramos error en el banner.
+      await saveLlmRuntimeError('dailyMessage', get().profile, err, [`date=${today}`]);
       if (__DEV__) console.warn('[ai] ensureDailyMessage: fallo generando briefing con LLM, queda plantilla', err);
     }
   },
@@ -743,6 +750,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       habitInsightAiDay[habitId] = today;
     } catch (err) {
       // El LLM falló (modelo ausente/OOM/inferencia/timeout): la plantilla ya seteada sigue valiendo.
+      await saveLlmRuntimeError('habitInsight', get().profile, err, [`habitId=${habitId}`]);
       if (__DEV__) console.warn('[ai] ensureHabitInsight: fallo generando insight con LLM, queda plantilla', err);
     } finally {
       habitInsightInFlight.delete(habitId);

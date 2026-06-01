@@ -86,6 +86,7 @@ El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y
 - `downloadModel` / `deleteModel` / `cancelDownload`.
 - Reconciliación del estado del modelo en `loadAi`: limpia descargas huérfanas y estados `ready` sin fichero en disco.
 - Selección de motor vía `resolveEngine`: usa `llama` solo si `engine='llama'` + `modelStatus='ready'` + `modelPath` + native; en cualquier otro caso cae a plantillas.
+- Observabilidad runtime: los fallos del LLM en chat, briefing diario, micro-comentarios de hábito y apariciones autónomas se guardan en Ajustes IA con source/perfil/modelo para no confundir una plantilla de fallback con una respuesta LLM real.
 
 ### Motor (`llamaEngine`)
 
