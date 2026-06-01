@@ -130,6 +130,9 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Publicar OTA `preview` runtime `1.1.5` con diagnóstico IA (`85cefc2c-f00f-4f85-80af-48e4b3655626`).
 - [x] Enriquecer el error runtime guardado tras fallo LLM con source, timestamp, platform, estado del perfil, existencia del modelo y stack truncado.
 - [x] Publicar OTA `preview` runtime `1.1.5` con error runtime IA enriquecido (`19c66b2d-7b9d-42a9-98f2-a9d27da64d6d`).
+- [x] Investigar causa persistente del mismo error tras APK `1.1.5`: Metro/EAS podía empaquetar `llama.rn/lib/module` o `lib/commonjs`, que seguían con el `installJsi` viejo aunque `src/index.ts` estuviera parcheado.
+- [x] Extender `patches/llama.rn@0.12.4.patch` para cubrir `src/index.ts`, `lib/module/index.js` y `lib/commonjs/index.js`; verificado con `expo export --platform android`.
+- [ ] Publicar OTA `preview` runtime `1.1.5` con el patch JS ampliado para `llama.rn/lib/*`.
 - [ ] Validar en device real: instalar APK `1.1.5` (`5cf2587d`, <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>), confirmar que Ajustes IA muestra `LevelArc 1.1.5 · build 10`, descargar/reusar Gemma 4 E2B (~3,1 GB), ejecutar diagnóstico si cae a plantillas y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).

@@ -7,9 +7,9 @@ index 312c87faea438eb8e8385ba92bf0ecbffa3fabd6..f8ecde758f1b12e00b492bf38c4e8984
  #include <android/log.h>
  #include <string>
 -#include <cstdint>
-
+ 
  extern "C" JNIEXPORT void JNICALL
-
+ 
  Java_com_rnllama_RNLlamaModule_installJSIBindings(
      JNIEnv *env,
      jobject thiz,
@@ -24,7 +24,7 @@ index 312c87faea438eb8e8385ba92bf0ecbffa3fabd6..f8ecde758f1b12e00b492bf38c4e8984
 +        __android_log_print(ANDROID_LOG_ERROR, "RNLlamaModule", "installJSIBindings skipped: null callInvokerHolder");
          return;
      }
-
+ 
 -    auto runtime = reinterpret_cast<facebook::jsi::Runtime*>(runtimePtr);
 -
      // Unwrap CallInvokerHolder
@@ -36,7 +36,7 @@ index 312c87faea438eb8e8385ba92bf0ecbffa3fabd6..f8ecde758f1b12e00b492bf38c4e8984
 +        __android_log_print(ANDROID_LOG_ERROR, "RNLlamaModule", "installJSIBindings skipped: null callInvoker");
          return;
      }
-
+ 
 -    callInvoker->invokeAsync([runtime, callInvoker]() {
 -        rnllama_jsi::installJSIBindings(*runtime, callInvoker);
 +    __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "scheduling JSI binding install with CallInvoker runtime");
@@ -46,31 +46,31 @@ index 312c87faea438eb8e8385ba92bf0ecbffa3fabd6..f8ecde758f1b12e00b492bf38c4e8984
 +        __android_log_print(ANDROID_LOG_INFO, "RNLlamaModule", "installed JSI bindings on JS invoker runtime");
      });
  }
-
+ 
 diff --git a/android/src/main/java/com/rnllama/RNLlamaModule.java b/android/src/main/java/com/rnllama/RNLlamaModule.java
 index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..c60846e8d0c9f5cc2fa3a415fc3657f8a0f3825d 100644
 --- a/android/src/main/java/com/rnllama/RNLlamaModule.java
 +++ b/android/src/main/java/com/rnllama/RNLlamaModule.java
 @@ -1,15 +1,19 @@
  package com.rnllama;
-
+ 
 +import android.util.Log;
 +
  import androidx.annotation.NonNull;
-
+ 
  import com.facebook.react.bridge.Promise;
  import com.facebook.react.bridge.ReactApplicationContext;
  import com.facebook.react.module.annotations.ReactModule;
  import com.facebook.react.turbomodule.core.CallInvokerHolderImpl;
 +import com.facebook.react.turbomodule.core.interfaces.CallInvokerHolder;
-
+ 
  @ReactModule(name = RNLlama.NAME)
  public class RNLlamaModule extends NativeRNLlamaSpec {
    public static final String NAME = RNLlama.NAME;
 +  private static final String TAG = "RNLlamaModule";
-
+ 
    private ReactApplicationContext context;
-
+ 
 @@ -29,29 +33,35 @@ public class RNLlamaModule extends NativeRNLlamaSpec {
      try {
        boolean loaded = RNLlama.loadNative(context);
@@ -79,7 +79,7 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..c60846e8d0c9f5cc2fa3a415fc3657f8
 +        promise.reject("ERR_RNLLAMA_LOAD_NATIVE", "RNLlama.loadNative returned false");
          return;
        }
-
+ 
 -      long jsContextPointer = context.getJavaScriptContextHolder().get();
 -      CallInvokerHolderImpl holder =
 -        (CallInvokerHolderImpl) context.getCatalystInstance().getJSCallInvokerHolder();
@@ -95,7 +95,7 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..c60846e8d0c9f5cc2fa3a415fc3657f8
 +        );
          return;
        }
-
+ 
 -      installJSIBindings(jsContextPointer, holder);
 +      installJSIBindings((CallInvokerHolderImpl) callInvokerHolder);
        promise.resolve(true);
@@ -111,20 +111,160 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..c60846e8d0c9f5cc2fa3a415fc3657f8
      }
 -    promise.resolve(false);
    }
-
+ 
 -  private native void installJSIBindings(long jsContextPointer, CallInvokerHolderImpl callInvokerHolder);
 +  private native void installJSIBindings(CallInvokerHolderImpl callInvokerHolder);
    private native void cleanupJSIBindings();
-
+ 
    @Override
+diff --git a/lib/commonjs/index.js b/lib/commonjs/index.js
+index 97733154d85c04ca32c4b0e1868387c5adc721b3..9adf839edc85fe3a528d90c5e6c4eee2122ffa20 100644
+--- a/lib/commonjs/index.js
++++ b/lib/commonjs/index.js
+@@ -24,22 +24,18 @@ const emitNativeLog = (level, text) => {
+ };
+ const jsiBindingKeys = ['llamaInitContext', 'llamaReleaseContext', 'llamaReleaseAllContexts', 'llamaModelInfo', 'llamaGetBackendDevicesInfo', 'llamaLoadSession', 'llamaSaveSession', 'llamaTokenize', 'llamaDetokenize', 'llamaGetFormattedChat', 'llamaEmbedding', 'llamaRerank', 'llamaBench', 'llamaToggleNativeLog', 'llamaSetContextLimit', 'llamaCompletion', 'llamaStopCompletion', 'llamaApplyLoraAdapters', 'llamaRemoveLoraAdapters', 'llamaGetLoadedLoraAdapters', 'llamaInitMultimodal', 'llamaIsMultimodalEnabled', 'llamaGetMultimodalSupport', 'llamaReleaseMultimodal', 'llamaInitVocoder', 'llamaIsVocoderEnabled', 'llamaGetFormattedAudioCompletion', 'llamaGetAudioCompletionGuideTokens', 'llamaDecodeAudioTokens', 'llamaReleaseVocoder', 'llamaClearCache', 'llamaEnableParallelMode', 'llamaQueueCompletion', 'llamaCancelRequest', 'llamaQueueEmbedding', 'llamaQueueRerank', 'llamaGetParallelStatus', 'llamaSubscribeParallelStatus', 'llamaUnsubscribeParallelStatus'];
+ let jsiBindings = null;
++const getMissingJsiBindingKeys = () => jsiBindingKeys.filter(key => typeof global[key] !== 'function');
+ const bindJsiFromGlobal = () => {
+-  const bindings = {};
+-  const missing = [];
+-  jsiBindingKeys.forEach(key => {
+-    const value = global[key];
+-    if (typeof value === 'function') {
+-      ;
+-      bindings[key] = value;
+-      delete global[key];
+-    } else {
+-      missing.push(key);
+-    }
+-  });
++  const missing = getMissingJsiBindingKeys();
+   if (missing.length > 0) {
+     throw new Error(`[RNLlama] Missing JSI bindings: ${missing.join(', ')}`);
+   }
++  const bindings = {};
++  jsiBindingKeys.forEach(key => {
++    ;
++    bindings[key] = global[key];
++    delete global[key];
++  });
+   jsiBindings = bindings;
+ };
+ const getJsi = () => {
+@@ -50,14 +46,31 @@ const getJsi = () => {
+ };
+ 
+ // JSI Installation
++const JSI_INSTALL_TIMEOUT_MS = 8000;
++const JSI_INSTALL_POLL_MS = 50;
++const waitForJsiBindings = async () => {
++  const startedAt = Date.now();
++  while (true) {
++    const missing = getMissingJsiBindingKeys();
++    if (missing.length === 0) return;
++    if (Date.now() - startedAt >= JSI_INSTALL_TIMEOUT_MS) {
++      throw new Error(`[RNLlama] JSI bindings not installed after native install; missing: ${missing.join(', ')}`);
++    }
++    await new Promise(resolve => setTimeout(resolve, JSI_INSTALL_POLL_MS));
++  }
++};
+ let isJsiInstalled = false;
+ const installJsi = async () => {
+   if (isJsiInstalled) return;
+-  if (typeof global.llamaInitContext !== 'function') {
++  if (!_NativeRNLlama.default?.install) {
++    throw new Error('[RNLlama] Native module RNLlama is not available');
++  }
++  if (getMissingJsiBindingKeys().length > 0) {
+     const installed = await _NativeRNLlama.default.install();
+-    if (!installed && typeof global.llamaInitContext !== 'function') {
+-      throw new Error('JSI bindings not installed');
++    if (!installed) {
++      throw new Error('[RNLlama] Native install returned false');
+     }
++    await waitForJsiBindings();
+   }
+   bindJsiFromGlobal();
+   isJsiInstalled = true;
+diff --git a/lib/module/index.js b/lib/module/index.js
+index df1c3598b6158c3b798d0fc9643510b5030ed32b..28b5d5a6d5951acef705ef6566686464b91cf41b 100644
+--- a/lib/module/index.js
++++ b/lib/module/index.js
+@@ -11,22 +11,18 @@ const emitNativeLog = (level, text) => {
+ };
+ const jsiBindingKeys = ['llamaInitContext', 'llamaReleaseContext', 'llamaReleaseAllContexts', 'llamaModelInfo', 'llamaGetBackendDevicesInfo', 'llamaLoadSession', 'llamaSaveSession', 'llamaTokenize', 'llamaDetokenize', 'llamaGetFormattedChat', 'llamaEmbedding', 'llamaRerank', 'llamaBench', 'llamaToggleNativeLog', 'llamaSetContextLimit', 'llamaCompletion', 'llamaStopCompletion', 'llamaApplyLoraAdapters', 'llamaRemoveLoraAdapters', 'llamaGetLoadedLoraAdapters', 'llamaInitMultimodal', 'llamaIsMultimodalEnabled', 'llamaGetMultimodalSupport', 'llamaReleaseMultimodal', 'llamaInitVocoder', 'llamaIsVocoderEnabled', 'llamaGetFormattedAudioCompletion', 'llamaGetAudioCompletionGuideTokens', 'llamaDecodeAudioTokens', 'llamaReleaseVocoder', 'llamaClearCache', 'llamaEnableParallelMode', 'llamaQueueCompletion', 'llamaCancelRequest', 'llamaQueueEmbedding', 'llamaQueueRerank', 'llamaGetParallelStatus', 'llamaSubscribeParallelStatus', 'llamaUnsubscribeParallelStatus'];
+ let jsiBindings = null;
++const getMissingJsiBindingKeys = () => jsiBindingKeys.filter(key => typeof global[key] !== 'function');
+ const bindJsiFromGlobal = () => {
+-  const bindings = {};
+-  const missing = [];
+-  jsiBindingKeys.forEach(key => {
+-    const value = global[key];
+-    if (typeof value === 'function') {
+-      ;
+-      bindings[key] = value;
+-      delete global[key];
+-    } else {
+-      missing.push(key);
+-    }
+-  });
++  const missing = getMissingJsiBindingKeys();
+   if (missing.length > 0) {
+     throw new Error(`[RNLlama] Missing JSI bindings: ${missing.join(', ')}`);
+   }
++  const bindings = {};
++  jsiBindingKeys.forEach(key => {
++    ;
++    bindings[key] = global[key];
++    delete global[key];
++  });
+   jsiBindings = bindings;
+ };
+ const getJsi = () => {
+@@ -37,14 +33,31 @@ const getJsi = () => {
+ };
+ 
+ // JSI Installation
++const JSI_INSTALL_TIMEOUT_MS = 8000;
++const JSI_INSTALL_POLL_MS = 50;
++const waitForJsiBindings = async () => {
++  const startedAt = Date.now();
++  while (true) {
++    const missing = getMissingJsiBindingKeys();
++    if (missing.length === 0) return;
++    if (Date.now() - startedAt >= JSI_INSTALL_TIMEOUT_MS) {
++      throw new Error(`[RNLlama] JSI bindings not installed after native install; missing: ${missing.join(', ')}`);
++    }
++    await new Promise(resolve => setTimeout(resolve, JSI_INSTALL_POLL_MS));
++  }
++};
+ let isJsiInstalled = false;
+ export const installJsi = async () => {
+   if (isJsiInstalled) return;
+-  if (typeof global.llamaInitContext !== 'function') {
++  if (!RNLlama?.install) {
++    throw new Error('[RNLlama] Native module RNLlama is not available');
++  }
++  if (getMissingJsiBindingKeys().length > 0) {
+     const installed = await RNLlama.install();
+-    if (!installed && typeof global.llamaInitContext !== 'function') {
+-      throw new Error('JSI bindings not installed');
++    if (!installed) {
++      throw new Error('[RNLlama] Native install returned false');
+     }
++    await waitForJsiBindings();
+   }
+   bindJsiFromGlobal();
+   isJsiInstalled = true;
 diff --git a/src/index.ts b/src/index.ts
 index 2f024aee392e243a7aa5d749eaa3ed5714406add..cbd26e750a5272a43eccfceaa8093f73b53d7dec 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -128,25 +128,23 @@ type JsiBindings = { [K in JsiBindingKey]: NonNullable<(typeof globalThis)[K]> }
-
+ 
  let jsiBindings: JsiBindings | null = null
-
+ 
 -const bindJsiFromGlobal = () => {
 -  const bindings: Partial<JsiBindings> = {}
 -  const missing: string[] = []
@@ -141,13 +281,13 @@ index 2f024aee392e243a7aa5d749eaa3ed5714406add..cbd26e750a5272a43eccfceaa8093f73
 -  })
 +const getMissingJsiBindingKeys = (): string[] =>
 +  jsiBindingKeys.filter((key) => typeof global[key] !== 'function')
-
+ 
 +const bindJsiFromGlobal = () => {
 +  const missing = getMissingJsiBindingKeys()
    if (missing.length > 0) {
      throw new Error(`[RNLlama] Missing JSI bindings: ${missing.join(', ')}`)
    }
-
+ 
 +  const bindings: Partial<JsiBindings> = {}
 +  jsiBindingKeys.forEach((key) => {
 +    ;(bindings as Record<string, unknown>)[key] = global[
@@ -158,10 +298,10 @@ index 2f024aee392e243a7aa5d749eaa3ed5714406add..cbd26e750a5272a43eccfceaa8093f73
 +
    jsiBindings = bindings as JsiBindings
  }
-
+ 
 @@ -158,15 +156,41 @@ const getJsi = (): JsiBindings => {
  }
-
+ 
  // JSI Installation
 +const JSI_INSTALL_TIMEOUT_MS = 8000
 +const JSI_INSTALL_POLL_MS = 50
