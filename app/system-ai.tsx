@@ -9,7 +9,7 @@ import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { MODEL_DISPLAY_NAME, formatModelSize } from '@/ai/modelManager';
+import { MODEL_DISPLAY_NAME, formatModelSize, getModelFileDebugInfo, modelExists } from '@/ai/modelManager';
 import { t, type Language } from '@/i18n';
 import { confirmAction } from '@/lib/confirm';
 import type { LlamaDiagnosticStep } from '@/ai/llamaEngine';
@@ -96,7 +96,28 @@ export default function SystemAiScreen() {
       setDiagnostics(null);
       try {
         const { runLlamaDiagnostics } = await import('@/ai/llamaEngine');
-        setDiagnostics(await runLlamaDiagnostics(profile.modelPath!));
+        const modelDebugInfo = getModelFileDebugInfo();
+        setDiagnostics(
+          await runLlamaDiagnostics(profile.modelPath!, {
+            appVersion,
+            buildVersion,
+            runtimeVersion: Updates.runtimeVersion ?? 'dev',
+            updateChannel: Updates.channel ?? 'n/a',
+            updateId: Updates.updateId ?? 'embedded',
+            launchSource: Updates.isEmbeddedLaunch ? 'embedded' : 'ota',
+            platform: Platform.OS,
+            engine: profile.engine,
+            modelStatus: profile.modelStatus,
+            enabled: profile.enabled,
+            usingLlama,
+            modelPath: profile.modelPath!,
+            modelExists: modelExists(),
+            modelSize: modelDebugInfo.modelSize,
+            expectedModelSize: modelDebugInfo.expectedSize,
+            stampExists: modelDebugInfo.stampExists,
+            stampSize: modelDebugInfo.stampSize,
+          }),
+        );
       } catch (error) {
         const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
         setDiagnostics([{ name: 'diagnostic bootstrap', status: 'error', detail, ms: 0 }]);

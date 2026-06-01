@@ -20,6 +20,15 @@ import {
 
 export { MODEL_DISPLAY_NAME, formatModelSize };
 
+export type ModelFileDebugInfo = {
+  modelUri: string | null;
+  modelExists: boolean;
+  modelSize: number | null;
+  expectedSize: number;
+  stampExists: boolean;
+  stampSize: number | null;
+};
+
 // Subcarpeta dentro del directorio de documentos (persistente, no la borra el sistema).
 const MODELS_DIR = 'models';
 
@@ -55,6 +64,30 @@ export function modelExists(): boolean {
   const file = getModelFile();
   const stampFile = getModelStampFile();
   return file.exists && file.size === MODEL_SIZE_BYTES && stampFile.exists;
+}
+
+export function getModelFileDebugInfo(): ModelFileDebugInfo {
+  if (!isNative) {
+    return {
+      modelUri: null,
+      modelExists: false,
+      modelSize: null,
+      expectedSize: MODEL_SIZE_BYTES,
+      stampExists: false,
+      stampSize: null,
+    };
+  }
+
+  const file = getModelFile();
+  const stampFile = getModelStampFile();
+  return {
+    modelUri: file.uri,
+    modelExists: file.exists,
+    modelSize: file.exists ? file.size : null,
+    expectedSize: MODEL_SIZE_BYTES,
+    stampExists: stampFile.exists,
+    stampSize: stampFile.exists ? stampFile.size : null,
+  };
 }
 
 function validateAndStampModel(file: File): void {

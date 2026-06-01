@@ -339,6 +339,26 @@ export type LlamaDiagnosticStep = {
   ms: number;
 };
 
+export type LlamaDiagnosticEnvironment = {
+  appVersion: string;
+  buildVersion: string;
+  runtimeVersion: string;
+  updateChannel: string;
+  updateId: string;
+  launchSource: string;
+  platform: string;
+  engine: string;
+  modelStatus: string;
+  enabled: boolean;
+  usingLlama: boolean;
+  modelPath: string;
+  modelExists: boolean;
+  modelSize: number | null;
+  expectedModelSize: number;
+  stampExists: boolean;
+  stampSize: number | null;
+};
+
 function summarizeDiagnosticValue(value: unknown): string {
   if (typeof value === 'string') return value;
   try {
@@ -350,7 +370,10 @@ function summarizeDiagnosticValue(value: unknown): string {
 
 // Diagnóstico manual por fases para Android real. No cambia el motor activo ni degrada a plantillas:
 // solo ejecuta las mismas capas críticas que usa el chat y devuelve exactamente en qué fase falla.
-export async function runLlamaDiagnostics(modelPath: string): Promise<LlamaDiagnosticStep[]> {
+export async function runLlamaDiagnostics(
+  modelPath: string,
+  environment?: LlamaDiagnosticEnvironment,
+): Promise<LlamaDiagnosticStep[]> {
   const steps: LlamaDiagnosticStep[] = [];
   let llamaModule: typeof import('llama.rn') | null = null;
 
@@ -364,6 +387,15 @@ export async function runLlamaDiagnostics(modelPath: string): Promise<LlamaDiagn
       steps.push({ name, status: 'error', detail: getErrorMessage(error), ms: Date.now() - startedAt });
       return false;
     }
+  }
+
+  if (environment) {
+    steps.push({
+      name: 'environment',
+      status: 'ok',
+      detail: summarizeDiagnosticValue(environment),
+      ms: 0,
+    });
   }
 
   if (
