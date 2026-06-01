@@ -1,0 +1,46 @@
+diff --git a/android/src/main/java/com/rnllama/RNLlamaModule.java b/android/src/main/java/com/rnllama/RNLlamaModule.java
+index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..0f7abcad440972ab5b5603d308f38d97e9571a8a 100644
+--- a/android/src/main/java/com/rnllama/RNLlamaModule.java
++++ b/android/src/main/java/com/rnllama/RNLlamaModule.java
+@@ -2,10 +2,12 @@ package com.rnllama;
+ 
+ import androidx.annotation.NonNull;
+ 
++import com.facebook.react.bridge.JavaScriptContextHolder;
+ import com.facebook.react.bridge.Promise;
+ import com.facebook.react.bridge.ReactApplicationContext;
+ import com.facebook.react.module.annotations.ReactModule;
+ import com.facebook.react.turbomodule.core.CallInvokerHolderImpl;
++import com.facebook.react.turbomodule.core.interfaces.CallInvokerHolder;
+ 
+ @ReactModule(name = RNLlama.NAME)
+ public class RNLlamaModule extends NativeRNLlamaSpec {
+@@ -33,16 +35,23 @@ public class RNLlamaModule extends NativeRNLlamaSpec {
+         return;
+       }
+ 
+-      long jsContextPointer = context.getJavaScriptContextHolder().get();
+-      CallInvokerHolderImpl holder =
+-        (CallInvokerHolderImpl) context.getCatalystInstance().getJSCallInvokerHolder();
++      JavaScriptContextHolder jsContext = context.getJavaScriptContextHolder();
++      CallInvokerHolder callInvokerHolder = context.getJSCallInvokerHolder();
+ 
+-      if (jsContextPointer == 0 || holder == null) {
++      if (jsContext == null || !(callInvokerHolder instanceof CallInvokerHolderImpl)) {
+         promise.resolve(false);
+         return;
+       }
+ 
+-      installJSIBindings(jsContextPointer, holder);
++      synchronized (jsContext) {
++        long jsContextPointer = jsContext.get();
++        if (jsContextPointer == 0) {
++          promise.resolve(false);
++          return;
++        }
++
++        installJSIBindings(jsContextPointer, (CallInvokerHolderImpl) callInvokerHolder);
++      }
+       promise.resolve(true);
+       return;
+     } catch (UnsatisfiedLinkError e) {

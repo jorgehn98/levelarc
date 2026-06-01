@@ -34,7 +34,7 @@ Funciona **OFFLINE con un motor determinista por plantillas (reglas)**, no un LL
 
 ## Fase 5B — LLM local real (implementada en código, commit `3d5d509`; build nativo conseguido)
 
-El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. El build preview válido actual es `114d891f-0f8e-4dd9-8706-b6dec7d886e1` (`1.1.1`, versionCode `6`): el APK contiene `lib/arm64-v8a/librnllama*.so` y corrige la causa raíz del error `JSI bindings not installed` del build anterior.
+El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. Tras validar que el build `114d891f` sí incluía `librnllama*.so`, el mismo error `JSI bindings not installed` apuntó a una segunda causa raíz: `llama.rn` 0.12.4 instala JSI en Android usando `context.getCatalystInstance().getJSCallInvokerHolder()`, incompatible con Expo SDK 56 / RN 0.85 bridgeless. Se añadió `patches/llama.rn@0.12.4.patch` para usar `ReactApplicationContext.getJSCallInvokerHolder()` y se prepara build `1.1.2` / versionCode `7`.
 
 ### Librería y dependencias
 

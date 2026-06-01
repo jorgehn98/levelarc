@@ -139,7 +139,7 @@ Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants
 
 `@babel/plugin-transform-react-jsx` también está como devDependency explícita porque `expo-updates` lo necesita al crear recursos de updates en EAS con pnpm.
 
-`llama.rn` debe estar aprobado en `package.json` → `pnpm.onlyBuiltDependencies`. Si pnpm ignora su postinstall, EAS puede generar un APK aparentemente correcto pero sin `librnllama*.so`; en Android el síntoma es `JSI bindings not installed`. Antes de dar por válido un APK con LLM, descargarlo e inspeccionar que contiene `lib/arm64-v8a/librnllama*.so`.
+`llama.rn` debe estar aprobado en `package.json` → `pnpm.onlyBuiltDependencies`. Si pnpm ignora su postinstall, EAS puede generar un APK aparentemente correcto pero sin `librnllama*.so`; en Android el síntoma es `JSI bindings not installed`. Antes de dar por válido un APK con LLM, descargarlo e inspeccionar que contiene `lib/arm64-v8a/librnllama*.so`. Además, `llama.rn` 0.12.4 está parcheado en `patches/llama.rn@0.12.4.patch` para Android bridgeless de Expo SDK 56/RN 0.85: usa `ReactApplicationContext.getJSCallInvokerHolder()` en vez de `getCatalystInstance()`.
 
 ## EAS Update
 

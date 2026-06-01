@@ -350,6 +350,14 @@ Build preview Android actual con LLM diagnostics y EAS Update sin code signing:
 - Nota posterior: este APK NO es válido para IA local; al inspeccionarlo no contiene `lib/arm64-v8a/librnllama*.so` porque EAS/pnpm ignoró el postinstall de `llama.rn`. Sí compiló, pero en device sigue dando `JSI bindings not installed`.
 - Pendiente: sustituir por build `1.1.1` / versionCode `6` con `llama.rn` aprobado en `pnpm.onlyBuiltDependencies` y verificar el APK antes de instalar.
 
+
+Patch Android bridgeless para llama.rn 0.12.4:
+
+- Problema: incluso con `.so` nativas presentes, `llama.rn` 0.12.4 puede devolver `JSI bindings not installed` en Expo SDK 56 / RN 0.85 bridgeless porque su módulo Android llama a `context.getCatalystInstance().getJSCallInvokerHolder()`.
+- Evidencia: issue upstream `mybigday/llama.rn#354` describe el mismo fallo en Expo/RN bridgeless; RN 0.85 expone `ReactContext.getJSCallInvokerHolder()` para este caso.
+- Fix local: `patches/llama.rn@0.12.4.patch`, aplicado por `pnpm.patchedDependencies`, cambia `RNLlamaModule.java` para usar `context.getJSCallInvokerHolder()` y sincronizar `JavaScriptContextHolder` antes de instalar JSI.
+- Próximo build nativo: `1.1.2`, Android versionCode `7`, runtimeVersion `1.1.2`.
+
 Build preview Android válido con LLM native libs verificadas:
 
 - ID: `114d891f-0f8e-4dd9-8706-b6dec7d886e1`
