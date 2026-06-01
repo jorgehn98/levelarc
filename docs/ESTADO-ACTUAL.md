@@ -695,7 +695,15 @@ Update `preview` runtime `1.1.5` con error runtime IA enriquecido:
 - Llega a los APK runtime `1.1.5`, incluido el build `5cf2587d`.
 - Si el chat cae a plantillas, Ajustes → IA del Sistema muestra un error con `source`, timestamp, plataforma, engine/model status, existencia del fichero y stack truncado.
 
-Fix local pendiente de publicar por OTA: `patches/llama.rn@0.12.4.patch` ahora aplica el mismo `installJsi` robusto también a `lib/module/index.js` y `lib/commonjs/index.js`, no solo a `src/index.ts`. Evidencia local: `pnpm install --frozen-lockfile`, `pnpm check` y `expo export --platform android` pasan; el Hermes bundle generado contiene `JSI bindings not installed after native install` y `Native install returned false`.
+Update `preview` runtime `1.1.5` con patch JS ampliado para entrypoints compilados de `llama.rn`:
+
+- Grupo: `856cc783-29b3-4134-a13d-f64602f724ed`
+- Android update ID: `019e8350-eb50-7bef-aea3-00c01a8bc3d4`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/856cc783-29b3-4134-a13d-f64602f724ed>
+- Commit: `5b77c59` (`Patch llama compiled JSI entrypoints`).
+- Llega a los APK runtime `1.1.5`, incluido el build `5cf2587d`.
+- `patches/llama.rn@0.12.4.patch` ahora aplica el mismo `installJsi` robusto también a `lib/module/index.js` y `lib/commonjs/index.js`, no solo a `src/index.ts`.
+- Evidencia local y de publicación: `pnpm install --frozen-lockfile`, `pnpm check` y `expo export --platform android` pasan; el Hermes bundle publicado contiene `JSI bindings not installed after native install` y `Native install returned false`.
 
 Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas y Gemma 4:
 
