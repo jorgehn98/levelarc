@@ -347,8 +347,8 @@ Build preview Android actual con LLM diagnostics y EAS Update sin code signing:
 - Fingerprint: `6d61e4d4e680d39f836c293fb329a116e16f85e0`
 - Perfil: `preview`, distribución interna, runtimeVersion `1.1.0`, version `1.1.0`, versionCode `5`.
 - Commit: `84264be` (`Add LLM runtime diagnostics`).
-- Incluye el build nativo necesario para evitar el error de binario antiguo (`JSI bindings not installed`) y para consumir OTAs sin code signing.
-- Pendiente: instalar este APK en device real y validar IA local + updates.
+- Nota posterior: este APK NO es válido para IA local; al inspeccionarlo no contiene `lib/arm64-v8a/librnllama*.so` porque EAS/pnpm ignoró el postinstall de `llama.rn`. Sí compiló, pero en device sigue dando `JSI bindings not installed`.
+- Pendiente: sustituir por build `1.1.1` / versionCode `6` con `llama.rn` aprobado en `pnpm.onlyBuiltDependencies` y verificar el APK antes de instalar.
 
 Update `preview` inicial publicado:
 
@@ -620,7 +620,7 @@ Gamificación avanzada (v2.0): en marcha. El primer bloque (economía de Esencia
 
 El chat del Sistema (IA base por reglas) está implementado (Fase 5A): chat con motor de plantillas determinista y arquitectura enchufable, entregado por OTA. La IA se ha ampliado más allá del chat: banner del Sistema en Hoy (`SystemMessageCard`) y apariciones autónomas en momentos clave (`SystemInterjectionOverlay`), ambas offline con plantillas y generadas por Gemma cuando la IA está activa. El LLM local real (Fase 5B) ya está implementado en código (commit `3d5d509`) detrás de la misma interface enchufable: `llama.rn` 0.12.4 + Gemma 4 E2B GGUF Q4_K_M (~3,1 GB), descarga del modelo on-device bajo demanda y pantalla de gestión. La IA es opcional: la app funciona sin modelo. Solo se entrega por build nativo (runtime `1.1.0`), no por OTA, y queda pendiente de validación en device real. Detalle en `docs/IA-SISTEMA.md`.
 
-Build nativo EAS con LLM: conseguido. Build preview actual `e37eafc1-40a9-49db-a913-5c58201e902d` (runtime `1.1.0`, versionCode `5`) compiló correctamente con `llama.rn` 0.12.4 + Gemma 4 E2B, diagnósticos de runtime LLM y EAS Update sin code signing; pendiente de validación en device real. Detalle arriba en "Verificación actual".
+Build nativo EAS con LLM: el build `e37eafc1-40a9-49db-a913-5c58201e902d` compiló, pero NO sirve para validar IA local porque el APK no incluye las librerías nativas `librnllama*.so`. Causa raíz: `pnpm.onlyBuiltDependencies` solo aprobaba `esbuild`, así que EAS ignoró el postinstall de `llama.rn`. Fix en curso: `1.1.1` / versionCode `6` aprobando `llama.rn` y verificando el APK antes de entregarlo.
 
 Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas y Gemma 4:
 
@@ -631,7 +631,7 @@ Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas 
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a1d8f4ab-79b3-42e8-9604-890c5b5847b3>
 - Llega a los APK runtime 1.1.0, incluido el build actual `e37eafc1`; no llega a los APK 1.0.x.
 
-Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código con Gemma 4 E2B y ya tiene build nativo `1.1.0` actual (`e37eafc1`); entra en validación en device.
+Fase actual: gamificación avanzada v2.0 en marcha; bloque de economía + tienda, bloque de logros + feedback/celebraciones y chat del Sistema (IA base por reglas) implementados sobre la base de producto v1.3. El LLM local real (Fase 5B) está implementado en código con Gemma 4 E2B, pero el build `e37eafc1` no es válido para IA local porque faltan las `.so` nativas de `llama.rn`. Siguiente build: `1.1.1` / versionCode `6` con postinstall aprobado y APK inspeccionado.
 
 Update `preview` con el chat del Sistema (IA base por reglas):
 

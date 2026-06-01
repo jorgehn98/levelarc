@@ -34,7 +34,7 @@ Funciona **OFFLINE con un motor determinista por plantillas (reglas)**, no un LL
 
 ## Fase 5B — LLM local real (implementada en código, commit `3d5d509`; build nativo conseguido)
 
-El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. El **build nativo EAS actual ya está conseguido** (preview Android, runtime `1.1.0`, build `e37eafc1-40a9-49db-a913-5c58201e902d`): compiló correctamente con `llama.rn` 0.12.4 + el LLM, diagnósticos de runtime y EAS Update sin code signing. Falta solo **validar en device real** y el build de production.
+El LLM on-device ya está implementado en código sobre la misma interface `SystemChatEngine`. Ojo: el build preview `e37eafc1-40a9-49db-a913-5c58201e902d` compiló, pero **no es válido para IA local**: el APK no contiene `librnllama*.so` porque EAS/pnpm ignoró el postinstall de `llama.rn`. El fix correcto es build `1.1.1` / versionCode `6` con `llama.rn` en `package.json` → `pnpm.onlyBuiltDependencies`, y verificar el APK antes de entregarlo.
 
 ### Librería y dependencias
 
@@ -55,7 +55,7 @@ El LLM on-device ya está implementado en código sobre la misma interface `Syst
 
 - NO funciona en Expo Go.
 - NO se entrega por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
-- El LLM solo llega instalando el build nativo nuevo (build actual `e37eafc1`, ya conseguido); el modelo se descarga on-device desde la pantalla de gestión.
+- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`. El build `e37eafc1` no las incluye; usar el siguiente build `1.1.1` / versionCode `6` cuando esté generado y verificado.
 - El modelo NO viene en el APK ni por OTA: la IA es **opcional** y el GGUF se descarga bajo demanda dentro de la app. La app funciona perfecta sin modelo.
 - El chat por plantillas (runtime `1.0.2`) sigue funcionando por OTA para quien no instale el build nuevo.
 
@@ -120,9 +120,9 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 
 ## Cómo validar 5B (pendiente — única tarea abierta)
 
-El build nativo actual ya está conseguido (`e37eafc1`); lo que queda es la validación en device:
+El build `e37eafc1` queda descartado para IA local por faltar `librnllama*.so`. Lo que queda tras generar el build `1.1.1` / versionCode `6` es la validación en device:
 
-1. Instalar el APK del build nativo `e37eafc1` (runtime `1.1.0`) en Android real: <https://expo.dev/artifacts/eas/u6kBoGBLi8EzzfmEdZtEet.apk>.
+1. Instalar el APK del nuevo build `1.1.1` / versionCode `6` cuando esté verificado con `lib/arm64-v8a/librnllama*.so`.
 2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
 3. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
 4. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
@@ -138,4 +138,4 @@ El build nativo actual ya está conseguido (`e37eafc1`); lo que queda es la vali
 
 ## Resumen de la decisión
 
-Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B y **build nativo EAS actual conseguido** (runtime `1.1.0`, build `e37eafc1`). La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo y descargar el GGUF de ~3,1 GB on-device. Queda pendiente la validación en device real y el build de production.
+Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B y **build nativo EAS actual conseguido** (runtime `1.1.0`, build `1.1.1` / versionCode `6` pendiente de generar). La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA: requiere instalar el build nativo nuevo y descargar el GGUF de ~3,1 GB on-device. Queda pendiente la validación en device real y el build de production.

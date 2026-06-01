@@ -109,7 +109,7 @@ Proyecto EAS enlazado:
 - Build ID: `e37eafc1-40a9-49db-a913-5c58201e902d`
 - APK: <https://expo.dev/artifacts/eas/u6kBoGBLi8EzzfmEdZtEet.apk>
 - Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/e37eafc1-40a9-49db-a913-5c58201e902d>
-- Versión: `1.1.0`, Android versionCode `5`, runtimeVersion `1.1.0`.
+- Versión anterior rota: `1.1.0`, Android versionCode `5`, runtimeVersion `1.1.0`. Falta `librnllama*.so` porque pnpm ignoró el postinstall de `llama.rn`; no usar para validar IA local.
 - Incluye `llama.rn` + Gemma 4 E2B, diagnósticos de runtime LLM y configuración actual de EAS Update sin code signing.
 
 Antes de publicar:
@@ -138,6 +138,8 @@ Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants
 `babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
 
 `@babel/plugin-transform-react-jsx` también está como devDependency explícita porque `expo-updates` lo necesita al crear recursos de updates en EAS con pnpm.
+
+`llama.rn` debe estar aprobado en `package.json` → `pnpm.onlyBuiltDependencies`. Si pnpm ignora su postinstall, EAS puede generar un APK aparentemente correcto pero sin `librnllama*.so`; en Android el síntoma es `JSI bindings not installed`. Antes de dar por válido un APK con LLM, descargarlo e inspeccionar que contiene `lib/arm64-v8a/librnllama*.so`.
 
 ## EAS Update
 
