@@ -111,7 +111,7 @@ Proyecto EAS enlazado:
 - Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/5cf2587d-df9d-4020-a247-2dffdb48fa79>
 - Versión: `1.1.5`, Android versionCode `10`, runtimeVersion `1.1.5`. El siguiente build nativo es `1.1.6` / versionCode `11` porque cambia el patch nativo de `llama.rn`.
 - Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI con el runtime del `CallInvoker`, compila el build EAS y el bundle incluye la espera robusta de bindings JSI antes de consumirlos. La pantalla de IA puede recibir por OTA un diagnóstico manual por fases compatible con este runtime.
-- Build preview `1.1.6` / versionCode `11`: `116ff7cb` fue cancelado y `d212dc78` falló en Gradle al compilar `llama.rn` con C++17 (`BindingsInstallerHolder` requiere C++20). La cola vieja `8c47b918` se canceló. Siguiente build: relanzar desde el commit que añade C++20 al patch de `llama.rn` y sustituir este bloque cuando haya APK válido.
+- Build preview `1.1.6` / versionCode `11`: `116ff7cb` fue cancelado y `d212dc78` falló en Gradle al compilar `llama.rn` con C++17 (`BindingsInstallerHolder` requiere C++20). La cola vieja `8c47b918` se canceló. Build nuevo relanzado desde el commit `631d914`: `9b238105-e0db-460e-a69e-92110759df24`, en cola; sustituir este bloque cuando haya APK válido.
 
 Antes de publicar:
 

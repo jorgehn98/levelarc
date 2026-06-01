@@ -122,8 +122,8 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 
 El build `5cf2587d` ya no se considera suficiente para validar IA local; lo que queda es generar e instalar `1.1.6`:
 
-1. Relanzar EAS build `1.1.6` (versionCode `11`) desde el commit que compila `llama.rn` con C++20; el build `d212dc78` falló y `8c47b918` se canceló por usar el patch anterior.
-2. Instalar el APK resultante cuando EAS lo genere.
+1. Esperar el EAS build `9b238105-e0db-460e-a69e-92110759df24` (`1.1.6`, versionCode `11`, commit `631d914`) lanzado desde el patch C++20; el build `d212dc78` falló y `8c47b918` se canceló por usar el patch anterior.
+2. Descargar/inspeccionar el APK resultante cuando EAS lo genere e instalarlo.
 3. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
 4. Si el chat vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla. El diagnóstico prueba por fases: `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`; copiar el primer paso con `ERROR`.
 5. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).

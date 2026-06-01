@@ -139,7 +139,8 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Lanzar build `1.1.6` / versionCode `11` con el patch nativo nuevo (`116ff7cb` cancelado; `d212dc78` falló en Gradle).
 - [x] Diagnosticar fallo EAS `d212dc78`: `BindingsInstallerHolder` requiere headers RN con C++20 (`requires`) y el CMake de `llama.rn` compilaba el wrapper JNI con C++17.
 - [x] Parchear `llama.rn` para compilar el wrapper JNI con C++20 (`CMAKE_CXX_STANDARD 20` + `target_compile_features(... cxx_std_20)`).
-- [ ] Relanzar build `1.1.6` / versionCode `11` desde el commit con C++20 y descargar/inspeccionar APK (`lib/arm64-v8a/librnllama*.so`).
+- [x] Relanzar build `1.1.6` / versionCode `11` desde el commit con C++20 (`9b238105-e0db-460e-a69e-92110759df24`, commit `631d914`, en cola).
+- [ ] Esperar a que termine el build `9b238105` y descargar/inspeccionar APK (`lib/arm64-v8a/librnllama*.so`).
 - [ ] Validar en Android real: instalar APK `1.1.6`, confirmar en Ajustes IA `LevelArc 1.1.6 · build 11`, probar primer mensaje, varias conversaciones seguidas, briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
