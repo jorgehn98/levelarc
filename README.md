@@ -104,14 +104,14 @@ Proyecto EAS enlazado:
 - `@jorgex-tech/levelarc`
 - Project ID: `2c6af84a-6180-48ac-ad12-f1b7b61bbf58`
 
-Último APK preview válido (diagnóstico anterior; sustituir por 1.1.6 tras build):
+Último APK preview válido:
 
-- Build ID: `5cf2587d-df9d-4020-a247-2dffdb48fa79`
-- APK: <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/5cf2587d-df9d-4020-a247-2dffdb48fa79>
-- Versión: `1.1.5`, Android versionCode `10`, runtimeVersion `1.1.5`. El siguiente build nativo es `1.1.6` / versionCode `11` porque cambia el patch nativo de `llama.rn`.
-- Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI con el runtime del `CallInvoker`, compila el build EAS y el bundle incluye la espera robusta de bindings JSI antes de consumirlos. La pantalla de IA puede recibir por OTA un diagnóstico manual por fases compatible con este runtime.
-- Build preview `1.1.6` / versionCode `11`: `116ff7cb` fue cancelado y `d212dc78` falló en Gradle al compilar `llama.rn` con C++17 (`BindingsInstallerHolder` requiere C++20). La cola vieja `8c47b918` se canceló. Build nuevo relanzado desde el commit `631d914`: `9b238105-e0db-460e-a69e-92110759df24`, en cola; sustituir este bloque cuando haya APK válido.
+- Build ID: `9b238105-e0db-460e-a69e-92110759df24`
+- APK: <https://expo.dev/artifacts/eas/ka7LYDJr7W4QTMiu7Qbeqh.apk>
+- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/9b238105-e0db-460e-a69e-92110759df24>
+- Versión: `1.1.6`, Android versionCode `11`, runtimeVersion `1.1.6`, commit `631d914`.
+- SHA-256 local del APK descargado: `f7f60b3f92ad4b2e198cd2cadd2fba3c3023e8a041cabff62438b5570e0ae186`.
+- Verificado: build EAS terminado correctamente tras forzar C++20 en el wrapper JNI de `llama.rn`; el APK contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64) y `librnllama*.so` también para `x86_64` (18 en total). Sustituye al APK `1.1.5` porque aquel seguía reproduciendo `JSI bindings not installed` en Android real. Falta validación funcional en dispositivo: instalar este APK, activar IA avanzada y probar primer mensaje/conversaciones/superficies integradas.
 
 Antes de publicar:
 
