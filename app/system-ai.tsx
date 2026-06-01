@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { Check, ChevronLeft, CircleAlert, Cpu, Download, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -45,6 +46,8 @@ export default function SystemAiScreen() {
   const isWeb = Platform.OS === 'web';
   const status = profile.modelStatus;
   const usingLlama = profile.engine === 'llama';
+  const appVersion = Constants.expoConfig?.version ?? 'dev';
+  const buildVersion = Constants.nativeBuildVersion ?? 'dev';
 
   function handleDownload() {
     confirmAction({
@@ -94,6 +97,7 @@ export default function SystemAiScreen() {
         <Text style={styles.intro}>
           {t(language, 'aiIntro', { size: formatModelSize(language), model: MODEL_DISPLAY_NAME })}
         </Text>
+        <Text style={styles.buildInfo}>LevelArc {appVersion} · build {buildVersion}</Text>
 
         {isWeb ? (
           <View style={styles.noticeCard}>
@@ -234,6 +238,13 @@ const styles = StyleSheet.create({
     fontFamily: typography.font.bodyRegular,
     fontSize: 13,
     lineHeight: 19,
+  },
+  buildInfo: {
+    color: colors.state.pending,
+    fontFamily: typography.font.displayMedium,
+    fontSize: 10,
+    marginTop: -8,
+    textTransform: 'uppercase',
   },
   card: {
     backgroundColor: colors.background.surface,

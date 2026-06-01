@@ -121,7 +121,9 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Lanzar build `1.1.2` / versionCode `7` con el patch de JSI bridgeless (`aad21dd9`).
 - [x] Añadir retry explícito de `installJsi` y diagnósticos nativos para dejar de ocultar el fallo como `JSI bindings not installed` genérico.
 - [x] Lanzar build `1.1.3` / versionCode `8` con retry/diagnóstico de JSI (`8bd52333`).
-- [ ] Validar en device real: instalar APK `8bd52333-65eb-482b-91f3-4f73df2ff152` (`1.1.3`), descargar/reusar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Parchear `installJsi` de `llama.rn` para esperar todos los bindings JSI antes de consumirlos y mostrar versión/build en Ajustes IA.
+- [ ] Lanzar build `1.1.4` / versionCode `9` con espera robusta de bindings JSI.
+- [ ] Validar en device real: instalar APK `1.1.4`, confirmar que Ajustes IA muestra `LevelArc 1.1.4 · build 9`, descargar/reusar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).
