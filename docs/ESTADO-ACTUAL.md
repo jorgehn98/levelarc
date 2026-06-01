@@ -686,6 +686,15 @@ Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 - Llega a los APK runtime `1.1.5`, incluido el build `5cf2587d`.
 - Añade en Ajustes → IA del Sistema un diagnóstico manual que prueba por fases `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`.
 
+Update `preview` runtime `1.1.5` con error runtime IA enriquecido:
+
+- Grupo: `19c66b2d-7b9d-42a9-98f2-a9d27da64d6d`
+- Android update ID: `019e8344-9964-78aa-952f-6cd7eff560fd`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/19c66b2d-7b9d-42a9-98f2-a9d27da64d6d>
+- Commit: `7045592` (`Improve AI runtime error diagnostics`).
+- Llega a los APK runtime `1.1.5`, incluido el build `5cf2587d`.
+- Si el chat cae a plantillas, Ajustes → IA del Sistema muestra un error con `source`, timestamp, plataforma, engine/model status, existencia del fichero y stack truncado.
+
 Update `preview` runtime `1.1.0` con banner del Sistema, apariciones autónomas y Gemma 4:
 
 - Update group: `a1d8f4ab-79b3-42e8-9604-890c5b5847b3`

@@ -161,10 +161,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `85cefc2c-f00f-4f85-80af-48e4b3655626`
+- Update group: `19c66b2d-7b9d-42a9-98f2-a9d27da64d6d`
+- Android update ID: `019e8344-9964-78aa-952f-6cd7eff560fd`
 - Runtime: `1.1.5`
-- Mensaje: `Add local AI engine diagnostics`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/85cefc2c-f00f-4f85-80af-48e4b3655626>
+- Mensaje: `Improve AI runtime error diagnostics`
+- Commit: `7045592`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/19c66b2d-7b9d-42a9-98f2-a9d27da64d6d>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
