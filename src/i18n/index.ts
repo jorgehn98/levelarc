@@ -362,9 +362,9 @@ const dictionary = {
     aiModelReady: 'Modelo listo',
     aiUseAdvanced: 'Usar IA avanzada',
     aiUseAdvancedHint: 'Activa el modelo local para las respuestas del Sistema.',
-    aiRuntimeDisabled: 'IA avanzada desactivada',
+    aiRuntimeDisabled: 'El motor local falló',
     aiRuntimeDisabledCopy:
-      'El modelo sigue descargado, pero el motor local falló al generar. LevelArc ha vuelto a plantillas para no bloquear el chat.',
+      'El modelo sigue descargado. Esta respuesta cayó a plantillas para no bloquear el chat, pero LevelArc mantiene la IA avanzada activa para reintentar.',
     aiRunDiagnostic: 'Ejecutar diagnóstico IA',
     aiDiagnosticRunning: 'Diagnosticando…',
     aiDiagnosticTitle: 'Diagnóstico del motor local',
@@ -801,9 +801,9 @@ const dictionary = {
     aiModelReady: 'Model ready',
     aiUseAdvanced: 'Use advanced AI',
     aiUseAdvancedHint: 'Enable the local model for the System responses.',
-    aiRuntimeDisabled: 'Advanced AI disabled',
+    aiRuntimeDisabled: 'Local engine failed',
     aiRuntimeDisabledCopy:
-      'The model is still downloaded, but the local engine failed while generating. LevelArc fell back to templates to avoid blocking the chat.',
+      'The model is still downloaded. This reply fell back to templates to avoid blocking the chat, but LevelArc keeps advanced AI enabled so it can retry.',
     aiRunDiagnostic: 'Run AI diagnostic',
     aiDiagnosticRunning: 'Diagnosing…',
     aiDiagnosticTitle: 'Local engine diagnostic',

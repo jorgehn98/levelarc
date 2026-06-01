@@ -308,11 +308,11 @@ function resolveReply(reply: SystemReply): string {
   }
 }
 
-// Si el LLM local falla (OOM, timeout, incompatibilidad nativa), el chat no debe quedarse devolviendo
-// "no responde" en bucle. Degradamos SOLO el motor a plantillas para que el siguiente mensaje sea
-// inmediato y funcional. Si el fichero sigue existiendo y tiene tamaño correcto, NO marcamos
-// modelStatus='error': la descarga no falló, falló la ejecución del motor.
-async function downgradeToTemplateAfterLlmFailure(
+// Si el LLM local falla (OOM, timeout, incompatibilidad nativa), el chat no debe quedarse bloqueado:
+// la respuesta ACTUAL cae a plantillas y guardamos diagnóstico. Pero no apagamos la IA avanzada si el
+// modelo sigue instalado; el usuario no debe ver el toggle desactivarse tras un fallo runtime puntual.
+// Solo degradamos el perfil si el fichero/modelo ya no es válido.
+async function handleLlmRuntimeFailure(
   profile: AiProfileState,
   error: unknown,
   source: 'openChat' | 'sendMessage',
@@ -321,9 +321,10 @@ async function downgradeToTemplateAfterLlmFailure(
   await saveLlmRuntimeError(source, profile, error);
   if (profile.modelStatus !== 'ready' || !modelManager.modelExists()) {
     await setAiModelStatus('error');
+    await setAiEngine('template');
+    return toProfileState(await getAiProfile());
   }
-  await setAiEngine('template');
-  return toProfileState(await getAiProfile());
+  return profile;
 }
 
 // Lee el perfil de IA de la BD y lo proyecta al estado del store (incluye modelPath, que el selector
@@ -416,7 +417,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       await addAiMessage('assistant', text);
     } catch (err) {
       if (__DEV__) console.warn('[ai] openChat: fallo en el saludo del Sistema', err);
-      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err, 'openChat');
+      const profile = await handleLlmRuntimeFailure(get().profile, err, 'openChat');
       const fallback = resolveReply(await templateEngine.greeting(ctx, language));
       await addAiMessage('assistant', fallback);
       set({ profile });
@@ -462,7 +463,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       if (token !== chatGenerationToken) return;
       const language = useAppStore.getState().language;
       const ctx = await buildSystemContext();
-      const profile = await downgradeToTemplateAfterLlmFailure(get().profile, err, 'sendMessage');
+      const profile = await handleLlmRuntimeFailure(get().profile, err, 'sendMessage');
       const fallback = resolveReply(await templateEngine.reply(ctx, trimmed, language, contextNote ?? undefined));
       await addAiMessage('assistant', fallback);
       // Limpiamos el contextNote igualmente: el intento ya consumió el contexto inicial.

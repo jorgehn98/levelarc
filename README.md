@@ -104,12 +104,12 @@ Proyecto EAS enlazado:
 - `@jorgex-tech/levelarc`
 - Project ID: `2c6af84a-6180-48ac-ad12-f1b7b61bbf58`
 
-Último APK preview válido:
+Último APK preview válido (diagnóstico anterior; sustituir por 1.1.6 tras build):
 
 - Build ID: `5cf2587d-df9d-4020-a247-2dffdb48fa79`
 - APK: <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>
 - Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/5cf2587d-df9d-4020-a247-2dffdb48fa79>
-- Versión: `1.1.5`, Android versionCode `10`, runtimeVersion `1.1.5`.
+- Versión: `1.1.5`, Android versionCode `10`, runtimeVersion `1.1.5`. El siguiente build nativo es `1.1.6` / versionCode `11` porque cambia el patch nativo de `llama.rn`.
 - Verificado: contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64), recompila el wrapper JNI con el runtime del `CallInvoker`, compila el build EAS y el bundle incluye la espera robusta de bindings JSI antes de consumirlos. La pantalla de IA puede recibir por OTA un diagnóstico manual por fases compatible con este runtime.
 
 Antes de publicar:
@@ -139,7 +139,7 @@ Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants
 
 `@babel/plugin-transform-react-jsx` también está como devDependency explícita porque `expo-updates` lo necesita al crear recursos de updates en EAS con pnpm.
 
-`llama.rn` debe estar aprobado en `package.json` → `pnpm.onlyBuiltDependencies`. Si pnpm ignora su postinstall, EAS puede generar un APK aparentemente correcto pero sin `librnllama*.so`; en Android el síntoma es `JSI bindings not installed`. Antes de dar por válido un APK con LLM, descargarlo e inspeccionar que contiene `lib/arm64-v8a/librnllama*.so`. Además, `llama.rn` 0.12.4 está parcheado en `patches/llama.rn@0.12.4.patch` para Android bridgeless de Expo SDK 56/RN 0.85: usa `ReactApplicationContext.getJSCallInvokerHolder()` en vez de `getCatalystInstance()`, instala JSI con el `jsi::Runtime&` que entrega el `CallInvoker` moderno en vez de capturar un puntero crudo de `JavaScriptContextHolder`, devuelve errores nativos concretos en vez de `false` silencioso, y parchea `installJsi` para esperar a que estén todos los bindings globales antes de moverlos al closure interno. `src/ai/llamaEngine.ts` preinstala JSI antes de `initLlama` para cubrir la carrera de bindings asíncronos. Ojo: el patch JS debe mantenerse duplicado en `src/index.ts`, `lib/module/index.js` y `lib/commonjs/index.js`; se confirmó con `expo export --platform android` que el bundle Android puede coger `lib/*`, y si esas entradas quedan sin parchear vuelve el error genérico `JSI bindings not installed`.
+`llama.rn` debe estar aprobado en `package.json` → `pnpm.onlyBuiltDependencies`. Si pnpm ignora su postinstall, EAS puede generar un APK aparentemente correcto pero sin `librnllama*.so`; en Android el síntoma es `JSI bindings not installed`. Antes de dar por válido un APK con LLM, descargarlo e inspeccionar que contiene `lib/arm64-v8a/librnllama*.so`. Además, `llama.rn` 0.12.4 está parcheado en `patches/llama.rn@0.12.4.patch` para Android bridgeless de Expo SDK 56/RN 0.85: implementa el patrón oficial de RN 0.85 `TurboModuleWithJSIBindings` + `BindingsInstallerHolder` para que React Native instale los bindings con el `jsi::Runtime&` correcto, evita capturar punteros crudos de `JavaScriptContextHolder`, conserva `install()` como comprobación de librería nativa, devuelve errores nativos concretos en vez de `false` silencioso, y parchea `installJsi` para esperar a que estén todos los bindings globales antes de moverlos al closure interno. `src/ai/llamaEngine.ts` preinstala JSI antes de `initLlama` para cubrir la carrera de bindings asíncronos. Ojo: el patch JS debe mantenerse duplicado en `src/index.ts`, `lib/module/index.js` y `lib/commonjs/index.js`; se confirmó con `expo export --platform android` que el bundle Android puede coger `lib/*`, y si esas entradas quedan sin parchear vuelve el error genérico `JSI bindings not installed`.
 
 ## EAS Update
 

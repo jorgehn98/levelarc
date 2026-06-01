@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { Check, ChevronLeft, CircleAlert, Cpu, Download, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -51,6 +52,11 @@ export default function SystemAiScreen() {
   const usingLlama = profile.engine === 'llama';
   const appVersion = Constants.expoConfig?.version ?? 'dev';
   const buildVersion = Constants.nativeBuildVersion ?? 'dev';
+  const updateInfo = [
+    `runtime ${Updates.runtimeVersion ?? 'dev'}`,
+    `channel ${Updates.channel ?? 'n/a'}`,
+    Updates.isEmbeddedLaunch ? 'embedded' : `update ${Updates.updateId ?? 'dev'}`,
+  ].join(' · ');
 
   function handleDownload() {
     confirmAction({
@@ -118,6 +124,7 @@ export default function SystemAiScreen() {
           {t(language, 'aiIntro', { size: formatModelSize(language), model: MODEL_DISPLAY_NAME })}
         </Text>
         <Text style={styles.buildInfo}>LevelArc {appVersion} · build {buildVersion}</Text>
+        <Text style={styles.updateInfo}>{updateInfo}</Text>
 
         {isWeb ? (
           <View style={styles.noticeCard}>
@@ -216,7 +223,7 @@ function ReadyState({
         <Toggle active={usingLlama} onPress={onToggleEngine} />
       </View>
 
-      {!usingLlama && runtimeError ? (
+      {runtimeError ? (
         <View style={styles.runtimeNotice}>
           <CircleAlert color={colors.state.failed} size={16} />
           <View style={styles.runtimeNoticeCopy}>
@@ -303,6 +310,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: -8,
     textTransform: 'uppercase',
+  },
+  updateInfo: {
+    color: colors.state.pending,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 11,
+    marginTop: -12,
   },
   card: {
     backgroundColor: colors.background.surface,

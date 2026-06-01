@@ -55,7 +55,7 @@ El LLM on-device ya está implementado en código sobre la misma interface `Syst
 
 - NO funciona en Expo Go.
 - NO se entrega por OTA: EAS Update solo entrega JS, estilos e imágenes, no binarios nativos.
-- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`, el patch bridgeless, la instalación JSI vía runtime del `CallInvoker` y la espera robusta de JSI. Usar el build `5cf2587d` (`1.1.5`, versionCode `10`), ya verificado a nivel de APK. Tras la OTA `856cc783`, el usuario confirma validación inicial del chat en Android: el motor ya responde y no se desactiva al primer mensaje.
+- El LLM solo llega instalando un build nativo que incluya las `.so` de `llama.rn`, el patch bridgeless, la instalación JSI vía runtime del `CallInvoker` y la espera robusta de JSI. El build `5cf2587d` (`1.1.5`, versionCode `10`) está verificado a nivel de APK, pero el usuario volvió a reproducir `JSI bindings not installed` al primer mensaje. El siguiente build válido debe ser `1.1.6` / versionCode `11` con el patch nativo `TurboModuleWithJSIBindings` + `BindingsInstallerHolder`.
 - El modelo NO viene en el APK ni por OTA: la IA es **opcional** y el GGUF se descarga bajo demanda dentro de la app. La app funciona perfecta sin modelo.
 - El chat por plantillas (runtime `1.0.2`) sigue funcionando por OTA para quien no instale el build nuevo.
 
@@ -120,9 +120,9 @@ Tono "el Sistema": seco, imperativo, máximo 2 frases, sin emojis, sin inventar 
 
 ## Cómo validar 5B (pendiente — única tarea abierta)
 
-El build válido actual es `5cf2587d`; lo que queda es la validación en device:
+El build `5cf2587d` ya no se considera suficiente para validar IA local; lo que queda es generar e instalar `1.1.6`:
 
-1. Instalar el APK del build `5cf2587d` (`1.1.5`, versionCode `10`): <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>.
+1. Instalar el APK del build `1.1.6` (versionCode `11`) cuando EAS lo genere.
 2. Abrir la pantalla de gestión (Ajustes → Sistema → "IA avanzada" o cabecera del chat) y descargar el GGUF de ~3,1 GB de Gemma 4 E2B.
 3. Si el chat vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla. El diagnóstico prueba por fases: `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`; copiar el primer paso con `ERROR`.
 4. Activar la IA avanzada y probar conversación y apariciones autónomas; verificar RAM/batería/calor (cómodo en 6 GB, justo en 4 GB).
@@ -139,4 +139,4 @@ El build válido actual es `5cf2587d`; lo que queda es la validación en device:
 
 ## Resumen de la decisión
 
-Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B. Tras el build `aad21dd9` (`1.1.2` / versionCode `7`) el usuario seguía viendo `JSI bindings not installed`; el build actual `5cf2587d` (`1.1.5` / versionCode `10`) instala JSI usando el `jsi::Runtime&` entregado por RN 0.85 `CallInvoker`, espera hasta 8s a que existan todos los bindings globales, evita consumir bindings parciales y mantiene diagnósticos nativos para saber si falla librería o call invoker. La OTA `856cc783` amplió el patch JS a los entrypoints compilados de `llama.rn`; tras esa OTA el usuario confirma que el chat ya responde sin desactivar la IA al primer mensaje. La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA para binarios: requiere instalar build nativo compatible y descargar el GGUF de ~3,1 GB on-device. Queda pendiente QA completa de IA integrada y el build de production.
+Motor de plantillas entregado por OTA (Fase 5A, hecho). El LLM real (Fase 5B) ya está implementado en código sobre la misma interface enchufable (commit `3d5d509`), con Gemma 4 E2B. Tras el build `aad21dd9` (`1.1.2` / versionCode `7`) el usuario seguía viendo `JSI bindings not installed`; el build actual `5cf2587d` (`1.1.5` / versionCode `10`) instala JSI usando el `jsi::Runtime&` entregado por RN 0.85 `CallInvoker`, espera hasta 8s a que existan todos los bindings globales, evita consumir bindings parciales y mantiene diagnósticos nativos para saber si falla librería o call invoker. La OTA `856cc783` amplió el patch JS a los entrypoints compilados de `llama.rn`, pero Android real siguió fallando con `JSI bindings not installed`. El patch actual cambia la integración nativa a `TurboModuleWithJSIBindings` + `BindingsInstallerHolder`, que es el camino oficial de RN 0.85 para que core entregue el runtime JSI correcto. La IA es opcional y se integra en el flujo (banner en Hoy + apariciones autónomas), no solo como chat. Su mayor riesgo sigue siendo que no es OTA para binarios: requiere instalar build nativo compatible y descargar el GGUF de ~3,1 GB on-device. Queda pendiente generar/instalar build `1.1.6`, QA completa de IA integrada y el build de production.
