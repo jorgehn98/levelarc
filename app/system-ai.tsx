@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
@@ -18,6 +19,34 @@ import type { LlamaDiagnosticStep } from '@/ai/llamaEngine';
 import { getLlmRuntimeError, useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
+
+const SURFACE_DIAGNOSTICS_KEY = 'levelarc.ai.surfaceDiagnostics';
+
+async function loadSurfaceDiagnostics(): Promise<LlamaDiagnosticStep[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(SURFACE_DIAGNOSTICS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter(
+      (step): step is LlamaDiagnosticStep =>
+        typeof step?.name === 'string' &&
+        (step.status === 'ok' || step.status === 'error') &&
+        typeof step.detail === 'string' &&
+        typeof step.ms === 'number',
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function persistSurfaceDiagnostics(steps: LlamaDiagnosticStep[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(SURFACE_DIAGNOSTICS_KEY, JSON.stringify(steps));
+  } catch {
+    // Evidencia best-effort: el resultado actual sigue visible en pantalla.
+  }
+}
 
 export default function SystemAiScreen() {
   const language = useAppStore((state) => state.language);
@@ -43,8 +72,10 @@ export default function SystemAiScreen() {
 
   useEffect(() => {
     let active = true;
-    void getLlmRuntimeError().then((error) => {
-      if (active) setRuntimeError(error);
+    void Promise.all([getLlmRuntimeError(), loadSurfaceDiagnostics()]).then(([error, savedSurfaceDiagnostics]) => {
+      if (!active) return;
+      setRuntimeError(error);
+      if (savedSurfaceDiagnostics?.length) setSurfaceDiagnostics(savedSurfaceDiagnostics);
     });
     return () => {
       active = false;
@@ -136,6 +167,21 @@ export default function SystemAiScreen() {
     void (async () => {
       setSurfaceDiagnosticsRunning(true);
       setSurfaceDiagnostics(null);
+      const evidence: LlamaDiagnosticStep = {
+        name: 'surface diagnostic evidence',
+        status: 'ok',
+        detail: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          appVersion,
+          buildVersion,
+          runtimeVersion: Updates.runtimeVersion ?? 'dev',
+          updateChannel: Updates.channel ?? 'n/a',
+          updateId: Updates.updateId ?? 'embedded',
+          launchSource: Updates.isEmbeddedLaunch ? 'embedded' : 'ota',
+          platform: Platform.OS,
+        }),
+        ms: 0,
+      };
       try {
         const { runLlamaSurfaceDiagnostics } = await import('@/ai/llamaEngine');
         const systemContext = await buildSystemContext();
@@ -148,12 +194,20 @@ export default function SystemAiScreen() {
           atributos: ['focus', 'discipline'],
           last7: ['fallado', 'pendiente', 'completado', 'fallado', 'pendiente', 'completado', 'pendiente'],
         };
-        setSurfaceDiagnostics(
-          await runLlamaSurfaceDiagnostics(profile.modelPath!, language, systemContext, buildHabitContext(sampleHabit)),
-        );
+        const steps = [
+          evidence,
+          ...(await runLlamaSurfaceDiagnostics(profile.modelPath!, language, systemContext, buildHabitContext(sampleHabit))),
+        ];
+        setSurfaceDiagnostics(steps);
+        await persistSurfaceDiagnostics(steps);
       } catch (error) {
         const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-        setSurfaceDiagnostics([{ name: 'surface diagnostic bootstrap', status: 'error', detail, ms: 0 }]);
+        const steps: LlamaDiagnosticStep[] = [
+          evidence,
+          { name: 'surface diagnostic bootstrap', status: 'error', detail, ms: 0 },
+        ];
+        setSurfaceDiagnostics(steps);
+        await persistSurfaceDiagnostics(steps);
       } finally {
         setSurfaceDiagnosticsRunning(false);
       }
