@@ -1,9 +1,12 @@
 diff --git a/android/src/main/java/com/rnllama/RNLlamaModule.java b/android/src/main/java/com/rnllama/RNLlamaModule.java
-index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..0f7abcad440972ab5b5603d308f38d97e9571a8a 100644
+index 407a62c..13d3e23 100644
 --- a/android/src/main/java/com/rnllama/RNLlamaModule.java
 +++ b/android/src/main/java/com/rnllama/RNLlamaModule.java
-@@ -2,10 +2,12 @@ package com.rnllama;
+@@ -1,15 +1,20 @@
+ package com.rnllama;
  
++import android.util.Log;
++
  import androidx.annotation.NonNull;
  
 +import com.facebook.react.bridge.JavaScriptContextHolder;
@@ -15,7 +18,17 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..0f7abcad440972ab5b5603d308f38d97
  
  @ReactModule(name = RNLlama.NAME)
  public class RNLlamaModule extends NativeRNLlamaSpec {
-@@ -33,16 +35,23 @@ public class RNLlamaModule extends NativeRNLlamaSpec {
+   public static final String NAME = RNLlama.NAME;
++  private static final String TAG = "RNLlamaModule";
+ 
+   private ReactApplicationContext context;
+ 
+@@ -29,26 +34,47 @@ public class RNLlamaModule extends NativeRNLlamaSpec {
+     try {
+       boolean loaded = RNLlama.loadNative(context);
+       if (!loaded) {
+-        promise.resolve(false);
++        promise.reject("ERR_RNLLAMA_LOAD_NATIVE", "RNLlama.loadNative returned false");
          return;
        }
  
@@ -23,11 +36,20 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..0f7abcad440972ab5b5603d308f38d97
 -      CallInvokerHolderImpl holder =
 -        (CallInvokerHolderImpl) context.getCatalystInstance().getJSCallInvokerHolder();
 +      JavaScriptContextHolder jsContext = context.getJavaScriptContextHolder();
-+      CallInvokerHolder callInvokerHolder = context.getJSCallInvokerHolder();
++      if (jsContext == null) {
++        promise.reject("ERR_RNLLAMA_JS_CONTEXT", "JavaScriptContextHolder is null; React instance is not ready");
++        return;
++      }
  
 -      if (jsContextPointer == 0 || holder == null) {
-+      if (jsContext == null || !(callInvokerHolder instanceof CallInvokerHolderImpl)) {
-         promise.resolve(false);
+-        promise.resolve(false);
++      CallInvokerHolder callInvokerHolder = context.getJSCallInvokerHolder();
++      if (!(callInvokerHolder instanceof CallInvokerHolderImpl)) {
++        String holderClass = callInvokerHolder == null ? "null" : callInvokerHolder.getClass().getName();
++        promise.reject(
++          "ERR_RNLLAMA_CALL_INVOKER",
++          "JS call invoker is not CallInvokerHolderImpl: " + holderClass
++        );
          return;
        }
  
@@ -35,12 +57,32 @@ index 407a62cb99c211778fcb4b946ff9b75764d3b8fb..0f7abcad440972ab5b5603d308f38d97
 +      synchronized (jsContext) {
 +        long jsContextPointer = jsContext.get();
 +        if (jsContextPointer == 0) {
-+          promise.resolve(false);
++          promise.reject("ERR_RNLLAMA_JS_CONTEXT", "JavaScriptContextHolder pointer is 0");
 +          return;
 +        }
 +
 +        installJSIBindings(jsContextPointer, (CallInvokerHolderImpl) callInvokerHolder);
 +      }
++
        promise.resolve(true);
        return;
      } catch (UnsatisfiedLinkError e) {
++      Log.e(TAG, "Failed to load llama native library", e);
++      promise.reject("ERR_RNLLAMA_NATIVE_LIBRARY", "Failed to load llama native library", e);
++      return;
+     } catch (Exception e) {
++      Log.e(TAG, "Failed to install JSI bindings", e);
++      promise.reject("ERR_RNLLAMA_INSTALL_JSI", "Failed to install llama JSI bindings", e);
++      return;
+     }
+-    promise.resolve(false);
+   }
+ 
+   private native void installJSIBindings(long jsContextPointer, CallInvokerHolderImpl callInvokerHolder);
+@@ -63,4 +89,4 @@ public class RNLlamaModule extends NativeRNLlamaSpec {
+     }
+     super.invalidate();
+   }
+-}
++}
+\ No newline at end of file

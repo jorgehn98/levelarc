@@ -119,7 +119,9 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Build nativo con `.so` de `llama.rn` incluidas (`114d891f`, runtime `1.1.1`, versionCode `6`; APK verificado con 14 librerías `lib/arm64-v8a/librnllama*.so`).
 - [x] Parchear `llama.rn` 0.12.4 para Android bridgeless (Expo SDK 56/RN 0.85): usar `ReactApplicationContext.getJSCallInvokerHolder()` en vez de `getCatalystInstance()`.
 - [x] Lanzar build `1.1.2` / versionCode `7` con el patch de JSI bridgeless (`aad21dd9`).
-- [ ] Validar en device real: instalar APK `aad21dd9` (`1.1.2`), descargar/reusar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Añadir retry explícito de `installJsi` y diagnósticos nativos para dejar de ocultar el fallo como `JSI bindings not installed` genérico.
+- [ ] Lanzar build `1.1.3` / versionCode `8` con retry/diagnóstico de JSI.
+- [ ] Validar en device real: instalar APK `1.1.3`, descargar/reusar Gemma 4 E2B (~3,1 GB) y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).

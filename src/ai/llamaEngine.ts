@@ -46,8 +46,41 @@ const STOP = [TURN_END, TURN_START];
 // la generación nativa (stopCompletion) y rechazamos para que el store degrade a plantilla/error.
 const COMPLETION_TIMEOUT_MS = 45_000;
 const LOAD_TIMEOUT_MS = 180_000;
+const JSI_INSTALL_RETRIES = 5;
+const JSI_INSTALL_RETRY_DELAY_MS = 100;
 
 // Error con el que rechazamos al vencer un timeout, para que el store pueda distinguirlo si quiere.
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isJsiInstallRaceError(error: unknown): boolean {
+  const message = getErrorMessage(error);
+  return message.includes('JSI bindings not installed') || message.includes('[RNLlama] Missing JSI bindings');
+}
+
+async function installJsiWithRetry(installJsi: () => Promise<void>): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= JSI_INSTALL_RETRIES; attempt += 1) {
+    try {
+      await installJsi();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isJsiInstallRaceError(error) || attempt === JSI_INSTALL_RETRIES) break;
+      await sleep(JSI_INSTALL_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(getErrorMessage(lastError));
+}
+
 export class LlamaTimeoutError extends Error {
   constructor(message: string) {
     super(message);
@@ -223,7 +256,8 @@ async function ensureContext(modelPath: string): Promise<LlamaContext> {
   // Nueva carga: arranca "no abortada". releaseLlama pondrá loadAborted=true si llega en vuelo.
   loadAborted = false;
   const load = (async () => {
-    const { initLlama, releaseAllLlama } = await import('llama.rn');
+    const { initLlama, installJsi, releaseAllLlama } = await import('llama.rn');
+    await installJsiWithRetry(installJsi);
     const ctx = await initLlama({
       model: modelPath,
       n_ctx: N_CTX,
