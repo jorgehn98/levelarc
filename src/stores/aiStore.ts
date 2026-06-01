@@ -212,7 +212,13 @@ function describeError(error: unknown): string {
   }
 }
 
-function buildLlmRuntimeDiagnostic(source: 'openChat' | 'sendMessage', profile: AiProfileState, error: unknown): string {
+function buildLlmRuntimeDiagnostic(
+  source: 'openChat' | 'sendMessage',
+  profile: AiProfileState,
+  error: unknown,
+  extra: string[] = [],
+): string {
+  const modelDebugInfo = modelManager.getModelFileDebugInfo();
   return [
     `source=${source}`,
     `timestamp=${new Date().toISOString()}`,
@@ -221,6 +227,11 @@ function buildLlmRuntimeDiagnostic(source: 'openChat' | 'sendMessage', profile: 
     `modelStatus=${profile.modelStatus}`,
     `hasModelPath=${Boolean(profile.modelPath)}`,
     `modelExists=${Platform.OS === 'web' ? 'n/a' : modelManager.modelExists()}`,
+    `modelSize=${modelDebugInfo.modelSize ?? 'n/a'}`,
+    `expectedModelSize=${modelDebugInfo.expectedSize}`,
+    `stampExists=${modelDebugInfo.stampExists}`,
+    `stampSize=${modelDebugInfo.stampSize ?? 'n/a'}`,
+    ...extra,
     describeError(error),
   ].join('\n');
 }
@@ -229,9 +240,13 @@ async function saveLlmRuntimeError(
   source: 'openChat' | 'sendMessage',
   profile: AiProfileState,
   error: unknown,
+  extra: string[] = [],
 ): Promise<void> {
   try {
-    await AsyncStorage.setItem(LLM_RUNTIME_ERROR_KEY, buildLlmRuntimeDiagnostic(source, profile, error).slice(0, 2000));
+    await AsyncStorage.setItem(
+      LLM_RUNTIME_ERROR_KEY,
+      buildLlmRuntimeDiagnostic(source, profile, error, extra).slice(0, 2400),
+    );
   } catch {
     // Diagnóstico best-effort: no debe romper el fallback del chat.
   }
@@ -412,7 +427,16 @@ export const useAiStore = create<AiState>((set, get) => ({
     const language = useAppStore.getState().language;
     const ctx = await buildSystemContext();
     try {
+      const profileBeforeEngine = get().profile;
       const engine = await resolveEngine(get().profile);
+      if (profileBeforeEngine.engine === 'llama' && engine.id !== 'llama') {
+        await saveLlmRuntimeError(
+          'openChat',
+          profileBeforeEngine,
+          new Error('resolveEngine returned template while profile requested llama'),
+          [`resolvedEngine=${engine.id}`],
+        );
+      }
       const text = resolveReply(await engine.greeting(ctx, language));
       await addAiMessage('assistant', text);
     } catch (err) {
@@ -446,7 +470,16 @@ export const useAiStore = create<AiState>((set, get) => ({
 
     try {
       const language = useAppStore.getState().language;
-      const engine = await resolveEngine(get().profile);
+      const profileBeforeEngine = get().profile;
+      const engine = await resolveEngine(profileBeforeEngine);
+      if (profileBeforeEngine.engine === 'llama' && engine.id !== 'llama') {
+        await saveLlmRuntimeError(
+          'sendMessage',
+          profileBeforeEngine,
+          new Error('resolveEngine returned template while profile requested llama'),
+          [`resolvedEngine=${engine.id}`],
+        );
+      }
       const ctx = await buildSystemContext();
       const reply = resolveReply(await engine.reply(ctx, trimmed, language, contextNote ?? undefined));
       // Cancelada/reemplazada mientras inferíamos: descarta la respuesta, no la persistas.

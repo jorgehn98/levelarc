@@ -141,7 +141,8 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Parchear `llama.rn` para compilar el wrapper JNI con C++20 (`CMAKE_CXX_STANDARD 20` + `target_compile_features(... cxx_std_20)`).
 - [x] Relanzar build `1.1.6` / versionCode `11` desde el commit con C++20 (`9b238105-e0db-460e-a69e-92110759df24`, commit `631d914`).
 - [x] Descargar/inspeccionar APK `1.1.6` (`https://expo.dev/artifacts/eas/ka7LYDJr7W4QTMiu7Qbeqh.apk`): contiene `14` librerías `lib/arm64-v8a/librnllama*.so`; SHA-256 `f7f60b3f92ad4b2e198cd2cadd2fba3c3023e8a041cabff62438b5570e0ae186`; bundle JS con `JSI bindings not installed after native install` / `Native install returned false`; `.so` JNI con `getBindingsInstaller` / `BindingsInstallerHolder` / `TurboModuleWithJSIBindings`.
-- [ ] Validar en Android real: instalar APK `1.1.6`, confirmar en Ajustes IA `LevelArc 1.1.6 · build 11`, probar primer mensaje, varias conversaciones seguidas, briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Validar en Android real el chat IA local con APK `1.1.6`: el usuario confirma que el chat ya funciona y el diagnóstico nativo previo cargaba/liberaba el contexto correctamente.
+- [ ] QA no bloqueante de superficies secundarias IA: briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad prolongada (RAM/batería/calor).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).
