@@ -10,6 +10,8 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { MODEL_DISPLAY_NAME, formatModelSize, getModelFileDebugInfo, modelExists } from '@/ai/modelManager';
+import { buildHabitContext, type HabitInsightInput } from '@/core/aiContext';
+import { buildSystemContext } from '@/db/repository';
 import { t, type Language } from '@/i18n';
 import { confirmAction } from '@/lib/confirm';
 import type { LlamaDiagnosticStep } from '@/ai/llamaEngine';
@@ -30,6 +32,8 @@ export default function SystemAiScreen() {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<LlamaDiagnosticStep[] | null>(null);
   const [diagnosticsRunning, setDiagnosticsRunning] = useState(false);
+  const [surfaceDiagnostics, setSurfaceDiagnostics] = useState<LlamaDiagnosticStep[] | null>(null);
+  const [surfaceDiagnosticsRunning, setSurfaceDiagnosticsRunning] = useState(false);
 
   // Carga el perfil al montar si todavía no está listo (la pantalla puede abrirse sin pasar por el
   // chat, que es quien normalmente llama a loadAi).
@@ -127,6 +131,35 @@ export default function SystemAiScreen() {
     })();
   }
 
+  function handleRunSurfaceDiagnostics() {
+    if (!profile.modelPath || surfaceDiagnosticsRunning) return;
+    void (async () => {
+      setSurfaceDiagnosticsRunning(true);
+      setSurfaceDiagnostics(null);
+      try {
+        const { runLlamaSurfaceDiagnostics } = await import('@/ai/llamaEngine');
+        const systemContext = await buildSystemContext();
+        const sampleHabit: HabitInsightInput = {
+          nombre: 'Leer 30 minutos',
+          consistency30: 0.42,
+          currentStreak: 0,
+          mejorRachaHabito: 6,
+          importancia: 4,
+          atributos: ['focus', 'discipline'],
+          last7: ['fallado', 'pendiente', 'completado', 'fallado', 'pendiente', 'completado', 'pendiente'],
+        };
+        setSurfaceDiagnostics(
+          await runLlamaSurfaceDiagnostics(profile.modelPath!, language, systemContext, buildHabitContext(sampleHabit)),
+        );
+      } catch (error) {
+        const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+        setSurfaceDiagnostics([{ name: 'surface diagnostic bootstrap', status: 'error', detail, ms: 0 }]);
+      } finally {
+        setSurfaceDiagnosticsRunning(false);
+      }
+    })();
+  }
+
   return (
     <Screen>
       <ScreenHeader
@@ -165,8 +198,11 @@ export default function SystemAiScreen() {
                 language={language}
                 onDelete={handleDelete}
                 onRunDiagnostics={handleRunDiagnostics}
+                onRunSurfaceDiagnostics={handleRunSurfaceDiagnostics}
                 onToggleEngine={handleToggleEngine}
                 runtimeError={runtimeError}
+                surfaceDiagnostics={surfaceDiagnostics}
+                surfaceDiagnosticsRunning={surfaceDiagnosticsRunning}
                 usingLlama={usingLlama}
               />
             ) : (
@@ -216,8 +252,11 @@ function ReadyState({
   language,
   onDelete,
   onRunDiagnostics,
+  onRunSurfaceDiagnostics,
   onToggleEngine,
   runtimeError,
+  surfaceDiagnostics,
+  surfaceDiagnosticsRunning,
   usingLlama,
 }: {
   diagnostics: LlamaDiagnosticStep[] | null;
@@ -225,8 +264,11 @@ function ReadyState({
   language: Language;
   onDelete: () => void;
   onRunDiagnostics: () => void;
+  onRunSurfaceDiagnostics: () => void;
   onToggleEngine: () => void;
   runtimeError: string | null;
+  surfaceDiagnostics: LlamaDiagnosticStep[] | null;
+  surfaceDiagnosticsRunning: boolean;
   usingLlama: boolean;
 }) {
   return (
@@ -265,16 +307,45 @@ function ReadyState({
 
       {diagnostics ? <DiagnosticResult language={language} steps={diagnostics} /> : null}
 
+      <Button
+        disabled={surfaceDiagnosticsRunning || !usingLlama}
+        icon={Cpu}
+        label={
+          surfaceDiagnosticsRunning ? t(language, 'aiSurfaceDiagnosticRunning') : t(language, 'aiRunSurfaceDiagnostic')
+        }
+        onPress={onRunSurfaceDiagnostics}
+        variant="secondary"
+      />
+
+      {surfaceDiagnostics ? (
+        <DiagnosticResult
+          hintKey="aiSurfaceDiagnosticHint"
+          language={language}
+          steps={surfaceDiagnostics}
+          titleKey="aiSurfaceDiagnosticTitle"
+        />
+      ) : null}
+
       <Button icon={Trash2} label={t(language, 'aiDeleteModel')} onPress={onDelete} variant="danger" />
     </View>
   );
 }
 
-function DiagnosticResult({ language, steps }: { language: Language; steps: LlamaDiagnosticStep[] }) {
+function DiagnosticResult({
+  hintKey = 'aiDiagnosticHint',
+  language,
+  steps,
+  titleKey = 'aiDiagnosticTitle',
+}: {
+  hintKey?: 'aiDiagnosticHint' | 'aiSurfaceDiagnosticHint';
+  language: Language;
+  steps: LlamaDiagnosticStep[];
+  titleKey?: 'aiDiagnosticTitle' | 'aiSurfaceDiagnosticTitle';
+}) {
   return (
     <View style={styles.diagnosticCard}>
-      <Text style={styles.diagnosticTitle}>{t(language, 'aiDiagnosticTitle')}</Text>
-      <Text style={styles.diagnosticHint}>{t(language, 'aiDiagnosticHint')}</Text>
+      <Text style={styles.diagnosticTitle}>{t(language, titleKey)}</Text>
+      <Text style={styles.diagnosticHint}>{t(language, hintKey)}</Text>
       {steps.map((step) => (
         <View key={`${step.name}-${step.ms}`} style={styles.diagnosticStep}>
           <Text style={[styles.diagnosticStepName, step.status === 'error' && styles.diagnosticStepError]}>

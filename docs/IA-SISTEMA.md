@@ -86,7 +86,7 @@ El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y
 - `downloadModel` / `deleteModel` / `cancelDownload`.
 - Reconciliación del estado del modelo en `loadAi`: limpia descargas huérfanas y estados `ready` sin fichero en disco.
 - Selección de motor vía `resolveEngine`: usa `llama` solo si `engine='llama'` + `modelStatus='ready'` + `modelPath` + native; en cualquier otro caso cae a plantillas.
-- Observabilidad runtime: los fallos del LLM en chat, briefing diario, micro-comentarios de hábito y apariciones autónomas se guardan en Ajustes IA con source/perfil/modelo para no confundir una plantilla de fallback con una respuesta LLM real.
+- Observabilidad runtime: los fallos del LLM en chat, briefing diario, micro-comentarios de hábito y apariciones autónomas se guardan en Ajustes IA con source/perfil/modelo para no confundir una plantilla de fallback con una respuesta LLM real. La misma pantalla tiene una prueba manual de superficies IA que genera briefing, micro-comentario y aparición con Gemma.
 
 ### Motor (`llamaEngine`)
 
@@ -126,9 +126,10 @@ El build `5cf2587d` ya no se considera suficiente para validar IA local. El buil
 1. Mantener como APK preview válido el EAS build `9b238105-e0db-460e-a69e-92110759df24` (`1.1.6`, versionCode `11`, commit `631d914`): <https://expo.dev/artifacts/eas/ka7LYDJr7W4QTMiu7Qbeqh.apk>. Ya está inspeccionado a nivel de APK: `14` `librnllama*.so` en `arm64-v8a`, SHA-256 `f7f60b3f92ad4b2e198cd2cadd2fba3c3023e8a041cabff62438b5570e0ae186`, bundle JS con el `installJsi` parcheado y `.so` JNI con `BindingsInstallerHolder`.
 2. Chat IA local validado por el usuario en Android real: ya responde con el modelo local y no reproduce el fallo inicial de JSI/desactivación al primer mensaje.
 3. Si vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla; ahora incluye entorno/perfil/modelo además de `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`. El error runtime se guarda también para briefing, micro-comentarios y apariciones si `engine=llama` acaba en plantilla o no cumple precondiciones de modelo.
-4. QA secundaria: briefing diario, micro-comentarios de hábito, apariciones autónomas y estabilidad RAM/batería/calor.
-5. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
-6. EAS Build `production`.
+4. Ejecutar **Probar superficies IA** en la misma pantalla: fuerza generación real de briefing, comentario de hábito y aparición con el LLM local, sin esperar a eventos naturales del juego.
+5. QA secundaria: revisar briefing diario, micro-comentarios de hábito y apariciones en flujo real, más estabilidad RAM/batería/calor.
+6. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
+7. EAS Build `production`.
 
 ## Riesgos
 

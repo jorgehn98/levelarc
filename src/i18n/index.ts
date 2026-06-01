@@ -370,6 +370,11 @@ const dictionary = {
     aiDiagnosticTitle: 'Diagnóstico del motor local',
     aiDiagnosticHint:
       'Ejecuta importación nativa, instalación JSI, backend, lectura del modelo y carga inicial. Copia el primer ERROR si aparece.',
+    aiRunSurfaceDiagnostic: 'Probar superficies IA',
+    aiSurfaceDiagnosticRunning: 'Probando superficies…',
+    aiSurfaceDiagnosticTitle: 'Diagnóstico de superficies IA',
+    aiSurfaceDiagnosticHint:
+      'Genera briefing, comentario de hábito y aparición con el LLM local. Si algo cae a plantilla, copia el primer ERROR.',
     aiDeleteModel: 'Eliminar modelo',
     aiRetry: 'Reintentar',
     aiDownloadError: 'La descarga falló. Inténtalo de nuevo.',
@@ -809,6 +814,11 @@ const dictionary = {
     aiDiagnosticTitle: 'Local engine diagnostic',
     aiDiagnosticHint:
       'Runs native import, JSI install, backend, model metadata and initial load. Copy the first ERROR if one appears.',
+    aiRunSurfaceDiagnostic: 'Test AI surfaces',
+    aiSurfaceDiagnosticRunning: 'Testing surfaces…',
+    aiSurfaceDiagnosticTitle: 'AI surfaces diagnostic',
+    aiSurfaceDiagnosticHint:
+      'Generates briefing, habit insight and interjection with the local LLM. If anything falls back to templates, copy the first ERROR.',
     aiDeleteModel: 'Delete model',
     aiRetry: 'Retry',
     aiDownloadError: 'The download failed. Try again.',

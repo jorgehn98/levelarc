@@ -459,6 +459,41 @@ export async function runLlamaDiagnostics(
   return steps;
 }
 
+export async function runLlamaSurfaceDiagnostics(
+  modelPath: string,
+  language: Language,
+  systemContext: SystemContext,
+  habitContext: HabitContext,
+): Promise<LlamaDiagnosticStep[]> {
+  const steps: LlamaDiagnosticStep[] = [];
+
+  async function runStep(name: string, action: () => Promise<string>): Promise<void> {
+    const startedAt = Date.now();
+    try {
+      const detail = await action();
+      steps.push({ name, status: 'ok', detail, ms: Date.now() - startedAt });
+    } catch (error) {
+      steps.push({ name, status: 'error', detail: getErrorMessage(error), ms: Date.now() - startedAt });
+    }
+  }
+
+  await runStep('surface: daily briefing', async () => {
+    const reply = await generateDailyBriefing(systemContext, language, modelPath);
+    return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
+  });
+
+  await runStep('surface: habit insight', async () => {
+    return generateHabitInsight(habitContext, language, modelPath);
+  });
+
+  await runStep('surface: interjection', async () => {
+    const reply = await generate(systemContext, INTERJECTION_DESCRIPTION.mission_complete[language], language, modelPath);
+    return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
+  });
+
+  return steps;
+}
+
 // Genera una respuesta del Sistema a partir del system prompt y el mensaje del usuario. `systemNote`
 // opcional se añade al final del system prompt (lo usa el chat heredado de una aparición).
 async function generate(
