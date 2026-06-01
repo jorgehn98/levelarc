@@ -200,6 +200,7 @@ export default function SystemAiScreen() {
                 onRunDiagnostics={handleRunDiagnostics}
                 onRunSurfaceDiagnostics={handleRunSurfaceDiagnostics}
                 onToggleEngine={handleToggleEngine}
+                hasModelPath={Boolean(profile.modelPath)}
                 runtimeError={runtimeError}
                 surfaceDiagnostics={surfaceDiagnostics}
                 surfaceDiagnosticsRunning={surfaceDiagnosticsRunning}
@@ -254,6 +255,7 @@ function ReadyState({
   onRunDiagnostics,
   onRunSurfaceDiagnostics,
   onToggleEngine,
+  hasModelPath,
   runtimeError,
   surfaceDiagnostics,
   surfaceDiagnosticsRunning,
@@ -261,6 +263,7 @@ function ReadyState({
 }: {
   diagnostics: LlamaDiagnosticStep[] | null;
   diagnosticsRunning: boolean;
+  hasModelPath: boolean;
   language: Language;
   onDelete: () => void;
   onRunDiagnostics: () => void;
@@ -308,7 +311,7 @@ function ReadyState({
       {diagnostics ? <DiagnosticResult language={language} steps={diagnostics} /> : null}
 
       <Button
-        disabled={surfaceDiagnosticsRunning || !usingLlama}
+        disabled={surfaceDiagnosticsRunning || !usingLlama || !hasModelPath}
         icon={Cpu}
         label={
           surfaceDiagnosticsRunning ? t(language, 'aiSurfaceDiagnosticRunning') : t(language, 'aiRunSurfaceDiagnostic')

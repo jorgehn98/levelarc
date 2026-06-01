@@ -467,24 +467,34 @@ export async function runLlamaSurfaceDiagnostics(
 ): Promise<LlamaDiagnosticStep[]> {
   const steps: LlamaDiagnosticStep[] = [];
 
-  async function runStep(name: string, action: () => Promise<string>): Promise<void> {
+  async function runStep(name: string, action: () => Promise<string>): Promise<boolean> {
     const startedAt = Date.now();
     try {
       const detail = await action();
       steps.push({ name, status: 'ok', detail, ms: Date.now() - startedAt });
+      return true;
     } catch (error) {
       steps.push({ name, status: 'error', detail: getErrorMessage(error), ms: Date.now() - startedAt });
+      return false;
     }
   }
 
-  await runStep('surface: daily briefing', async () => {
-    const reply = await generateDailyBriefing(systemContext, language, modelPath);
-    return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
-  });
+  if (
+    !(await runStep('surface: daily briefing', async () => {
+      const reply = await generateDailyBriefing(systemContext, language, modelPath);
+      return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
+    }))
+  ) {
+    return steps;
+  }
 
-  await runStep('surface: habit insight', async () => {
-    return generateHabitInsight(habitContext, language, modelPath);
-  });
+  if (
+    !(await runStep('surface: habit insight', async () => {
+      return generateHabitInsight(habitContext, language, modelPath);
+    }))
+  ) {
+    return steps;
+  }
 
   await runStep('surface: interjection', async () => {
     const reply = await generate(systemContext, INTERJECTION_DESCRIPTION.mission_complete[language], language, modelPath);
