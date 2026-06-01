@@ -50,7 +50,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "pnpm typecheck && pnpm test",
+    "check": "tsc --noEmit && vitest run",
     "doctor": "npx expo-doctor",
     "db:generate": "drizzle-kit generate",
     "build:android:preview": "npx eas-cli build --platform android --profile preview",

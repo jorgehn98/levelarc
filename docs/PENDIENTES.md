@@ -133,7 +133,8 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Investigar causa persistente del mismo error tras APK `1.1.5`: Metro/EAS podía empaquetar `llama.rn/lib/module` o `lib/commonjs`, que seguían con el `installJsi` viejo aunque `src/index.ts` estuviera parcheado.
 - [x] Extender `patches/llama.rn@0.12.4.patch` para cubrir `src/index.ts`, `lib/module/index.js` y `lib/commonjs/index.js`; verificado con `expo export --platform android`.
 - [x] Publicar OTA `preview` runtime `1.1.5` con el patch JS ampliado para `llama.rn/lib/*` (`856cc783-29b3-4134-a13d-f64602f724ed`).
-- [ ] Validar en device real: instalar APK `1.1.5` (`5cf2587d`, <https://expo.dev/artifacts/eas/ctG9fY6ohiBC8AZebmwBE2.apk>), confirmar que Ajustes IA muestra `LevelArc 1.1.5 · build 10`, descargar/reusar Gemma 4 E2B (~3,1 GB), ejecutar diagnóstico si cae a plantillas y probar chat, apariciones y botón de updates (RAM/batería/calor, toggle de IA obligatorio).
+- [x] Validación inicial en Android real: tras OTA `856cc783`, el usuario confirma que la IA ya no se desactiva al primer mensaje y el chat responde con el modelo.
+- [ ] QA completa IA en device real: probar varias conversaciones seguidas, briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad (RAM/batería/calor, toggle de IA obligatorio).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).
