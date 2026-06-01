@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `09f8daec-6828-4eb8-9c95-679b04583714`
-- Android update ID: `019e8519-69e7-75b8-8c41-d55b5c9f79fd`
+- Update group: `08b86499-d609-4073-be09-e4854388a2d3`
+- Android update ID: `019e8526-4e2c-7e08-99db-4f37e8db14f4`
 - Runtime: `1.1.6`
-- Mensaje: `Track integrated AI fallback errors`
-- Commit: `6038506`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/09f8daec-6828-4eb8-9c95-679b04583714>
+- Mensaje: `Track silent AI surface fallbacks`
+- Commit: `e973600`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/08b86499-d609-4073-be09-e4854388a2d3>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
