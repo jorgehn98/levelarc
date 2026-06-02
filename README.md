@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`
-- Android update ID: `019e8546-7385-77c1-8e77-5ca56ef8a6c7`
+- Update group: `a3d73449-3855-4308-9653-ca0043bd57f0`
+- Android update ID: `019e86f1-fe48-7179-b4d9-fcf4918bf1ef`
 - Runtime: `1.1.6`
-- Mensaje: `Soften NYX conversational tone`
-- Commit: `8e583187da0644129a108dd0953291afa5d28fe9`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/5b3eaf73-d1d3-4f9c-95ed-e020e47caa37>
+- Mensaje: `Make NYX respect realistic plans`
+- Commit: `cb2f6c6950f21cf40f925236715f37cb73a3c4ee`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a3d73449-3855-4308-9653-ca0043bd57f0>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 

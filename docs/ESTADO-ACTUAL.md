@@ -690,6 +690,13 @@ Update `preview` runtime `1.1.6` con tono conversacional de NYX:
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/5b3eaf73-d1d3-4f9c-95ed-e020e47caa37>
 - Commit: `8e58318` (`Soften NYX conversational tone`).
 
+Update `preview` runtime `1.1.6` con respeto de planes realistas en NYX:
+
+- Grupo: `a3d73449-3855-4308-9653-ca0043bd57f0`
+- Android update ID: `019e86f1-fe48-7179-b4d9-fcf4918bf1ef`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a3d73449-3855-4308-9653-ca0043bd57f0>
+- Commit: `cb2f6c6` (`Make NYX respect realistic plans`).
+
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
 - Grupo: `85cefc2c-f00f-4f85-80af-48e4b3655626`
