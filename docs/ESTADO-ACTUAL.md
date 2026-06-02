@@ -685,6 +685,8 @@ Segundo ajuste de tono: NYX ya no debe exigir inmediatez falsa si el usuario da 
 
 Ajuste de barra inferior Android: las pantallas base ya no reservan safe-area inferior dentro del contenido cuando van bajo tabs, el tab bar pinta explícitamente el inset inferior con su fondo y el root view usa el fondo oscuro de LevelArc vía `expo-system-ui`. Esto evita la franja negra visible encima/debajo de la navegación inferior.
 
+Segundo ajuste de barra inferior Android: el fondo raíz pasa a coincidir con la tab bar (`surface`) y la tab bar aumenta su cobertura del inset inferior para tapar la línea negra residual. Las apariciones de NYX también se agrandan y se anclan más abajo para que el personaje nazca desde la zona de navegación inferior en vez de flotar separado.
+
 Update `preview` runtime `1.1.6` con tono conversacional de NYX:
 
 - Grupo: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`

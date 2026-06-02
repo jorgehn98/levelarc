@@ -146,6 +146,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Ajustar tono de NYX: exigente y sobria, pero no humillante; añade respuestas útiles para ideas, ajuste de tono y día completado.
 - [x] Ajustar presión temporal de NYX: no exigir "inmediatamente" cuando el usuario da un plan viable; debe aceptar restricciones reales y concretar siguiente paso.
 - [x] Corregir franja negra junto a la navegación inferior en Android: safe-area inferior gestionada por el tab bar, no por cada pantalla base.
+- [x] Refinar franja inferior residual y apariciones de NYX: fondo raíz igual a tab bar, más cobertura de inset y sprite más grande/anclado abajo.
 - [ ] QA no bloqueante de superficies secundarias IA: briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad prolongada (RAM/batería/calor).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).

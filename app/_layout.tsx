@@ -15,7 +15,7 @@ import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
 import { toDateKey } from '@/lib/date';
 
-void SystemUI.setBackgroundColorAsync(colors.background.void);
+void SystemUI.setBackgroundColorAsync(colors.background.surface);
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({

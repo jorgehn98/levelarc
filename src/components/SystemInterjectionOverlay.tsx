@@ -118,7 +118,7 @@ export function SystemInterjectionOverlay() {
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       {/* Sin scrim ni capa de cierre: los toques de fuera de la tarjeta pasan a la app (no bloquea). */}
-      <View pointerEvents="box-none" style={[styles.dock, { paddingBottom: insets.bottom + 14 }]}>
+      <View pointerEvents="box-none" style={[styles.dock, { paddingBottom: Math.max(insets.bottom, 4) }]}>
         <Animated.View style={panelStyle}>
           <Pressable
             accessibilityHint={t(language, 'systemChatTapToReply')}
@@ -172,10 +172,10 @@ export function SystemInterjectionOverlay() {
 }
 
 const styles = StyleSheet.create({
-  // Anclado abajo a la DERECHA: la tarjeta es un peek de esquina, no un panel centrado.
+  // Anclado abajo a la DERECHA: NYX nace desde la zona de navegación inferior.
   dock: {
     bottom: 0,
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     position: 'absolute',
     right: 0,
   },
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     flexDirection: 'row',
     gap: 2,
-    maxWidth: 340,
+    maxWidth: 380,
   },
   pressed: {
     opacity: 0.92,
@@ -264,18 +264,18 @@ const styles = StyleSheet.create({
   },
   character: {
     alignItems: 'center',
-    height: 116,
+    height: 188,
     justifyContent: 'flex-end',
-    marginBottom: 2,
-    width: 92,
+    marginBottom: -4,
+    width: 142,
   },
   characterAura: {
-    borderRadius: 38,
-    bottom: 8,
-    height: 70,
-    opacity: 0.22,
+    borderRadius: 62,
+    bottom: 12,
+    height: 118,
+    opacity: 0.2,
     position: 'absolute',
-    width: 70,
+    width: 118,
   },
   characterImage: {
     height: '100%',
