@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `6dba4e24-f8d0-47c3-8089-bd096bf89182`
-- Android update ID: `019e8718-9954-7f22-a3d3-f52d898799e7`
+- Update group: `394ee813-749a-48a7-8297-81c5bd0d6d43`
+- Android update ID: `019e8747-e9fc-7e72-bd3f-a218273ed34f`
 - Runtime: `1.1.6`
-- Mensaje: `Make NYX interjection modal`
-- Commit: `43eb9eeb279b7b74a44f66db83710e015795fc2a`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6dba4e24-f8d0-47c3-8089-bd096bf89182>
+- Mensaje: `Align Gemma prompt with user-turn instructions`
+- Commit: `471fb77cfe48b546316dfd4056114f2a5baac416`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/394ee813-749a-48a7-8297-81c5bd0d6d43>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
@@ -194,4 +194,3 @@ pnpm build:android:preview
 ```
 
 En CI, usar `EXPO_TOKEN`.
-

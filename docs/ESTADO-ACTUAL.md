@@ -724,6 +724,12 @@ Update `preview` runtime `1.1.6` convirtiendo apariciones NYX en modal:
 - Android update ID: `019e8718-9954-7f22-a3d3-f52d898799e7`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6dba4e24-f8d0-47c3-8089-bd096bf89182>
 - Commit: `43eb9ee` (`Make NYX interjection modal`).
+Update `preview` runtime `1.1.6` alineando prompt de Gemma con instrucciones en turno user:
+
+- Grupo: `394ee813-749a-48a7-8297-81c5bd0d6d43`
+- Android update ID: `019e8747-e9fc-7e72-bd3f-a218273ed34f`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/394ee813-749a-48a7-8297-81c5bd0d6d43>
+- Commit: `471fb77` (`Align Gemma prompt with user-turn instructions`).
 
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
@@ -789,5 +795,3 @@ Update `preview` con economía de Esencia y Tienda del Sistema:
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/960b7e0a-7f53-41f1-817b-b6ebf9f73997>
 
 Siguiente paso recomendado: seguir usando la app con datos reales, validar en Android la economía/tienda y el nuevo bloque de logros + feedback/celebraciones, y publicar el update OTA correspondiente. Dentro de v2.0 queda pendiente las estadísticas avanzadas; la IA local "el Sistema" va en su propia fase v2.x, como futuro opcional tras validar que la app base tiene suficiente valor y uso real.
-
-
