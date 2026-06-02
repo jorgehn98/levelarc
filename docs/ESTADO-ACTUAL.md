@@ -708,6 +708,13 @@ Update `preview` runtime `1.1.6` corrigiendo franja negra inferior Android:
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/283ca94c-c5f6-48a0-84b0-ab283b907665>
 - Commit: `86cedd8` (`Fix Android bottom navigation strip`).
 
+Update `preview` runtime `1.1.6` refinando cobertura inferior y overlay NYX:
+
+- Grupo: `311205d3-6846-4222-848b-ef5aa8816fb6`
+- Android update ID: `019e86ff-9ba9-7f11-8c0b-c25aa3a99dcf`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/311205d3-6846-4222-848b-ef5aa8816fb6>
+- Commit: `77661d2` (`Refine bottom bar coverage and NYX overlay`).
+
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
 - Grupo: `85cefc2c-f00f-4f85-80af-48e4b3655626`

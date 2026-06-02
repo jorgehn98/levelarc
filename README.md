@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `283ca94c-c5f6-48a0-84b0-ab283b907665`
-- Android update ID: `019e86f9-a81a-73da-be9f-b32a3022bb2a`
+- Update group: `311205d3-6846-4222-848b-ef5aa8816fb6`
+- Android update ID: `019e86ff-9ba9-7f11-8c0b-c25aa3a99dcf`
 - Runtime: `1.1.6`
-- Mensaje: `Fix Android bottom navigation strip`
-- Commit: `86cedd890b8f05c5f7c1801d616e39583efb6026`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/283ca94c-c5f6-48a0-84b0-ab283b907665>
+- Mensaje: `Refine bottom bar coverage and NYX overlay`
+- Commit: `77661d2da197b321c71a97e36fc512f7209a8e6a`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/311205d3-6846-4222-848b-ef5aa8816fb6>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
