@@ -1,5 +1,6 @@
 import '../global.css';
 
+import * as SystemUI from 'expo-system-ui';
 import * as Updates from 'expo-updates';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +14,8 @@ import { colors } from '@/theme/colors';
 import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
 import { toDateKey } from '@/lib/date';
+
+void SystemUI.setBackgroundColorAsync(colors.background.void);
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({

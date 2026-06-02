@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { ChartNoAxesColumnIncreasing, ListChecks, Settings, Target } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
 import { useAppStore } from '@/stores/appStore';
@@ -9,6 +10,7 @@ const iconSize = 22;
 
 export default function TabsLayout() {
   const language = useAppStore((state) => state.language);
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -20,8 +22,8 @@ export default function TabsLayout() {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.background.border,
           borderTopWidth: 1,
-          minHeight: 62,
-          paddingBottom: 8,
+          height: 62 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 6,
         },
         tabBarLabelStyle: {

@@ -145,6 +145,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Añadir diagnóstico manual de superficies IA en Ajustes → IA del Sistema: genera briefing, micro-comentario de hábito y aparición con Gemma para validar la integración más allá del chat sin esperar a que cada evento ocurra.
 - [x] Ajustar tono de NYX: exigente y sobria, pero no humillante; añade respuestas útiles para ideas, ajuste de tono y día completado.
 - [x] Ajustar presión temporal de NYX: no exigir "inmediatamente" cuando el usuario da un plan viable; debe aceptar restricciones reales y concretar siguiente paso.
+- [x] Corregir franja negra junto a la navegación inferior en Android: safe-area inferior gestionada por el tab bar, no por cada pantalla base.
 - [ ] QA no bloqueante de superficies secundarias IA: briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad prolongada (RAM/batería/calor).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).

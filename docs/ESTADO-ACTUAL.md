@@ -683,6 +683,8 @@ Ajuste de tono de NYX: el chat local funcionaba, pero el usuario detectó respue
 
 Segundo ajuste de tono: NYX ya no debe exigir inmediatez falsa si el usuario da una restricción real o un plan viable (por ejemplo, terminar una tarea actual y caminar después). En ese caso debe aceptar el plan, mantener exigencia suave y concretar el siguiente paso realista. También se evita usar el nombre completo del jugador en respuestas LLM.
 
+Ajuste de barra inferior Android: las pantallas base ya no reservan safe-area inferior dentro del contenido cuando van bajo tabs, el tab bar pinta explícitamente el inset inferior con su fondo y el root view usa el fondo oscuro de LevelArc vía `expo-system-ui`. Esto evita la franja negra visible encima/debajo de la navegación inferior.
+
 Update `preview` runtime `1.1.6` con tono conversacional de NYX:
 
 - Grupo: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`

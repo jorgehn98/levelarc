@@ -5,7 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing } from '@/theme/colors';
 
 export function Screen({ children }: PropsWithChildren) {
-  return <SafeAreaView style={styles.screen}>{children}</SafeAreaView>;
+  return (
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.screen}>
+      {children}
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
