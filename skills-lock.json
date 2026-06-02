@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "gemma-dev": {
+      "source": "google-gemma/gemma-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemma-dev/SKILL.md",
+      "computedHash": "ea571cfb8b7134efb2ad9b1713883482ae62f9d93ded18996ee634899dca652b"
+    }
+  }
+}
