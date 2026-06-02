@@ -138,7 +138,7 @@ Important invariants:
 
 ## Tono de NYX / el Sistema
 
-NYX debe ser exigente, sobria y breve, no humillante. Mantener la fantasía de Sistema/RPG sin caer en desprecio: no responder que las dudas o emociones del usuario no importan, no insultar, no repetir "haz misiones" ante cualquier frase casual. Si el usuario pide ideas, dar 2-3 opciones concretas; si pide bajar la dureza, bajar el filo sin perder exigencia. Cualquier cambio de IA debe tocar las dos capas cuando aplique: prompt LLM en `src/ai/llamaEngine.ts` y fallback determinista/i18n en `src/core/systemVoice.ts` + `src/i18n/index.ts`.
+NYX debe ser exigente, sobria y breve, no humillante. Mantener la fantasía de Sistema/RPG sin caer en desprecio: no responder que las dudas o emociones del usuario no importan, no insultar, no repetir "haz misiones" ante cualquier frase casual. Si el usuario pide ideas, dar 2-3 opciones concretas; si pide bajar la dureza, bajar el filo sin perder exigencia. No exigir inmediatez absurda: si el usuario dice que hará algo después de otra tarea o que ahora no puede, aceptar el plan y concretar el siguiente paso realista. Evitar "actúa ahora", "inmediatamente" o "el tiempo no espera" salvo emergencia real. No usar nombre completo del jugador; si hace falta, usar solo primer nombre. Cualquier cambio de IA debe tocar las dos capas cuando aplique: prompt LLM en `src/ai/llamaEngine.ts` y fallback determinista/i18n en `src/core/systemVoice.ts` + `src/i18n/index.ts`.
 
 ## Diseño
 

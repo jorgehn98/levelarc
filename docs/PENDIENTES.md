@@ -144,6 +144,7 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Validar en Android real el chat IA local con APK `1.1.6`: el usuario confirma que el chat ya funciona y el diagnóstico nativo previo cargaba/liberaba el contexto correctamente.
 - [x] Añadir diagnóstico manual de superficies IA en Ajustes → IA del Sistema: genera briefing, micro-comentario de hábito y aparición con Gemma para validar la integración más allá del chat sin esperar a que cada evento ocurra.
 - [x] Ajustar tono de NYX: exigente y sobria, pero no humillante; añade respuestas útiles para ideas, ajuste de tono y día completado.
+- [x] Ajustar presión temporal de NYX: no exigir "inmediatamente" cuando el usuario da un plan viable; debe aceptar restricciones reales y concretar siguiente paso.
 - [ ] QA no bloqueante de superficies secundarias IA: briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad prolongada (RAM/batería/calor).
 - [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
 - [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).

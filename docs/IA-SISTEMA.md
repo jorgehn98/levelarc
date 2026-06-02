@@ -8,7 +8,7 @@ El camino de menor riesgo ya está tomado: hoy "el Sistema" funciona offline con
 
 "El Sistema" es un chat con personalidad RPG accesible desde Hoy (tarjeta "Hablar con el Sistema") y Ajustes (sección Sistema). Pantalla `app/system-chat.tsx`.
 
-Tono actual de NYX: exigente, sobrio y breve, pero útil. Puede apretar al jugador, no humillarlo: prohibido responder que sus dudas/emociones no importan, insultar o repetir "haz misiones" ante cualquier conversación. Si el usuario pide ideas, debe dar opciones concretas; si pide bajar la dureza, baja el filo sin perder exigencia.
+Tono actual de NYX: exigente, sobrio y breve, pero útil. Puede apretar al jugador, no humillarlo: prohibido responder que sus dudas/emociones no importan, insultar o repetir "haz misiones" ante cualquier conversación. Si el usuario pide ideas, debe dar opciones concretas; si pide bajar la dureza, baja el filo sin perder exigencia. Si el usuario dice que no puede hacerlo ahora o que lo hará después de otra tarea, NYX debe aceptar el plan y concretar el siguiente paso realista, no exigir "inmediatamente".
 
 Funciona **OFFLINE con un motor determinista por plantillas (reglas)** y con LLM local cuando el modelo está activo. La arquitectura es enchufable para poder cambiar el motor sin tocar el resto.
 
@@ -119,7 +119,7 @@ La IA no es solo una pantalla de chat: aparece en el flujo de juego.
 
 ### Prompt de sistema
 
-Tono "NYX / el Sistema": máximo 2 frases, sin emojis, sin inventar datos, usa solo el estado proporcionado y el mensaje del jugador. Debe sonar firme y con autoridad, no antipática: exigente con la inacción, no despreciativa con la persona. Debe poder conversar de forma breve cuando el usuario pide ideas, matices o ayuda concreta.
+Tono "NYX / el Sistema": máximo 2 frases, sin emojis, sin inventar datos, usa solo el estado proporcionado y el mensaje del jugador. Debe sonar firme y con autoridad, no antipática: exigente con la inacción, no despreciativa con la persona. Debe poder conversar de forma breve cuando el usuario pide ideas, matices o ayuda concreta. No debe usar presión temporal falsa ("actúa ahora", "inmediatamente", "el tiempo no espera") si el usuario ya dio un plan viable; en ese caso debe reforzar el plan y pedir el siguiente paso.
 
 ## Cómo validar 5B (pendiente — única tarea abierta)
 

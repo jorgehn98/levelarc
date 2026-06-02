@@ -681,6 +681,8 @@ Build preview `1.1.6` válido: `9b238105-e0db-460e-a69e-92110759df24`, APK `http
 
 Ajuste de tono de NYX: el chat local funcionaba, pero el usuario detectó respuestas demasiado duras y robóticas. El prompt del LLM y las plantillas se han reajustado para mantener exigencia sin desprecio, responder a peticiones de ideas con opciones concretas y no reciclar el briefing de misiones ante cualquier mensaje casual.
 
+Segundo ajuste de tono: NYX ya no debe exigir inmediatez falsa si el usuario da una restricción real o un plan viable (por ejemplo, terminar una tarea actual y caminar después). En ese caso debe aceptar el plan, mantener exigencia suave y concretar el siguiente paso realista. También se evita usar el nombre completo del jugador en respuestas LLM.
+
 Update `preview` runtime `1.1.6` con tono conversacional de NYX:
 
 - Grupo: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`
