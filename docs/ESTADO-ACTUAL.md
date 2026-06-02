@@ -716,6 +716,12 @@ Update `preview` runtime `1.1.6` refinando cobertura inferior y overlay NYX:
 - Android update ID: `019e86ff-9ba9-7f11-8c0b-c25aa3a99dcf`
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/311205d3-6846-4222-848b-ef5aa8816fb6>
 - Commit: `77661d2` (`Refine bottom bar coverage and NYX overlay`).
+Update `preview` runtime `1.1.6` convirtiendo apariciones NYX en modal:
+
+- Grupo: `6dba4e24-f8d0-47c3-8089-bd096bf89182`
+- Android update ID: `019e8718-9954-7f22-a3d3-f52d898799e7`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6dba4e24-f8d0-47c3-8089-bd096bf89182>
+- Commit: `43eb9ee` (`Make NYX interjection modal`).
 
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
@@ -781,3 +787,5 @@ Update `preview` con economía de Esencia y Tienda del Sistema:
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/960b7e0a-7f53-41f1-817b-b6ebf9f73997>
 
 Siguiente paso recomendado: seguir usando la app con datos reales, validar en Android la economía/tienda y el nuevo bloque de logros + feedback/celebraciones, y publicar el update OTA correspondiente. Dentro de v2.0 queda pendiente las estadísticas avanzadas; la IA local "el Sistema" va en su propia fase v2.x, como futuro opcional tras validar que la app base tiene suficiente valor y uso real.
+
+

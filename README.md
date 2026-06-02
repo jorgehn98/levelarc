@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `311205d3-6846-4222-848b-ef5aa8816fb6`
-- Android update ID: `019e86ff-9ba9-7f11-8c0b-c25aa3a99dcf`
+- Update group: `6dba4e24-f8d0-47c3-8089-bd096bf89182`
+- Android update ID: `019e8718-9954-7f22-a3d3-f52d898799e7`
 - Runtime: `1.1.6`
-- Mensaje: `Refine bottom bar coverage and NYX overlay`
-- Commit: `77661d2da197b321c71a97e36fc512f7209a8e6a`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/311205d3-6846-4222-848b-ef5aa8816fb6>
+- Mensaje: `Make NYX interjection modal`
+- Commit: `43eb9eeb279b7b74a44f66db83710e015795fc2a`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/6dba4e24-f8d0-47c3-8089-bd096bf89182>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 
@@ -194,3 +194,4 @@ pnpm build:android:preview
 ```
 
 En CI, usar `EXPO_TOKEN`.
+
