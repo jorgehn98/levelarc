@@ -687,6 +687,8 @@ Ajuste de barra inferior Android: las pantallas base ya no reservan safe-area in
 
 Segundo ajuste de barra inferior Android: el fondo raíz pasa a coincidir con la tab bar (`surface`) y la tab bar aumenta su cobertura del inset inferior para tapar la línea negra residual. Las apariciones de NYX también se agrandan y se anclan más abajo para que el personaje nazca desde la zona de navegación inferior en vez de flotar separado.
 
+Tercer ajuste de apariciones NYX: el overlay pasa a ser modal, oscurece y bloquea el fondo mientras NYX está visible. El layout cambia de fila a composición vertical: bocadillo arriba y sprite grande centrado debajo, con la base de la imagen anclada justo en la línea superior de la tab bar.
+
 Update `preview` runtime `1.1.6` con tono conversacional de NYX:
 
 - Grupo: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`

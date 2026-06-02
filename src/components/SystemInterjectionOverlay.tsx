@@ -21,16 +21,15 @@ import { getCharacterPose } from '@/components/systemCharacter';
 const ENTER_MS = 340;
 const EXIT_MS = 200;
 
-// Tiempo que NYX permanece visible si el jugador no interactúa. Es un "peek" efímero: aparece en la
-// esquina, dice lo suyo y se retira sola para no estorbar. Suficiente para leer 1-2 frases.
+// Tiempo que NYX permanece visible si el jugador no interactúa. Aunque ahora bloquea el fondo, se
+// retira sola para no dejar al jugador atrapado si no toca la X ni el bocadillo.
 const AUTO_DISMISS_MS = 14_000;
+const TAB_BAR_HEIGHT = 70;
 
-// Overlay global de las apariciones de NYX. CLAVE de diseño: NO es un modal. Asoma en la ESQUINA
-// inferior derecha, SIN scrim y SIN capturar los toques de fuera (pointerEvents="box-none" en todos
-// los contenedores), así que el jugador puede seguir usando la app mientras NYX está en pantalla.
-// Toda la tarjeta lleva al chat (con contexto); la X la cierra; y si no haces nada, se va sola tras
-// AUTO_DISMISS_MS. Se monta una vez en app/_layout.tsx, encima del Stack. Lee `interjection` del
-// aiStore: si es null no renderiza nada.
+// Overlay global de las apariciones de NYX. Es modal: oscurece y bloquea el fondo para que la
+// aparición sea un momento claro del Sistema, no un peek que compite con la UI. El bocadillo lleva al
+// chat (con contexto), la X cierra y si no haces nada se va sola tras AUTO_DISMISS_MS. La base del
+// sprite queda justo en la línea superior de la tab bar.
 export function SystemInterjectionOverlay() {
   const language = useAppStore((state) => state.language);
   const interjection = useAiStore((state) => state.interjection);
@@ -116,55 +115,47 @@ export function SystemInterjectionOverlay() {
   const accent = pose.accent;
 
   return (
-    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      {/* Sin scrim ni capa de cierre: los toques de fuera de la tarjeta pasan a la app (no bloquea). */}
-      <View pointerEvents="box-none" style={[styles.dock, { paddingBottom: Math.max(insets.bottom, 4) }]}>
-        <Animated.View style={panelStyle}>
+    <View style={styles.overlay}>
+      <View style={styles.scrim} />
+      <View style={[styles.dock, { bottom: TAB_BAR_HEIGHT + insets.bottom }]}>
+        <Animated.View style={[styles.stage, panelStyle]}>
           <Pressable
             accessibilityHint={t(language, 'systemChatTapToReply')}
             accessibilityLabel={t(language, 'systemChatLabel')}
             accessibilityRole="button"
             onPress={handleContinue}
-            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.bubbleWrap, pressed && styles.pressed]}
           >
-            {/* Bocadillo compacto a la izquierda, con colita apuntando a la derecha (al personaje). */}
-            <View style={styles.bubbleWrap}>
-              <View style={[styles.bubble, { borderColor: accent }]}>
-                <Pressable
-                  accessibilityLabel={t(language, 'close')}
-                  hitSlop={10}
-                  onPress={handleClose}
-                  style={styles.closeButton}
-                >
-                  <X color={colors.brand.boneMuted} size={15} />
-                </Pressable>
+            <View style={[styles.bubble, { borderColor: accent }]}>
+              <Pressable accessibilityLabel={t(language, 'close')} hitSlop={10} onPress={handleClose} style={styles.closeButton}>
+                <X color={colors.brand.boneMuted} size={15} />
+              </Pressable>
 
-                <View style={styles.bubbleHeader}>
-                  <Text style={[styles.kicker, { color: accent }]}>{t(language, 'systemChatLabel')}</Text>
-                  {shown.fromAi ? (
-                    <View style={[styles.aiBadge, { borderColor: accent }]}>
-                      <Cpu color={accent} size={10} />
-                      <Text style={[styles.aiBadgeText, { color: accent }]}>{t(language, 'systemMessageAiBadge')}</Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                <Text style={styles.text}>{shown.text}</Text>
-
-                <View style={styles.hintRow}>
-                  <MessageCircle color={colors.brand.boneMuted} size={12} />
-                  <Text style={styles.hint}>{t(language, 'systemChatTapToReply')}</Text>
-                </View>
+              <View style={styles.bubbleHeader}>
+                <Text style={[styles.kicker, { color: accent }]}>{t(language, 'systemChatLabel')}</Text>
+                {shown.fromAi ? (
+                  <View style={[styles.aiBadge, { borderColor: accent }]}>
+                    <Cpu color={accent} size={10} />
+                    <Text style={[styles.aiBadgeText, { color: accent }]}>{t(language, 'systemMessageAiBadge')}</Text>
+                  </View>
+                ) : null}
               </View>
-              <View style={[styles.tail, { borderLeftColor: accent }]} />
-            </View>
 
-            {/* Personaje de NYX: asoma en la esquina derecha con un aura del tono. */}
-            <View style={styles.character}>
-              <View style={[styles.characterAura, { backgroundColor: accent }, shadows.rankGlow(accent)]} />
-              <Image accessibilityIgnoresInvertColors resizeMode="contain" source={pose.source} style={styles.characterImage} />
+              <Text style={styles.text}>{shown.text}</Text>
+
+              <View style={styles.hintRow}>
+                <MessageCircle color={colors.brand.boneMuted} size={12} />
+                <Text style={styles.hint}>{t(language, 'systemChatTapToReply')}</Text>
+              </View>
             </View>
+            <View style={[styles.tail, { borderTopColor: accent }]} />
           </Pressable>
+
+          {/* Personaje de NYX: grande, centrada y apoyada justo sobre la barra de navegación. */}
+          <View style={styles.character}>
+            <View style={[styles.characterAura, { backgroundColor: accent }, shadows.rankGlow(accent)]} />
+            <Image accessibilityIgnoresInvertColors resizeMode="contain" source={pose.source} style={styles.characterImage} />
+          </View>
         </Animated.View>
       </View>
     </View>
@@ -172,39 +163,52 @@ export function SystemInterjectionOverlay() {
 }
 
 const styles = StyleSheet.create({
-  // Anclado abajo a la DERECHA: NYX nace desde la zona de navegación inferior.
-  dock: {
+  overlay: {
     bottom: 0,
-    paddingHorizontal: 8,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 30,
+  },
+  scrim: {
+    backgroundColor: 'rgba(0, 0, 0, 0.64)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  // Anclado sobre la tab bar: la parte inferior del sprite coincide con su línea superior.
+  dock: {
+    alignItems: 'center',
+    left: 0,
+    paddingHorizontal: 12,
     position: 'absolute',
     right: 0,
   },
-  row: {
-    alignItems: 'flex-end',
-    alignSelf: 'flex-end',
-    flexDirection: 'row',
-    gap: 2,
-    maxWidth: 380,
+  stage: {
+    alignItems: 'center',
+    width: '100%',
   },
   pressed: {
     opacity: 0.92,
     transform: [{ scale: 0.99 }],
   },
   bubbleWrap: {
-    alignItems: 'flex-end',
-    flexDirection: 'row',
-    flexShrink: 1,
-    minWidth: 0,
+    alignItems: 'center',
+    marginBottom: -4,
+    width: '100%',
   },
   bubble: {
     backgroundColor: colors.background.surfaceRaised,
     borderRadius: radii.md,
     borderWidth: 1,
-    flexShrink: 1,
-    minWidth: 0,
+    maxWidth: 560,
     paddingHorizontal: 13,
     paddingVertical: 11,
     paddingRight: 26,
+    width: '100%',
   },
   closeButton: {
     position: 'absolute',
@@ -253,29 +257,28 @@ const styles = StyleSheet.create({
     fontSize: 9,
     textTransform: 'uppercase',
   },
-  // Colita del bocadillo apuntando a la derecha (hacia el personaje).
+  // Colita del bocadillo apuntando hacia abajo, al personaje.
   tail: {
     alignSelf: 'center',
-    borderBottomColor: 'transparent',
-    borderBottomWidth: 7,
-    borderLeftWidth: 9,
-    borderTopColor: 'transparent',
-    borderTopWidth: 7,
+    borderLeftColor: 'transparent',
+    borderLeftWidth: 10,
+    borderRightColor: 'transparent',
+    borderRightWidth: 10,
+    borderTopWidth: 12,
   },
   character: {
     alignItems: 'center',
-    height: 188,
+    height: 286,
     justifyContent: 'flex-end',
-    marginBottom: -4,
-    width: 142,
+    width: 216,
   },
   characterAura: {
-    borderRadius: 62,
-    bottom: 12,
-    height: 118,
-    opacity: 0.2,
+    borderRadius: 92,
+    bottom: 16,
+    height: 176,
+    opacity: 0.24,
     position: 'absolute',
-    width: 118,
+    width: 176,
   },
   characterImage: {
     height: '100%',
