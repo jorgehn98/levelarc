@@ -689,6 +689,8 @@ Segundo ajuste de barra inferior Android: el fondo raíz pasa a coincidir con la
 
 Tercer ajuste de apariciones NYX: el overlay pasa a ser modal, oscurece y bloquea el fondo mientras NYX está visible. El layout cambia de fila a composición vertical: bocadillo arriba y sprite grande centrado debajo, con la base de la imagen anclada justo en la línea superior de la tab bar.
 
+Ajuste Gemma tras instalar la skill `gemma-dev`: el prompt manual del LLM ya no abre un turno `system`. Las instrucciones de NYX, el estado y el mensaje/evento actual se empaquetan dentro del primer turno `user`, que es el formato recomendado para Gemma IT, manteniendo los delimitadores reales del GGUF usado por LevelArc.
+
 Update `preview` runtime `1.1.6` con tono conversacional de NYX:
 
 - Grupo: `5b3eaf73-d1d3-4f9c-95ed-e020e47caa37`

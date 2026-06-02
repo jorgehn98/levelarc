@@ -111,9 +111,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeou
 // ============================================================================
 // PROMPT EN DOS CAPAS
 // ----------------------------------------------------------------------------
-// CAPA 1 — BASE: NYX_PERSONA (definida más abajo, junto a buildSystemPrompt).
-//   Identidad + carácter + reglas globales de NYX. SIEMPRE se inserta como
-//   system prompt, en cualquier acción/momento.
+// CAPA 1 — BASE: NYX_PERSONA (definida más abajo, junto a buildInstructionBlock).
+//   Identidad + carácter + reglas globales de NYX. SIEMPRE se inserta como bloque de
+//   instrucciones dentro del primer turno `user`, no como rol `system` separado.
 // CAPA 2 — ACCIÓN: las constantes de esta sección. La instrucción CONCRETA del
 //   momento (saludo del chat, parte del día, comentario de hábito, o cada una de
 //   las apariciones). Se inyecta como turno de USUARIO sobre la base: NYX (capa 1)
@@ -136,8 +136,8 @@ const LANGUAGE_INSTRUCTION: Record<Language, string> = {
 
 // Mensaje interno que dispara el briefing diario accionable: pide al LLM un empujón corto basado en
 // las misiones pendientes de hoy, empezando por el eslabón débil (el hábito de peor consistencia, que
-// ya viene en el estado serializado). El propio system prompt incluye pendientes_hoy y eslabon_debil,
-// así que el LLM tiene los datos; aquí solo le fijamos la intención.
+// ya viene en el estado serializado). El bloque de instrucciones incluye pendientes_hoy y
+// eslabon_debil, así que el LLM tiene los datos; aquí solo le fijamos la intención.
 const BRIEFING_PROMPT: Record<Language, string> = {
   es: 'Dale al jugador el parte del día: cuántas misiones le quedan y por dónde empezar (el eslabón débil si lo hay). Directo, útil y accionable, sin desprecio.',
   en: "Give the player today's briefing: how many missions remain and where to start (the weak link if any). Direct, useful and actionable, with no contempt.",
@@ -145,7 +145,7 @@ const BRIEFING_PROMPT: Record<Language, string> = {
 
 // Mensaje interno que dispara el micro-comentario de un hábito concreto: pide al Sistema UNA frase
 // corta interpretando el rendimiento (consistencia, racha, fallos recientes) del hábito cuyo estado
-// va en el system prompt. Seco, sin relleno, como el resto de la voz del Sistema.
+// va en el bloque de instrucciones. Seco, sin relleno, como el resto de la voz del Sistema.
 const HABIT_INSIGHT_PROMPT: Record<Language, string> = {
   es: 'Comenta el rendimiento de este hábito en UNA frase corta: interpreta su consistencia, racha y fallos recientes. Exigente pero útil, sin humillar.',
   en: 'Comment on this habit\'s performance in ONE short sentence: read its consistency, streak and recent failures. Demanding but useful, without humiliation.',
@@ -184,8 +184,8 @@ const INTERJECTION_DESCRIPTION: Record<InterjectionTrigger, Record<Language, str
   },
 };
 
-// Nota que se antepone al system prompt cuando el chat hereda el contexto de una aparición: recuerda
-// al LLM por qué empezó la conversación para dar continuidad a la primera respuesta.
+// Nota que se añade al bloque de instrucciones cuando el chat hereda el contexto de una aparición:
+// recuerda al LLM por qué empezó la conversación para dar continuidad a la primera respuesta.
 function contextNotePrefix(note: ChatContextNote, language: Language): string {
   const description = INTERJECTION_DESCRIPTION[note.trigger][language];
   const label = language === 'es' ? 'Contexto de la conversación' : 'Conversation context';
@@ -220,9 +220,9 @@ const NYX_PERSONA: Record<Language, string[]> = {
   ],
 };
 
-// Construye el system prompt del chat/briefing/apariciones: identidad de NYX + estado serializado del
-// jugador + idioma. No inventa datos: solo usa el estado dado.
-function buildSystemPrompt(ctx: SystemContext, language: Language): string {
+// Construye el bloque de instrucciones del chat/briefing/apariciones: identidad de NYX + estado
+// serializado del jugador + idioma. No inventa datos: solo usa el estado dado.
+function buildInstructionBlock(ctx: SystemContext, language: Language): string {
   return [
     ...NYX_PERSONA[language],
     language === 'es' ? 'Responde en un máximo de 2 frases.' : 'Reply in at most 2 sentences.',
@@ -306,17 +306,28 @@ async function ensureContext(modelPath: string): Promise<LlamaContext> {
   }
 }
 
-// Construye el prompt en el formato de TURNOS de gemma-4 a partir del contenido de sistema y de
-// usuario, y deja abierto el turno del modelo para que continúe. NO usamos la plantilla de chat
-// embebida del GGUF (la ruta completion({messages})): es enorme (tool-calling, "thinking", macros
-// recursivas) y llama.rn la renderiza con minja con enable_thinking=true por defecto — puede fallar al
-// renderizar (y romper TODA la inferencia) o ensuciar la salida con un bloque de razonamiento. Con el
-// prompt a mano controlamos el formato exacto; el tokenizador nativo añade el BOS solo (add_bos del
-// GGUF, parse_special=true). Atado al modelo configurado en modelManager: si cambia, revisa el formato.
-function buildGemmaPrompt(systemContent: string, userContent: string): string {
+// Construye el prompt en el formato de TURNOS de gemma-4 y deja abierto el turno del modelo para que
+// continúe. Gemma IT no usa rol `system` separado: las instrucciones van dentro del turno `user`.
+// Mantenemos los delimitadores reales observados en el GGUF (`<|turn>` / `<turn|>`), no la plantilla
+// estándar de la doc, porque este modelo concreto no emitía los tokens Gemma clásicos.
+//
+// NO usamos la plantilla de chat embebida del GGUF (la ruta completion({messages})): es enorme
+// (tool-calling, "thinking", macros recursivas) y llama.rn la renderiza con minja con
+// enable_thinking=true por defecto — puede fallar al renderizar o ensuciar la salida con razonamiento.
+// Con el prompt a mano controlamos el formato exacto; el tokenizador nativo añade el BOS solo
+// (add_bos del GGUF, parse_special=true). Atado al modelo configurado en modelManager: si cambia,
+// revisa el formato.
+function buildGemmaPrompt(instructionBlock: string, userContent: string, language: Language): string {
+  const currentMessageLabel = language === 'es' ? 'Mensaje o evento actual:' : 'Current message or event:';
+  const userTurn = [
+    instructionBlock.trim(),
+    '',
+    currentMessageLabel,
+    userContent.trim(),
+  ].join('\n');
+
   return (
-    `${TURN_START}system\n${systemContent.trim()}${TURN_END}\n` +
-    `${TURN_START}user\n${userContent.trim()}${TURN_END}\n` +
+    `${TURN_START}user\n${userTurn}${TURN_END}\n` +
     `${TURN_START}model\n`
   );
 }
@@ -516,8 +527,8 @@ export async function runLlamaSurfaceDiagnostics(
   return steps;
 }
 
-// Genera una respuesta del Sistema a partir del system prompt y el mensaje del usuario. `systemNote`
-// opcional se añade al final del system prompt (lo usa el chat heredado de una aparición).
+// Genera una respuesta del Sistema a partir del bloque de instrucciones y el mensaje del usuario.
+// `systemNote` opcional se añade al final del bloque (lo usa el chat heredado de una aparición).
 async function generate(
   ctx: SystemContext,
   userMessage: string,
@@ -526,15 +537,15 @@ async function generate(
   systemNote?: string,
 ): Promise<SystemReply> {
   const llama = await ensureContext(modelPath);
-  const systemContent = systemNote
-    ? `${buildSystemPrompt(ctx, language)}\n\n${systemNote}`
-    : buildSystemPrompt(ctx, language);
+  const instructionBlock = systemNote
+    ? `${buildInstructionBlock(ctx, language)}\n\n${systemNote}`
+    : buildInstructionBlock(ctx, language);
   // Prompt a mano en formato gemma-4 + `prompt` directo (no `messages`): esta ruta de completion NO
   // pasa por minja, así que ninguna rareza de la plantilla embebida puede romper la inferencia.
   // Timeout: si se atasca, al vencer abortamos con stopCompletion (corta de verdad, libera CPU).
   const result = await withTimeout(
     llama.completion({
-      prompt: buildGemmaPrompt(systemContent, userMessage),
+      prompt: buildGemmaPrompt(instructionBlock, userMessage, language),
       n_predict: N_PREDICT,
       temperature: TEMPERATURE,
       top_p: TOP_P,
@@ -552,7 +563,7 @@ async function generate(
 }
 
 // Briefing diario accionable generado por el LLM. Reusa `generate` con el prompt de briefing: el
-// system prompt ya incluye pendientes_hoy y eslabon_debil, así que el LLM construye su respuesta en
+// bloque de instrucciones ya incluye pendientes_hoy y eslabon_debil, así que el LLM construye su respuesta en
 // torno a ese parte del día. Lo llama el store en la rama llama de ensureDailyMessage. Lleva su propio
 // timeout/abort vía `generate`. Necesita modelPath porque se invoca fuera de la factory del motor.
 export function generateDailyBriefing(
@@ -563,9 +574,9 @@ export function generateDailyBriefing(
   return generate(ctx, BRIEFING_PROMPT[language], language, modelPath);
 }
 
-// System prompt del micro-comentario de un hábito: misma identidad de NYX que buildSystemPrompt, pero
-// el estado serializado es el del hábito (buildHabitContextText), no el del jugador, y se exige UNA
-// sola frase. No inventa datos: solo usa el estado del hábito dado.
+// Bloque de instrucciones del micro-comentario de un hábito: misma identidad de NYX que
+// buildInstructionBlock, pero el estado serializado es el del hábito (buildHabitContextText), no el
+// del jugador, y se exige UNA sola frase. No inventa datos: solo usa el estado del hábito dado.
 function buildHabitInsightPrompt(ctx: HabitContext, language: Language): string {
   return [
     ...NYX_PERSONA[language],
@@ -578,8 +589,8 @@ function buildHabitInsightPrompt(ctx: HabitContext, language: Language): string 
 }
 
 // Micro-comentario de un hábito generado por el LLM. Análogo a generateDailyBriefing pero standalone
-// (no pasa por `generate`, que asume SystemContext): construye el system prompt del hábito y corre la
-// inferencia con el mismo timeout/abort. Devuelve TEXTO plano (no SystemReply): el store lo guarda tal
+// (no pasa por `generate`, que asume SystemContext): construye el bloque de instrucciones del hábito
+// y corre la inferencia con el mismo timeout/abort. Devuelve TEXTO plano (no SystemReply): el store lo guarda tal
 // cual. Lo llama el store en la rama llama de ensureHabitInsight. Necesita modelPath porque se invoca
 // fuera de la factory del motor.
 export async function generateHabitInsight(
@@ -590,7 +601,7 @@ export async function generateHabitInsight(
   const llama = await ensureContext(modelPath);
   const result = await withTimeout(
     llama.completion({
-      prompt: buildGemmaPrompt(buildHabitInsightPrompt(ctx, language), HABIT_INSIGHT_PROMPT[language]),
+      prompt: buildGemmaPrompt(buildHabitInsightPrompt(ctx, language), HABIT_INSIGHT_PROMPT[language], language),
       n_predict: N_PREDICT,
       temperature: TEMPERATURE,
       top_p: TOP_P,

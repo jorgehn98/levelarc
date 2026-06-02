@@ -93,7 +93,7 @@ El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y
 ### Motor (`llamaEngine`)
 
 - `src/ai/llamaEngine.ts`: `initLlama` con `modelPath` + `completion`, implementando la misma interface `SystemChatEngine`.
-- Reusa `buildSystemContextText` (de `src/core/aiContext.ts`) como prompt de sistema: el tono ya está definido.
+- Reusa `buildSystemContextText` (de `src/core/aiContext.ts`) dentro del bloque de instrucciones de Gemma: el tono ya está definido. Gemma no se invoca con rol `system` separado; las instrucciones de NYX, el estado y el mensaje/evento actual van en el primer turno `user`, manteniendo los delimitadores reales observados en el GGUF (`<|turn>` / `<turn|>`).
 
 ### Config nativa
 
