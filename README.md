@@ -162,12 +162,12 @@ generado con la configuración actual sin code signing.
 
 Último update `preview` publicado:
 
-- Update group: `a3d73449-3855-4308-9653-ca0043bd57f0`
-- Android update ID: `019e86f1-fe48-7179-b4d9-fcf4918bf1ef`
+- Update group: `283ca94c-c5f6-48a0-84b0-ab283b907665`
+- Android update ID: `019e86f9-a81a-73da-be9f-b32a3022bb2a`
 - Runtime: `1.1.6`
-- Mensaje: `Make NYX respect realistic plans`
-- Commit: `cb2f6c6950f21cf40f925236715f37cb73a3c4ee`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a3d73449-3855-4308-9653-ca0043bd57f0>
+- Mensaje: `Fix Android bottom navigation strip`
+- Commit: `86cedd890b8f05c5f7c1801d616e39583efb6026`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/283ca94c-c5f6-48a0-84b0-ab283b907665>
 
 Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
 

@@ -699,6 +699,13 @@ Update `preview` runtime `1.1.6` con respeto de planes realistas en NYX:
 - Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/a3d73449-3855-4308-9653-ca0043bd57f0>
 - Commit: `cb2f6c6` (`Make NYX respect realistic plans`).
 
+Update `preview` runtime `1.1.6` corrigiendo franja negra inferior Android:
+
+- Grupo: `283ca94c-c5f6-48a0-84b0-ab283b907665`
+- Android update ID: `019e86f9-a81a-73da-be9f-b32a3022bb2a`
+- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/283ca94c-c5f6-48a0-84b0-ab283b907665>
+- Commit: `86cedd8` (`Fix Android bottom navigation strip`).
+
 Update `preview` runtime `1.1.5` con diagnóstico IA por fases:
 
 - Grupo: `85cefc2c-f00f-4f85-80af-48e4b3655626`
