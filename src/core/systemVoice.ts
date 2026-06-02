@@ -28,11 +28,6 @@ export type InterjectionTrigger =
 // Tono de la aparición, que la UI del personaje (otra tarea) usa para elegir la pose.
 export type InterjectionTone = 'celebrate' | 'serious' | 'neutral';
 
-export interface SystemInterjection {
-  reply: SystemReply;
-  tone: InterjectionTone;
-}
-
 // Params comunes del estado, reutilizados por casi todas las frases.
 function statusParams(ctx: SystemContext): Record<string, string | number> {
   return {

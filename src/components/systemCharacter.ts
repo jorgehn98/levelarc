@@ -17,7 +17,7 @@ import { colors } from '@/theme/colors';
 //
 // El acento sigue el mismo criterio de tono que la voz del Sistema (src/core/systemVoice.ts):
 //   celebrate → verde (logro), serious → rojo (corrección), neutral → cian (identidad de marca).
-export const CHARACTER_POSES: Record<InterjectionTone, { source?: ImageSourcePropType; accent: string }> = {
+const CHARACTER_POSES: Record<InterjectionTone, { source?: ImageSourcePropType; accent: string }> = {
   celebrate: {
     source: require('../../assets/character/celebrate.png'),
     accent: colors.state.completed,
@@ -33,7 +33,7 @@ export const CHARACTER_POSES: Record<InterjectionTone, { source?: ImageSourcePro
 };
 
 // Emblema de marca usado como avatar placeholder mientras no haya sprites del personaje.
-export const PLACEHOLDER_POSE_SOURCE: ImageSourcePropType = require('../../assets/brand/levelarc-emblem-detailed-transparent.png');
+const PLACEHOLDER_POSE_SOURCE: ImageSourcePropType = require('../../assets/brand/levelarc-emblem-detailed-transparent.png');
 
 // Devuelve la pose de un tono con el sprite ya resuelto: el del personaje si existe, o el emblema.
 export function getCharacterPose(tone: InterjectionTone): { source: ImageSourcePropType; accent: string } {

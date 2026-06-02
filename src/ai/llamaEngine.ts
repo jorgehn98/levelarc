@@ -81,7 +81,7 @@ async function installJsiWithRetry(installJsi: () => Promise<void>): Promise<voi
   throw lastError instanceof Error ? lastError : new Error(getErrorMessage(lastError));
 }
 
-export class LlamaTimeoutError extends Error {
+class LlamaTimeoutError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'LlamaTimeoutError';
@@ -222,7 +222,7 @@ const NYX_PERSONA: Record<Language, string[]> = {
 
 // Construye el system prompt del chat/briefing/apariciones: identidad de NYX + estado serializado del
 // jugador + idioma. No inventa datos: solo usa el estado dado.
-export function buildSystemPrompt(ctx: SystemContext, language: Language): string {
+function buildSystemPrompt(ctx: SystemContext, language: Language): string {
   return [
     ...NYX_PERSONA[language],
     language === 'es' ? 'Responde en un máximo de 2 frases.' : 'Reply in at most 2 sentences.',
@@ -336,7 +336,7 @@ function getCompletionText(result: CompletionTextResult): string {
   return text;
 }
 
-export type LlamaDiagnosticStatus = 'ok' | 'error';
+type LlamaDiagnosticStatus = 'ok' | 'error';
 
 export type LlamaDiagnosticStep = {
   name: string;

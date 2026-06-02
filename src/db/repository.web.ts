@@ -537,7 +537,7 @@ export async function getAiProfile(): Promise<AiProfile> {
   return db.aiProfile;
 }
 
-export async function ensureAiProfile(): Promise<AiProfile> {
+async function ensureAiProfile(): Promise<AiProfile> {
   const db = await loadDb();
   await saveDb(db);
   return db.aiProfile;
@@ -671,7 +671,7 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
 // Arma el contexto de stats agregadas que consume el evaluador de logros. Reutiliza la lógica de
 // racha (getHabitCompletionStreak) y los niveles de atributo (getAttributeLevelProgress) ya
 // existentes en vez de duplicarlas.
-export async function buildAchievementContext(): Promise<AchievementContext> {
+async function buildAchievementContext(): Promise<AchievementContext> {
   const db = await loadDb();
   const dateKey = toDateKey();
 

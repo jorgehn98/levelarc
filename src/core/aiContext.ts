@@ -29,7 +29,7 @@ export interface SystemContext {
 
 // Estado de un día en la ventana reciente de un hábito. Espejo de `HabitDayStatus` del repository
 // (mantenido como literal propio para no importar db y conservar core puro).
-export type HabitDayState = 'pendiente' | 'completado' | 'fallado' | 'no_programado';
+type HabitDayState = 'pendiente' | 'completado' | 'fallado' | 'no_programado';
 
 // Entrada plana para construir el contexto de UN hábito. Espejo de los campos de `HabitInsightRecord`
 // (src/db/repository.ts) que el LLM necesita, pero como tipo propio para no importar db: el

@@ -4,9 +4,9 @@
 import { compareRanks } from './ranks';
 import type { Rank } from '@/theme/colors';
 
-export type ShopItemKind = 'title' | 'aura';
+type ShopItemKind = 'title' | 'aura';
 
-export interface ShopRequirement {
+interface ShopRequirement {
   minLevel?: number;
   minRank?: Rank;
 }

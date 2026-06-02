@@ -595,7 +595,7 @@ export async function getAiProfile(): Promise<AiProfile> {
   return ensureAiProfile();
 }
 
-export async function ensureAiProfile(): Promise<AiProfile> {
+async function ensureAiProfile(): Promise<AiProfile> {
   const existing = await sqlite.getFirstAsync<AiProfileRow>('SELECT * FROM ai_profile WHERE id = 1');
   if (existing) return mapAiProfile(existing);
 
@@ -780,7 +780,7 @@ async function getHabitEvents(habitId: string, limit = 10): Promise<EventRecord[
 // Arma el contexto de stats agregadas que consume el evaluador de logros. Reutiliza la lógica de
 // racha (getHabitCompletionStreak) y los niveles de atributo (getAttributeLevelProgress) ya
 // existentes en vez de duplicarlas.
-export async function buildAchievementContext(): Promise<AchievementContext> {
+async function buildAchievementContext(): Promise<AchievementContext> {
   const player = await ensurePlayer();
   const dateKey = toDateKey();
 
