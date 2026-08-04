@@ -1,14 +1,22 @@
 # LevelArc
 
-Tracker de hábitos gamificado para Android, offline-first, sin cuentas ni servidor.
+Tracker de hábitos gamificado para Android, **offline-first**, sin cuentas ni servidor. Convierte hábitos reales en misiones, XP, atributos, rangos, logros y recompensas cosméticas. Incluye un asistente RPG opcional que puede ejecutarse íntegramente en el dispositivo con Gemma.
 
-La biblia inicial del proyecto está guardada en [`docs/LevelArc-PROYECTO.md`](docs/LevelArc-PROYECTO.md). Ese documento manda sobre producto, tono, paleta, gamificación y alcance del MVP.
+> Estado: producto funcional en desarrollo y validado en Android real. Aún no está publicado en Play Store.
 
-La guía de diseño operativa está en [`DESIGN.md`](DESIGN.md). Define tokens, criterios visuales y reglas para que futuras pantallas mantengan la misma dirección.
+## Diferenciales
+
+- **Offline-first real:** hábitos, progreso, recordatorios, backups e IA funcionan sin backend propio.
+- **Gamificación con reglas testeadas:** XP, rangos E-S, seis atributos, rachas, misiones, Esencia, tienda y 21 logros.
+- **IA local opcional:** `llama.rn` + Gemma 4 E2B GGUF Q4_K_M, con descarga bajo demanda y fallback determinista.
+- **Persistencia robusta:** SQLite + Drizzle en Android, migraciones e importación/exportación JSON.
+- **Producto bilingüe:** interfaz y personalidad del Sistema en español e inglés.
+
+La visión original está en [`docs/LevelArc-PROYECTO.md`](docs/LevelArc-PROYECTO.md), el estado técnico detallado en [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) y las decisiones de la IA local en [`docs/IA-SISTEMA.md`](docs/IA-SISTEMA.md).
 
 ## Estado
 
-MVP funcional:
+Producto funcional:
 
 - Crear, editar, archivar y desarchivar hábitos.
 - Hábitos binarios y contables con meta diaria.
@@ -28,6 +36,9 @@ MVP funcional:
 - Idioma ES/EN.
 - Modo oscuro fijo.
 - Identidad visual inicial con logo LevelArc en icono, splash y UI.
+- Economía de Esencia, tienda de cosméticos y 21 logros persistentes.
+- Chat y apariciones contextuales del Sistema con motor por plantillas o LLM local.
+- Descarga y ejecución opcional de Gemma en Android, validada en dispositivo real.
 
 ## Stack
 
@@ -40,6 +51,7 @@ MVP funcional:
 - SQLite + Drizzle en native
 - AsyncStorage como fallback web de desarrollo
 - Vitest para lógica pura
+- `llama.rn` + Gemma 4 E2B para IA local opcional
 
 ## Comandos
 
@@ -66,8 +78,9 @@ pnpm update:production --message "Fix UI copy"
 - `src/db/schema.ts`: esquema Drizzle.
 - `src/db/repository.ts`: repositorio native con SQLite.
 - `src/db/repository.web.ts`: fallback web con AsyncStorage para poder probar en navegador.
-- `src/stores/appStore.ts`: estado global y acciones del MVP.
+- `src/stores/appStore.ts`: estado global y acciones del producto.
 - `src/components/`: UI reutilizable.
+- `src/ai/`: motores del Sistema, gestión del modelo y diagnóstico de IA local.
 - `assets/brand/`: set de logos/emblemas LevelArc.
 - `src/i18n/index.ts`: diccionario ES/EN.
 - `DESIGN.md`: tokens y reglas de diseño para agentes/herramientas.
@@ -80,117 +93,47 @@ pnpm update:production --message "Fix UI copy"
 - Si la app cruza medianoche abierta o en segundo plano, refresca Hoy al detectar el nuevo día local.
 - Las rachas por hábito cuentan solo los días en los que ese hábito está programado.
 - Las penalizaciones nunca bajan al usuario de nivel/rango: se clampa al suelo del nivel actual.
-- El cierre del día es manual en el MVP para evitar automatismos frágiles.
+- Los días pendientes se cierran automáticamente al arrancar o al detectar un cambio de día local.
 - En web no se usa SQLite porque `expo-sqlite` requiere WASM/SharedArrayBuffer; Android/native sí usa SQLite.
 
-## Siguiente bloque lógico
+## Próximos pasos
 
-La QA inicial en Android real ya está validada por el usuario y el icono de marca se ve bien. El objetivo no es publicar un MVP temprano, sino seguir construyendo hasta que LevelArc esté completa.
-
-1. Seguir validando las métricas simples de v1.3 con datos reales.
-2. Añadir más profundidad: resumen semanal, estadísticas, logros y gamificación avanzada.
-3. Valorar IA local cuando la base esté madura.
-4. Dejar Play Store y App Store como paso final.
+1. Completar la QA prolongada de las superficies secundarias de IA local.
+2. Seguir afinando balance, métricas y experiencia con uso real.
+3. Preparar publicación en Play Store cuando el producto alcance el nivel de acabado buscado.
 
 ## Build Android
 
-El repo incluye `eas.json` con dos perfiles útiles:
+El proyecto usa EAS con perfiles separados:
 
-- `preview`: genera APK interno para probar en dispositivo.
-- `production`: genera AAB para Play Store.
+- `preview`: APK interno para QA en dispositivo.
+- `production`: AAB preparado para una futura publicación.
+- EAS Update: parches de JavaScript, textos, estilos y assets compatibles con el runtime instalado.
 
-Proyecto EAS enlazado:
+```bash
+pnpm install
+pnpm check
+pnpm build:android:preview
+```
 
-- `@jorgex-tech/levelarc`
-- Project ID: `2c6af84a-6180-48ac-ad12-f1b7b61bbf58`
+Los cambios en dependencias nativas, permisos, plugins, SDK de Expo o `runtimeVersion` requieren un build nuevo. Antes de validar una build con IA local se comprueba que el APK contiene las librerías nativas de `llama.rn` para `arm64-v8a`.
 
-Último APK preview válido:
+La integración de `llama.rn` incluye un parche para React Native bridgeless y `TurboModuleWithJSIBindings`. La explicación técnica, diagnóstico y estado de QA se mantienen en [`docs/IA-SISTEMA.md`](docs/IA-SISTEMA.md) y [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md).
 
-- Build ID: `9b238105-e0db-460e-a69e-92110759df24`
-- APK: <https://expo.dev/artifacts/eas/ka7LYDJr7W4QTMiu7Qbeqh.apk>
-- Logs: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/builds/9b238105-e0db-460e-a69e-92110759df24>
-- Versión: `1.1.6`, Android versionCode `11`, runtimeVersion `1.1.6`, commit `631d914`.
-- SHA-256 local del APK descargado: `f7f60b3f92ad4b2e198cd2cadd2fba3c3023e8a041cabff62438b5570e0ae186`.
-- Verificado: build EAS terminado correctamente tras forzar C++20 en el wrapper JNI de `llama.rn`; el APK contiene `lib/arm64-v8a/librnllama*.so` (14 librerías arm64) y `librnllama*.so` también para `x86_64` (18 en total). El bundle `assets/index.android.bundle` incluye los errores nuevos `JSI bindings not installed after native install` / `Native install returned false`, y `lib/arm64-v8a/librnllama_jni.so` incluye `getBindingsInstaller`, `BindingsInstallerHolder` y `installing JSI bindings via TurboModuleWithJSIBindings`, confirmando que no empaqueta el entrypoint viejo ni el instalador manual anterior. Sustituye al APK `1.1.5` porque aquel seguía reproduciendo `JSI bindings not installed` en Android real. Validado en dispositivo: diagnóstico del motor local en verde y chat IA respondiendo con Gemma tras instalar `1.1.6`. Queda QA no bloqueante de superficies secundarias (briefing, hábitos, apariciones y estabilidad prolongada).
+## Calidad
 
-Antes de publicar:
+El gate local autoritativo ejecuta typecheck y tests:
 
 ```bash
 pnpm check
-npx expo-doctor
 ```
 
-Después decide el modo de entrega:
+`expo-doctor` puede advertir de duplicados transitivos de `expo-constants` en Expo SDK 56; el aviso está documentado y no bloquea las builds internas actuales.
 
-- OTA preview para cambios compatibles con el runtime instalado:
+## Contribuir
 
-```bash
-pnpm update:preview --message "Fix UI copy"
-```
+Antes de cambiar código, lee [`AGENTS.md`](AGENTS.md), [`DESIGN.md`](DESIGN.md) y la documentación del dominio afectado. Mantén las reglas de producto en `src/core/`, añade tests cuando cambien invariantes y ejecuta `pnpm check` antes de abrir un PR.
 
-- Build preview completo solo si cambia el binario nativo:
+## Licencia
 
-```bash
-pnpm build:android:preview
-```
-
-Nota: con `pnpm`, `expo-doctor` puede detectar una duplicidad de `expo-constants` causada por resoluciones internas de Expo SDK 56 (`expo-linking` pide `~56.0.14` y `expo-router` pide `^56.0.15`). El build preview `e37eafc1-40a9-49db-a913-5c58201e902d` terminó bien pese a ese aviso, así que no bloquea el APK interno actual.
-
-`babel-preset-expo` está añadido como devDependency explícita porque el primer build EAS release no lo resolvía de forma transitiva con pnpm.
-
-`@babel/plugin-transform-react-jsx` también está como devDependency explícita porque `expo-updates` lo necesita al crear recursos de updates en EAS con pnpm.
-
-`llama.rn` debe estar aprobado en `package.json` → `pnpm.onlyBuiltDependencies`. Si pnpm ignora su postinstall, EAS puede generar un APK aparentemente correcto pero sin `librnllama*.so`; en Android el síntoma es `JSI bindings not installed`. Antes de dar por válido un APK con LLM, descargarlo e inspeccionar que contiene `lib/arm64-v8a/librnllama*.so`. Además, `llama.rn` 0.12.4 está parcheado en `patches/llama.rn@0.12.4.patch` para Android bridgeless de Expo SDK 56/RN 0.85: implementa el patrón oficial de RN 0.85 `TurboModuleWithJSIBindings` + `BindingsInstallerHolder` para que React Native instale los bindings con el `jsi::Runtime&` correcto, compila el wrapper JNI con C++20 porque los headers de RN usados por `BindingsInstallerHolder` requieren `requires`, evita capturar punteros crudos de `JavaScriptContextHolder`, conserva `install()` como comprobación de librería nativa, devuelve errores nativos concretos en vez de `false` silencioso, y parchea `installJsi` para esperar a que estén todos los bindings globales antes de moverlos al closure interno. `src/ai/llamaEngine.ts` preinstala JSI antes de `initLlama` para cubrir la carrera de bindings asíncronos. Ojo: el patch JS debe mantenerse duplicado en `src/index.ts`, `lib/module/index.js` y `lib/commonjs/index.js`; se confirmó con `expo export --platform android` que el bundle Android puede coger `lib/*`, y si esas entradas quedan sin parchear vuelve el error genérico `JSI bindings not installed`.
-
-## EAS Update
-
-EAS Update está configurado para parches internos compatibles:
-
-- `preview`: APK interno de QA.
-- `production`: futuro AAB/Play Store.
-
-La app incluye en Ajustes un botón para buscar updates, descargarlos y reiniciar LevelArc. También puede recibir updates al arrancar según el comportamiento por defecto de `expo-updates`.
-
-EAS Update no usa code signing por ahora. Expo lo reserva para cuentas Enterprise; activarlo en esta
-cuenta bloquea `eas update`. Replantearlo solo si se sube de plan o si se acepta crear builds
-nativos firmados con esa restricción.
-
-Ojo: cambiar esta configuración es cambio nativo. Un APK creado cuando code signing estaba activo
-seguirá esperando updates firmadas y no podrá consumir OTAs sin firma; el botón de buscar update puede
-fallar con un error genérico aunque haya conexión. En ese caso toca instalar un nuevo APK `preview`
-generado con la configuración actual sin code signing.
-
-Último update `preview` publicado:
-
-- Update group: `394ee813-749a-48a7-8297-81c5bd0d6d43`
-- Android update ID: `019e8747-e9fc-7e72-bd3f-a218273ed34f`
-- Runtime: `1.1.6`
-- Mensaje: `Align Gemma prompt with user-turn instructions`
-- Commit: `471fb77cfe48b546316dfd4056114f2a5baac416`
-- Dashboard: <https://expo.dev/accounts/jorgex-tech/projects/levelarc/updates/394ee813-749a-48a7-8297-81c5bd0d6d43>
-
-Usar EAS Update para cambios de JS, textos, estilos, pantallas, assets JS y lógica compatible con el runtime instalado.
-
-Crear APK/AAB nuevo cuando cambie algo nativo: librerías nativas, permisos, plugins, icono/splash, `app.json` nativo, SDK Expo o `runtimeVersion`.
-
-## EAS Workflows
-
-Los workflows EAS son manuales. Un push a `main` no debe crear builds completos.
-
-- `.eas/workflows/build.yml`: manual, crea APK Android `preview`.
-- `.eas/workflows/update-preview.yml`: manual, publica OTA al canal `preview`.
-
-Regla rápida:
-
-- JS/TS/UI/i18n/assets compatibles → OTA `preview`.
-- Native/config/runtime/dependencias nativas → build `preview`.
-- `production` siempre manual cuando toque release real.
-
-Para lanzar EAS desde esta máquina hace falta iniciar sesión:
-
-```bash
-npx eas-cli login
-pnpm build:android:preview
-```
-
-En CI, usar `EXPO_TOKEN`.
+MIT — ver [`LICENSE`](LICENSE).
