@@ -44,6 +44,3 @@ private-code-signing-keys/
 # generated native folders
 /ios
 /android
-
-# local memory (engram)
-.engram/
