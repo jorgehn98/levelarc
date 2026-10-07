@@ -4,6 +4,8 @@ import { buildHabitContext, type HabitInsightInput, type SystemContext } from '.
 import {
   detectIntent,
   getDailyBriefing,
+  getDailyStateSignature,
+  getDayState,
   getHabitInsight,
   getInterjectionTone,
   getRankUpLine,
@@ -241,7 +243,85 @@ describe('getDailyBriefing', () => {
   });
 });
 
+describe('getDailyBriefing by day state', () => {
+  it('invites a player with no habits to register the first mission', () => {
+    const ctx = makeContext({ habitosActivos: 0 });
+    expect(getDayState(ctx)).toBe('no_habits');
+    expect(asKeyReply(getDailyBriefing(ctx)).key).toMatch(/^sys_no_habits_[12]$/);
+  });
+
+  it('acknowledges a day with nothing scheduled instead of counting zero pending missions', () => {
+    const ctx = makeContext({ habitosActivos: 3 });
+    expect(getDayState(ctx)).toBe('rest');
+    expect(asKeyReply(getDailyBriefing(ctx)).key).toMatch(/^sys_rest_day_[12]$/);
+  });
+
+  it('treats an unknown habit count as a rest day, not as an empty record', () => {
+    expect(getDayState(makeContext())).toBe('rest');
+  });
+
+  it('closes the day once every scheduled mission is completed', () => {
+    const ctx = makeContext({ habitosActivos: 2, habitosHoyTotal: 2, completadosHoy: 2, diaPerfecto: true });
+    expect(getDayState(ctx)).toBe('done');
+    expect(asKeyReply(getDailyBriefing(ctx)).key).toMatch(/^sys_perfect_[12]$/);
+  });
+
+  it('flags the failures when nothing is pending but something was failed', () => {
+    const ctx = makeContext({ habitosActivos: 2, habitosHoyTotal: 2, completadosHoy: 1, falladosHoy: 1 });
+    expect(getDayState(ctx)).toBe('failed');
+    expect(asKeyReply(getDailyBriefing(ctx)).key).toMatch(/^sys_failed_[12]$/);
+  });
+
+  it('uses the singular line for a single pending mission, even with a weak link', () => {
+    const reply = asKeyReply(
+      getDailyBriefing(
+        makeContext({ habitosHoyTotal: 3, completadosHoy: 2, pendientesHoy: 1, eslabonDebil: { nombre: 'Leer', ratio: 0.4 } }),
+      ),
+    );
+    expect(reply.key).toBe('sys_pending_one');
+  });
+
+  it('never uses a pending line when nothing is pending', () => {
+    const states: Partial<SystemContext>[] = [
+      { habitosActivos: 0 },
+      { habitosActivos: 4 },
+      { habitosActivos: 2, habitosHoyTotal: 2, completadosHoy: 2, diaPerfecto: true },
+      { habitosActivos: 2, habitosHoyTotal: 2, falladosHoy: 2 },
+    ];
+    for (const state of states) {
+      expect(asKeyReply(getDailyBriefing(makeContext(state))).key).not.toMatch(/^sys_(pending|briefing)/);
+    }
+  });
+});
+
+describe('getDailyStateSignature', () => {
+  it('changes when the day moves between states or the pending count changes', () => {
+    const base = { habitosActivos: 3, habitosHoyTotal: 3 };
+    const threeLeft = getDailyStateSignature(makeContext({ ...base, pendientesHoy: 3 }));
+    const twoLeft = getDailyStateSignature(makeContext({ ...base, pendientesHoy: 2, completadosHoy: 1 }));
+    const allDone = getDailyStateSignature(makeContext({ ...base, completadosHoy: 3, diaPerfecto: true }));
+    expect(threeLeft).toBe('pending:3');
+    expect(twoLeft).toBe('pending:2');
+    expect(allDone).toBe('done:0');
+    expect(getDailyStateSignature(makeContext({ habitosActivos: 0 }))).toBe('no_habits:0');
+  });
+
+  it('stays stable for changes that do not alter what the System would say', () => {
+    const base = { habitosActivos: 3, habitosHoyTotal: 3, pendientesHoy: 2, completadosHoy: 1 };
+    expect(getDailyStateSignature(makeContext({ ...base, esencia: 20, nivel: 10 }))).toBe(
+      getDailyStateSignature(makeContext({ ...base, esencia: 95, nivel: 11 })),
+    );
+  });
+});
+
 describe('getSystemGreeting briefing integration', () => {
+  it('invites a player with no habits to register the first mission', () => {
+    // Gana incluso a "cerca de nivel"/racha: sin hábitos no hay nada más útil que decir.
+    const reply = asKeyReply(getSystemGreeting(makeContext({ habitosActivos: 0, ratioNivel: 0.9, rachaMisiones: 5 })));
+    expect(reply.key).toMatch(/^sys_no_habits_[12]$/);
+  });
+
+
   it('uses the actionable briefing when pending and a weak link exists', () => {
     const reply = asKeyReply(
       getSystemGreeting(makeContext({ pendientesHoy: 2, eslabonDebil: { nombre: 'Meditar', ratio: 0.3 } })),
