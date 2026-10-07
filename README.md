@@ -9,7 +9,7 @@ Tracker de hábitos gamificado para Android, **offline-first**, sin cuentas ni s
 - **Offline-first real:** hábitos, progreso, recordatorios, backups e IA funcionan sin backend propio.
 - **Gamificación con reglas testeadas:** XP, rangos E-S, seis atributos, rachas, misiones, Esencia, tienda y 21 logros.
 - **IA local opcional:** `llama.rn` + Gemma 4 E2B GGUF Q4_K_M, con descarga bajo demanda y fallback determinista.
-- **Persistencia robusta:** SQLite + Drizzle en Android, migraciones e importación/exportación JSON.
+- **Persistencia robusta:** SQLite en Android con migraciones versionadas, mutaciones transaccionales e importación/exportación JSON validada.
 - **Producto bilingüe:** interfaz y personalidad del Sistema en español e inglés.
 
 La visión original está en [`docs/LevelArc-PROYECTO.md`](docs/LevelArc-PROYECTO.md), el estado técnico detallado en [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) y las decisiones de la IA local en [`docs/IA-SISTEMA.md`](docs/IA-SISTEMA.md).
@@ -48,9 +48,9 @@ Producto funcional:
 - Expo Updates / EAS Update
 - Zustand
 - NativeWind/Tailwind
-- SQLite + Drizzle en native
+- SQLite (`expo-sqlite`, SQL directo) en native
 - AsyncStorage como fallback web de desarrollo
-- Vitest para lógica pura
+- Vitest para lógica pura y para el repositorio SQLite (SQL real sobre `node:sqlite`, Node >= 22.13)
 - `llama.rn` + Gemma 4 E2B para IA local opcional
 
 ## Comandos
@@ -63,7 +63,6 @@ pnpm android
 pnpm check
 pnpm test
 pnpm exec tsc --noEmit
-pnpm db:generate
 npx expo-doctor
 pnpm build:android:preview
 pnpm build:android:production
@@ -75,7 +74,8 @@ pnpm update:production --message "Fix UI copy"
 
 - `app/`: rutas de Expo Router.
 - `src/core/`: reglas puras de XP, rangos, rachas y misión diaria.
-- `src/db/schema.ts`: esquema Drizzle.
+- `src/db/migrate.ts`: esquema SQLite y migraciones versionadas (`PRAGMA user_version`).
+- `src/db/types.ts`: tipos públicos del repositorio, compartidos por native y web.
 - `src/db/repository.ts`: repositorio native con SQLite.
 - `src/db/repository.web.ts`: fallback web con AsyncStorage para poder probar en navegador.
 - `src/stores/appStore.ts`: estado global y acciones del producto.
@@ -87,7 +87,7 @@ pnpm update:production --message "Fix UI copy"
 
 ## Notas importantes
 
-- `events` es la fuente de verdad inmutable del XP.
+- `events` es la fuente de verdad inmutable del XP; `player` es una caché que se reconstruye desde ese ledger. El modelo de datos, las migraciones y el formato de backup están en [`docs/architecture/datos.md`](docs/architecture/datos.md).
 - `habit_daily_progress` guarda progreso diario mutable, necesario para hábitos contables.
 - La fecha, hora y zona horaria salen del dispositivo; la app no consulta Internet para calcular el día actual.
 - Si la app cruza medianoche abierta o en segundo plano, refresca Hoy al detectar el nuevo día local.
