@@ -4,7 +4,7 @@ import { create } from 'zustand';
 
 import { attributeIds, getAttributeLevelProgress } from '@/core/attributes';
 import { compareRanks, getLevelProgress } from '@/core/ranks';
-import { createBackupPayload, parseBackupPayload } from '@/lib/backup';
+import { parseBackupPayload, serializeBackupPayload } from '@/lib/backup';
 import type { Language } from '@/i18n';
 import type { Rank } from '@/theme/colors';
 import { getDateKeysBetween, getYesterdayDateKey, toDateKey } from '@/lib/date';
@@ -453,11 +453,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   exportBackup: async () => {
-    const data = await exportAllData();
-    const payload = createBackupPayload(data);
     await Share.share({
       title: 'LevelArc backup',
-      message: JSON.stringify(payload, null, 2),
+      message: serializeBackupPayload(await exportAllData()),
     });
   },
   importBackup: async (rawBackup) => {
