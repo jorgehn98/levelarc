@@ -14,11 +14,32 @@ import {
   MODEL_SIZE_BYTES,
   MODEL_STAMP_NAME,
   MODEL_URL,
+  formatModelRequiredSpace,
   formatModelSize,
+  hasEnoughSpaceForModel,
   MODEL_DISPLAY_NAME,
 } from '@/ai/modelMetadata';
 
-export { MODEL_DISPLAY_NAME, formatModelSize };
+export { MODEL_DISPLAY_NAME, formatModelRequiredSpace, formatModelSize };
+
+// No hay espacio libre para el modelo (tamaño + margen). Error propio para que la UI pueda decir
+// exactamente eso en vez del genérico "la descarga falló".
+export class InsufficientStorageError extends Error {
+  constructor() {
+    super('Not enough free storage for the model');
+    this.name = 'InsufficientStorageError';
+  }
+}
+
+// Espacio libre del almacenamiento interno. Si el sistema no lo da, NaN: la comprobación previa no
+// bloquea con una lectura rota (ver hasEnoughSpaceForModel).
+function getAvailableDiskSpace(): number {
+  try {
+    return Paths.availableDiskSpace;
+  } catch {
+    return Number.NaN;
+  }
+}
 
 export type ModelFileDebugInfo = {
   modelUri: string | null;
@@ -101,8 +122,10 @@ function validateAndStampModel(file: File): void {
   getModelStampFile().write(String(MODEL_SIZE_BYTES));
 }
 
-// Recupera una descarga completa que se quedó en estado "downloading" antes de escribir el stamp.
-// Esto evita obligar al usuario a redescargar 3,1 GB si el fichero ya estaba entero en disco.
+// Devuelve la uri del modelo si está ENTERO en disco (tamaño exacto), reescribiendo el stamp si
+// faltaba; null si no hay fichero válido. Sirve para reconciliar la BD con el disco: una descarga que
+// terminó sin llegar a escribir el stamp, o un modelo que sobrevivió a un reset/importación de datos.
+// Evita obligar al usuario a redescargar 3,1 GB si el fichero ya estaba entero.
 export function recoverDownloadedModel(): string | null {
   if (!isNative) return null;
   const file = getModelFile();
@@ -117,6 +140,8 @@ export function recoverDownloadedModel(): string | null {
 // Descarga el modelo con progreso (ratio 0..1) y soporte de cancelación vía AbortSignal.
 // Devuelve la uri del fichero descargado. En web lanza: la IA avanzada no aplica ahí.
 // Si ya existe un fichero (posible descarga parcial/corrupta previa), lo borra antes de redescargar.
+// Lanza InsufficientStorageError ANTES de empezar si no cabe: sin esto la descarga llenaba el disco
+// y moría a medias con un error genérico.
 export async function downloadModel(
   onProgress: (ratio: number) => void,
   signal?: AbortSignal,
@@ -133,6 +158,11 @@ export async function downloadModel(
   const stampFile = getModelStampFile();
   if (stampFile.exists) {
     stampFile.delete();
+  }
+
+  // Después de borrar el parcial: ese espacio ya cuenta como libre.
+  if (!hasEnoughSpaceForModel(getAvailableDiskSpace())) {
+    throw new InsufficientStorageError();
   }
 
   const task = File.createDownloadTask(MODEL_URL, file, {
