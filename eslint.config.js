@@ -15,6 +15,6 @@ module.exports = defineConfig([
     },
   },
   {
-    ignores: ['dist/*', '.expo/*', '.expo-export-check/*', 'docs/**', '.agents/**', 'src/db/migrations/**'],
+    ignores: ['dist/*', '.expo/*', '.expo-export-check/*', 'docs/**', '.agents/**'],
   },
 ]);
