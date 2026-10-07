@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { applyXpDelta, getCompletionXp, getFailureXp } from './xp';
 import { getLevelFromXp, getLevelProgress, getXpForLevel } from './ranks';
 import {
+  canClaimPerfectWeek,
   getClaimedDailyMissionStreak,
   getDailyMissionBonus,
   getDailyMissionProgress,
+  getPerfectDayStreak,
   getPerfectWeekMissionProgress,
 } from './missions';
 import { getDateKeysBetween, getTodayWeekday, getYesterdayDateKey, toDateKey } from '../lib/date';
@@ -60,10 +62,24 @@ describe('daily mission', () => {
     expect(getDailyMissionBonus(6)).toBe(20);
   });
 
-  it('tracks the perfect week bonus mission at seven perfect days', () => {
+  it('pays the perfect week bonus once per cycle of seven perfect days', () => {
     expect(getPerfectWeekMissionProgress(6)).toMatchObject({ completed: 6, target: 7, isComplete: false });
     expect(getPerfectWeekMissionProgress(7)).toMatchObject({ completed: 7, target: 7, isComplete: true });
-    expect(getPerfectWeekMissionProgress(10).completed).toBe(7);
+    expect(getPerfectWeekMissionProgress(8)).toMatchObject({ completed: 1, target: 7, isComplete: false });
+    expect(getPerfectWeekMissionProgress(14)).toMatchObject({ completed: 7, target: 7, isComplete: true });
+    expect(getPerfectWeekMissionProgress(0).isComplete).toBe(false);
+  });
+
+  it('only allows the perfect week claim on an unclaimed, perfect, seventh day', () => {
+    const day7 = { objetivo: 2, completados: 2, perfectStreakDays: 7, streakBonusClaimed: false };
+
+    expect(canClaimPerfectWeek(day7)).toBe(true);
+    expect(canClaimPerfectWeek({ ...day7, streakBonusClaimed: true })).toBe(false);
+    expect(canClaimPerfectWeek({ ...day7, perfectStreakDays: 8 })).toBe(false);
+    // Racha de 7 arrastrada de ayer, pero hoy aún no es un día perfecto.
+    expect(canClaimPerfectWeek({ ...day7, completados: 1 })).toBe(false);
+    expect(canClaimPerfectWeek({ ...day7, objetivo: 0, completados: 0 })).toBe(false);
+    expect(canClaimPerfectWeek(null)).toBe(false);
   });
 
   it('counts only consecutive claimed daily missions', () => {
@@ -77,6 +93,31 @@ describe('daily mission', () => {
     expect(getClaimedDailyMissionStreak(missions, '2026-05-24')).toBe(2);
     expect(getClaimedDailyMissionStreak(missions, '2026-05-23')).toBe(1);
     expect(getClaimedDailyMissionStreak(missions, '2026-05-22')).toBe(0);
+  });
+
+  it('skips rest days and stops at a day without a mission row', () => {
+    const missions = [
+      { fecha: '2026-05-19', objetivo: 1, completados: 1, reclamada: true },
+      // 2026-05-20 no tiene fila: rompe.
+      { fecha: '2026-05-21', objetivo: 2, completados: 2, reclamada: true },
+      { fecha: '2026-05-22', objetivo: 0, completados: 0, reclamada: false },
+      { fecha: '2026-05-23', objetivo: 0, completados: 0, reclamada: false },
+      { fecha: '2026-05-24', objetivo: 2, completados: 2, reclamada: true },
+    ];
+
+    expect(getClaimedDailyMissionStreak(missions, '2026-05-24')).toBe(2);
+    expect(getPerfectDayStreak(missions, '2026-05-24')).toBe(2);
+    expect(getPerfectDayStreak(missions, '2026-05-23')).toBe(1);
+  });
+
+  it('breaks the perfect day streak on an incomplete scheduled day', () => {
+    const missions = [
+      { fecha: '2026-05-22', objetivo: 2, completados: 2, reclamada: false },
+      { fecha: '2026-05-23', objetivo: 2, completados: 1, reclamada: false },
+      { fecha: '2026-05-24', objetivo: 2, completados: 2, reclamada: false },
+    ];
+
+    expect(getPerfectDayStreak(missions, '2026-05-24')).toBe(1);
   });
 });
 

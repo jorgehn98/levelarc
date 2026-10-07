@@ -25,14 +25,13 @@ export function getLevelUpEssence(level: number): number {
   return 10 + (Math.floor(level) - 1) * 5;
 }
 
+// Suma de getLevelUpEssence(level) para level en (from, to]. Serie aritmética en forma cerrada: no
+// itera, así que un nivel absurdo no puede colgar la app.
 export function getLevelUpEssenceBetween(fromLevel: number, toLevel: number): number {
-  const from = Math.floor(fromLevel);
+  if (!Number.isFinite(fromLevel) || !Number.isFinite(toLevel)) return 0;
+  const from = Math.max(1, Math.floor(fromLevel));
   const to = Math.floor(toLevel);
   if (to <= from) return 0;
 
-  let total = 0;
-  for (let level = from + 1; level <= to; level += 1) {
-    total += getLevelUpEssence(level);
-  }
-  return total;
+  return ((to - from) * (getLevelUpEssence(from + 1) + getLevelUpEssence(to))) / 2;
 }

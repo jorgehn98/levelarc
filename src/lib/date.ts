@@ -34,3 +34,15 @@ export function getTodayWeekday(date = new Date()): number {
   const day = date.getDay();
   return day === 0 ? 7 : day;
 }
+
+// Último instante del día local de `dateKey`, como ISO. Sitúa en el ledger los claims de misión que
+// no guardaron su hora real (bases y backups anteriores a reclamada_en).
+export function toLocalEndOfDay(dateKey: string): string {
+  return new Date(`${dateKey}T23:59:59.999`).toISOString();
+}
+
+export function shiftDateKey(dateKey: string, days: number): string {
+  const date = new Date(`${dateKey}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return toDateKey(date);
+}
