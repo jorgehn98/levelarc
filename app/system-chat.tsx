@@ -28,6 +28,14 @@ import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 import type { AiMessage } from '@/db/repository';
 
+// Los botones de cabecera miden 38 pt: el hitSlop los lleva al mínimo táctil de 44 pt.
+const ICON_HIT_SLOP = 4;
+
+// Tope del mensaje del jugador. El LLM local trabaja con una ventana de contexto pequeña (N_CTX en
+// llamaEngine) que ya ocupan las instrucciones y el estado: un texto pegado muy largo la desborda y
+// la respuesta cae a plantilla. 500 caracteres sobran para conversar.
+const MAX_MESSAGE_LENGTH = 500;
+
 export default function SystemChatScreen() {
   const language = useAppStore((state) => state.language);
   const messages = useAiStore((state) => state.messages);
@@ -87,7 +95,13 @@ export default function SystemChatScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.iconButton}>
+        <Pressable
+          accessibilityLabel={t(language, 'goBack')}
+          accessibilityRole="button"
+          hitSlop={ICON_HIT_SLOP}
+          onPress={() => router.back()}
+          style={styles.iconButton}
+        >
           <ChevronLeft color={colors.brand.cyanCore} size={20} />
         </Pressable>
         <View style={styles.headerCopy}>
@@ -100,6 +114,7 @@ export default function SystemChatScreen() {
         <Pressable
           accessibilityLabel={t(language, 'aiManageTitle')}
           accessibilityRole="button"
+          hitSlop={ICON_HIT_SLOP}
           onPress={() => router.push('/system-ai')}
           style={styles.iconButton}
         >
@@ -108,6 +123,7 @@ export default function SystemChatScreen() {
         <Pressable
           accessibilityLabel={t(language, 'systemChatClear')}
           accessibilityRole="button"
+          hitSlop={ICON_HIT_SLOP}
           onPress={handleClear}
           style={styles.iconButton}
         >
@@ -134,7 +150,9 @@ export default function SystemChatScreen() {
 
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <TextInput
+            accessibilityLabel={t(language, 'systemChatInputPlaceholder')}
             cursorColor={colors.brand.cyanCore}
+            maxLength={MAX_MESSAGE_LENGTH}
             multiline
             onChangeText={setDraft}
             placeholder={t(language, 'systemChatInputPlaceholder')}
@@ -146,6 +164,7 @@ export default function SystemChatScreen() {
           <Pressable
             accessibilityLabel={isGenerating ? t(language, 'cancel') : t(language, 'systemChatSend')}
             accessibilityRole="button"
+            accessibilityState={{ disabled: !isGenerating && !canSend }}
             disabled={!isGenerating && !canSend}
             onPress={isGenerating ? cancelGeneration : handleSend}
             style={[styles.sendButton, !isGenerating && !canSend && styles.sendButtonDisabled]}

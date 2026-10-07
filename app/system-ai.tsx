@@ -10,13 +10,20 @@ import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { MODEL_DISPLAY_NAME, formatModelSize, getModelFileDebugInfo, modelExists } from '@/ai/modelManager';
+import {
+  MODEL_DISPLAY_NAME,
+  formatModelRequiredSpace,
+  formatModelSize,
+  getModelFileDebugInfo,
+  modelExists,
+} from '@/ai/modelManager';
 import { buildHabitContext, type HabitInsightInput } from '@/core/aiContext';
 import { buildSystemContext } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { isInternalBuild } from '@/lib/buildInfo';
 import { confirmAction } from '@/lib/confirm';
 import type { LlamaDiagnosticStep } from '@/ai/llamaEngine';
-import { getLlmRuntimeError, useAiStore } from '@/stores/aiStore';
+import { getLlmRuntimeError, retryLlmEngine, useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
@@ -52,6 +59,7 @@ export default function SystemAiScreen() {
   const language = useAppStore((state) => state.language);
   const profile = useAiStore((state) => state.profile);
   const modelProgress = useAiStore((state) => state.modelProgress);
+  const modelErrorReason = useAiStore((state) => state.modelErrorReason);
   const isReady = useAiStore((state) => state.isReady);
   const loadAi = useAiStore((state) => state.loadAi);
   const downloadModel = useAiStore((state) => state.downloadModel);
@@ -83,6 +91,8 @@ export default function SystemAiScreen() {
   }, [profile.engine, profile.modelStatus]);
 
   const isWeb = Platform.OS === 'web';
+  // Versiones, botones de diagnóstico y errores en crudo: solo en builds internos (dev / preview).
+  const internal = isInternalBuild();
   const status = profile.modelStatus;
   const usingLlama = profile.engine === 'llama';
   const appVersion = Constants.expoConfig?.version ?? 'dev';
@@ -121,6 +131,13 @@ export default function SystemAiScreen() {
     void (async () => {
       await setEngine(usingLlama ? 'template' : 'llama');
       if (!usingLlama) setRuntimeError(null);
+    })();
+  }
+
+  function handleRetryEngine() {
+    void (async () => {
+      await retryLlmEngine();
+      setRuntimeError(null);
     })();
   }
 
@@ -186,7 +203,7 @@ export default function SystemAiScreen() {
         const { runLlamaSurfaceDiagnostics } = await import('@/ai/llamaEngine');
         const systemContext = await buildSystemContext();
         const sampleHabit: HabitInsightInput = {
-          nombre: 'Leer 30 minutos',
+          nombre: t(language, 'aiDiagnosticSampleHabit'),
           consistency30: 0.42,
           currentStreak: 0,
           mejorRachaHabito: 6,
@@ -218,7 +235,13 @@ export default function SystemAiScreen() {
     <Screen>
       <ScreenHeader
         action={
-          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
+          <Pressable
+            accessibilityLabel={t(language, 'goBack')}
+            accessibilityRole="button"
+            hitSlop={BACK_HIT_SLOP}
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <ChevronLeft color={colors.brand.cyanCore} size={20} />
           </Pressable>
         }
@@ -231,8 +254,14 @@ export default function SystemAiScreen() {
         <Text style={styles.intro}>
           {t(language, 'aiIntro', { size: formatModelSize(language), model: MODEL_DISPLAY_NAME })}
         </Text>
-        <Text style={styles.buildInfo}>LevelArc {appVersion} · build {buildVersion}</Text>
-        <Text style={styles.updateInfo}>{updateInfo}</Text>
+        {internal ? (
+          <>
+            <Text style={styles.buildInfo}>
+              LevelArc {appVersion} · build {buildVersion}
+            </Text>
+            <Text style={styles.updateInfo}>{updateInfo}</Text>
+          </>
+        ) : null}
 
         {isWeb ? (
           <View style={styles.noticeCard}>
@@ -249,8 +278,10 @@ export default function SystemAiScreen() {
               <ReadyState
                 diagnostics={diagnostics}
                 diagnosticsRunning={diagnosticsRunning}
+                internal={internal}
                 language={language}
                 onDelete={handleDelete}
+                onRetryEngine={handleRetryEngine}
                 onRunDiagnostics={handleRunDiagnostics}
                 onRunSurfaceDiagnostics={handleRunSurfaceDiagnostics}
                 onToggleEngine={handleToggleEngine}
@@ -261,7 +292,15 @@ export default function SystemAiScreen() {
                 usingLlama={usingLlama}
               />
             ) : (
-              <ErrorState language={language} onRetry={handleDownload} />
+              <ErrorState
+                language={language}
+                message={
+                  modelErrorReason === 'storage'
+                    ? t(language, 'aiDownloadNoSpace', { size: formatModelRequiredSpace(language) })
+                    : t(language, 'aiDownloadError')
+                }
+                onRetry={handleDownload}
+              />
             )}
           </View>
         )}
@@ -304,8 +343,10 @@ function DownloadingState({
 function ReadyState({
   diagnostics,
   diagnosticsRunning,
+  internal,
   language,
   onDelete,
+  onRetryEngine,
   onRunDiagnostics,
   onRunSurfaceDiagnostics,
   onToggleEngine,
@@ -318,8 +359,10 @@ function ReadyState({
   diagnostics: LlamaDiagnosticStep[] | null;
   diagnosticsRunning: boolean;
   hasModelPath: boolean;
+  internal: boolean;
   language: Language;
   onDelete: () => void;
+  onRetryEngine: () => void;
   onRunDiagnostics: () => void;
   onRunSurfaceDiagnostics: () => void;
   onToggleEngine: () => void;
@@ -340,7 +383,12 @@ function ReadyState({
           <Text style={styles.toggleTitle}>{t(language, 'aiUseAdvanced')}</Text>
           <Text style={styles.toggleHint}>{t(language, 'aiUseAdvancedHint')}</Text>
         </View>
-        <Toggle active={usingLlama} onPress={onToggleEngine} />
+        <Toggle
+          active={usingLlama}
+          hint={t(language, 'aiUseAdvancedHint')}
+          label={t(language, 'aiUseAdvanced')}
+          onPress={onToggleEngine}
+        />
       </View>
 
       {runtimeError ? (
@@ -349,38 +397,55 @@ function ReadyState({
           <View style={styles.runtimeNoticeCopy}>
             <Text style={styles.runtimeNoticeTitle}>{t(language, 'aiRuntimeDisabled')}</Text>
             <Text style={styles.runtimeNoticeText}>{t(language, 'aiRuntimeDisabledCopy')}</Text>
-            <Text style={styles.runtimeError}>{runtimeError}</Text>
+            {/* El detalle técnico (origen, estado del modelo, traza) solo en builds internos. */}
+            {internal ? (
+              <Text selectable style={styles.runtimeError}>
+                {runtimeError}
+              </Text>
+            ) : null}
+            <Button
+              label={t(language, 'aiRetry')}
+              onPress={onRetryEngine}
+              style={styles.runtimeRetry}
+              variant="secondary"
+            />
           </View>
         </View>
       ) : null}
 
-      <Button
-        disabled={diagnosticsRunning}
-        icon={Cpu}
-        label={diagnosticsRunning ? t(language, 'aiDiagnosticRunning') : t(language, 'aiRunDiagnostic')}
-        onPress={onRunDiagnostics}
-        variant="secondary"
-      />
+      {internal ? (
+        <>
+          <Button
+            disabled={diagnosticsRunning}
+            icon={Cpu}
+            label={diagnosticsRunning ? t(language, 'aiDiagnosticRunning') : t(language, 'aiRunDiagnostic')}
+            onPress={onRunDiagnostics}
+            variant="secondary"
+          />
 
-      {diagnostics ? <DiagnosticResult language={language} steps={diagnostics} /> : null}
+          {diagnostics ? <DiagnosticResult language={language} steps={diagnostics} /> : null}
 
-      <Button
-        disabled={surfaceDiagnosticsRunning || !usingLlama || !hasModelPath}
-        icon={Cpu}
-        label={
-          surfaceDiagnosticsRunning ? t(language, 'aiSurfaceDiagnosticRunning') : t(language, 'aiRunSurfaceDiagnostic')
-        }
-        onPress={onRunSurfaceDiagnostics}
-        variant="secondary"
-      />
+          <Button
+            disabled={surfaceDiagnosticsRunning || !usingLlama || !hasModelPath}
+            icon={Cpu}
+            label={
+              surfaceDiagnosticsRunning
+                ? t(language, 'aiSurfaceDiagnosticRunning')
+                : t(language, 'aiRunSurfaceDiagnostic')
+            }
+            onPress={onRunSurfaceDiagnostics}
+            variant="secondary"
+          />
 
-      {surfaceDiagnostics ? (
-        <DiagnosticResult
-          hintKey="aiSurfaceDiagnosticHint"
-          language={language}
-          steps={surfaceDiagnostics}
-          titleKey="aiSurfaceDiagnosticTitle"
-        />
+          {surfaceDiagnostics ? (
+            <DiagnosticResult
+              hintKey="aiSurfaceDiagnosticHint"
+              language={language}
+              steps={surfaceDiagnostics}
+              titleKey="aiSurfaceDiagnosticTitle"
+            />
+          ) : null}
+        </>
       ) : null}
 
       <Button icon={Trash2} label={t(language, 'aiDeleteModel')} onPress={onDelete} variant="danger" />
@@ -417,23 +482,44 @@ function DiagnosticResult({
   );
 }
 
-function ErrorState({ language, onRetry }: { language: Language; onRetry: () => void }) {
+function ErrorState({
+  language,
+  message,
+  onRetry,
+}: {
+  language: Language;
+  message: string;
+  onRetry: () => void;
+}) {
   return (
     <View style={styles.stateBlock}>
       <View style={styles.readyRow}>
         <CircleAlert color={colors.state.failed} size={18} />
-        <Text style={styles.errorText}>{t(language, 'aiDownloadError')}</Text>
+        <Text style={styles.errorText}>{message}</Text>
       </View>
       <Button icon={Download} label={t(language, 'aiRetry')} onPress={onRetry} />
     </View>
   );
 }
 
-function Toggle({ active, onPress }: { active: boolean; onPress: () => void }) {
+function Toggle({
+  active,
+  hint,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  hint: string;
+  label: string;
+  onPress: () => void;
+}) {
   return (
     <Pressable
+      accessibilityHint={hint}
+      accessibilityLabel={label}
       accessibilityRole="switch"
       accessibilityState={{ checked: active }}
+      hitSlop={TOGGLE_HIT_SLOP}
       onPress={onPress}
       style={[styles.toggle, active && styles.toggleActive]}
     >
@@ -441,6 +527,11 @@ function Toggle({ active, onPress }: { active: boolean; onPress: () => void }) {
     </Pressable>
   );
 }
+
+// Los controles miden 38 pt (atrás) y 44×28 pt (interruptor): el hitSlop los lleva al mínimo táctil
+// de 44 pt sin cambiar el diseño.
+const BACK_HIT_SLOP = 4;
+const TOGGLE_HIT_SLOP = { bottom: 8, top: 8 };
 
 const styles = StyleSheet.create({
   scroll: {
@@ -573,6 +664,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     marginTop: 6,
+  },
+  runtimeRetry: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
   },
   diagnosticCard: {
     backgroundColor: colors.background.card,

@@ -1,6 +1,6 @@
 import { Cpu, MessageCircle, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -25,6 +25,8 @@ const EXIT_MS = 200;
 // retira sola para no dejar al jugador atrapado si no toca la X ni el bocadillo.
 const AUTO_DISMISS_MS = 14_000;
 const TAB_BAR_HEIGHT = 70;
+// El icono de cerrar mide 15 pt: con este hitSlop el área táctil llega a 45 pt.
+const CLOSE_HIT_SLOP = 15;
 
 // Overlay global de las apariciones de NYX. Es modal: oscurece y bloquea el fondo para que la
 // aparición sea un momento claro del Sistema, no un peek que compite con la UI. El bocadillo lleva al
@@ -47,18 +49,29 @@ export function SystemInterjectionOverlay() {
   // Guard contra doble disparo (toque rápido en la tarjeta/X o auto-cierre solapado con un toque).
   const isClosing = useRef(false);
 
-  // Sincroniza la aparición del store con la copia local y dispara la animación de entrada (desliza
-  // desde la esquina con un leve rebote).
+  // Identidad de la aparición: `createdAt` no cambia cuando el texto de plantilla se sustituye por el
+  // del LLM. Entrada y auto-cierre dependen de ella y no del objeto entero; antes, al llegar el texto
+  // de IA, la entrada se repetía y los 14 s volvían a empezar.
+  const interjectionId = interjection?.createdAt ?? null;
+  const shownId = shown?.createdAt ?? null;
+
+  // Mantiene la copia local al día (incluido el cambio de texto/fromAi, sin reanimar). Si el store
+  // retira la aparición por su cuenta (reset de datos) sin pasar por la salida animada, se quita.
   useEffect(() => {
-    if (!interjection) return;
+    if (interjection) setShown(interjection);
+    else if (!isClosing.current) setShown(null);
+  }, [interjection]);
+
+  // Animación de entrada (sube con un leve rebote): solo cuando empieza una aparición NUEVA.
+  useEffect(() => {
+    if (!interjectionId) return;
     isClosing.current = false;
-    setShown(interjection);
     progress.value = 0;
     progress.value = withSequence(
       withTiming(1.03, { duration: ENTER_MS, easing: Easing.out(Easing.cubic) }),
       withTiming(1, { duration: 130, easing: Easing.out(Easing.quad) }),
     );
-  }, [interjection, progress]);
+  }, [interjectionId, progress]);
 
   const clearShown = useCallback(() => {
     setShown(null);
@@ -96,10 +109,21 @@ export function SystemInterjectionOverlay() {
   // Auto-cierre: mientras haya una aparición visible y el jugador no actúe, se retira sola. Si toca la
   // tarjeta o la X, animateOut marca isClosing y este timer (al vencer) cae en el guard, sin efecto.
   useEffect(() => {
-    if (!shown) return;
+    if (!shownId) return;
     const timer = setTimeout(handleClose, AUTO_DISMISS_MS);
     return () => clearTimeout(timer);
-  }, [shown, handleClose]);
+  }, [shownId, handleClose]);
+
+  // Atrás de Android: el overlay es una View sobre el Stack, no una ruta. Sin esto, "atrás" navegaba
+  // la pantalla de detrás del velo y NYX seguía encima. Mientras está visible, atrás la cierra.
+  useEffect(() => {
+    if (!shownId) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [shownId, handleClose]);
 
   const panelStyle = useAnimatedStyle(() => ({
     opacity: Math.min(progress.value, 1),
@@ -115,41 +139,51 @@ export function SystemInterjectionOverlay() {
   const accent = pose.accent;
 
   return (
-    <View style={styles.overlay}>
+    <View accessibilityViewIsModal onAccessibilityEscape={handleClose} style={styles.overlay}>
       <View style={styles.scrim} />
       <View style={[styles.dock, { bottom: TAB_BAR_HEIGHT + insets.bottom }]}>
         <Animated.View style={[styles.stage, panelStyle]}>
-          <Pressable
-            accessibilityHint={t(language, 'systemChatTapToReply')}
-            accessibilityLabel={t(language, 'systemChatLabel')}
-            accessibilityRole="button"
-            onPress={handleContinue}
-            style={({ pressed }) => [styles.bubbleWrap, pressed && styles.pressed]}
-          >
-            <View style={[styles.bubble, { borderColor: accent }]}>
-              <Pressable accessibilityLabel={t(language, 'close')} hitSlop={10} onPress={handleClose} style={styles.closeButton}>
-                <X color={colors.brand.boneMuted} size={15} />
-              </Pressable>
+          {/* La X es HERMANA del bocadillo, no hija: un botón accesible dentro de otro no es
+              alcanzable con lector de pantalla. */}
+          <View style={styles.bubbleWrap}>
+            <Pressable
+              accessibilityHint={t(language, 'systemChatTapToReply')}
+              accessibilityLabel={`${t(language, 'systemChatLabel')}. ${shown.text}`}
+              accessibilityRole="button"
+              onPress={handleContinue}
+              style={({ pressed }) => [styles.bubbleButton, pressed && styles.pressed]}
+            >
+              <View style={[styles.bubble, { borderColor: accent }]}>
+                <View style={styles.bubbleHeader}>
+                  <Text style={[styles.kicker, { color: accent }]}>{t(language, 'systemChatLabel')}</Text>
+                  {shown.fromAi ? (
+                    <View style={[styles.aiBadge, { borderColor: accent }]}>
+                      <Cpu color={accent} size={10} />
+                      <Text style={[styles.aiBadgeText, { color: accent }]}>{t(language, 'systemMessageAiBadge')}</Text>
+                    </View>
+                  ) : null}
+                </View>
 
-              <View style={styles.bubbleHeader}>
-                <Text style={[styles.kicker, { color: accent }]}>{t(language, 'systemChatLabel')}</Text>
-                {shown.fromAi ? (
-                  <View style={[styles.aiBadge, { borderColor: accent }]}>
-                    <Cpu color={accent} size={10} />
-                    <Text style={[styles.aiBadgeText, { color: accent }]}>{t(language, 'systemMessageAiBadge')}</Text>
-                  </View>
-                ) : null}
+                <Text style={styles.text}>{shown.text}</Text>
+
+                <View style={styles.hintRow}>
+                  <MessageCircle color={colors.brand.boneMuted} size={12} />
+                  <Text style={styles.hint}>{t(language, 'systemChatTapToReply')}</Text>
+                </View>
               </View>
+              <View style={[styles.tail, { borderTopColor: accent }]} />
+            </Pressable>
 
-              <Text style={styles.text}>{shown.text}</Text>
-
-              <View style={styles.hintRow}>
-                <MessageCircle color={colors.brand.boneMuted} size={12} />
-                <Text style={styles.hint}>{t(language, 'systemChatTapToReply')}</Text>
-              </View>
-            </View>
-            <View style={[styles.tail, { borderTopColor: accent }]} />
-          </Pressable>
+            <Pressable
+              accessibilityLabel={t(language, 'close')}
+              accessibilityRole="button"
+              hitSlop={CLOSE_HIT_SLOP}
+              onPress={handleClose}
+              style={styles.closeButton}
+            >
+              <X color={colors.brand.boneMuted} size={15} />
+            </Pressable>
+          </View>
 
           {/* Personaje de NYX: grande, centrada y apoyada justo sobre la barra de navegación. */}
           <View style={styles.character}>
@@ -195,25 +229,31 @@ const styles = StyleSheet.create({
     opacity: 0.92,
     transform: [{ scale: 0.99 }],
   },
+  // El ancho máximo vive aquí (antes en `bubble`) para que la X, ahora hermana del bocadillo, siga
+  // anclada a su esquina también en pantallas anchas.
   bubbleWrap: {
-    alignItems: 'center',
     marginBottom: -4,
+    maxWidth: 560,
+    width: '100%',
+  },
+  bubbleButton: {
+    alignItems: 'center',
     width: '100%',
   },
   bubble: {
     backgroundColor: colors.background.surfaceRaised,
     borderRadius: radii.md,
     borderWidth: 1,
-    maxWidth: 560,
     paddingHorizontal: 13,
     paddingVertical: 11,
     paddingRight: 26,
     width: '100%',
   },
+  // 8 = los 7 de antes + 1 del borde del bocadillo, del que ya no es hija.
   closeButton: {
     position: 'absolute',
-    right: 7,
-    top: 7,
+    right: 8,
+    top: 8,
   },
   bubbleHeader: {
     alignItems: 'center',
