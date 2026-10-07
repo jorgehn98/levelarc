@@ -14,6 +14,7 @@ import type { HabitContext, SystemContext } from '@/core/aiContext';
 import type { InterjectionTrigger, SystemReply } from '@/core/systemVoice';
 
 import type { ChatContextNote, SystemChatEngine } from './engine';
+import { createInferenceQueue, type InferencePriority } from './inferenceQueue';
 
 // Solo tipos: se borran al compilar, no generan require('llama.rn') en el bundle.
 import type { LlamaContext } from 'llama.rn';
@@ -138,9 +139,11 @@ const LANGUAGE_INSTRUCTION: Record<Language, string> = {
 // las misiones pendientes de hoy, empezando por el eslabón débil (el hábito de peor consistencia, que
 // ya viene en el estado serializado). El bloque de instrucciones incluye pendientes_hoy y
 // eslabon_debil, así que el LLM tiene los datos; aquí solo le fijamos la intención.
+// Cubre también los días sin pendientes (mismo criterio que getDailyBriefing en systemVoice): sin esto
+// el modelo inventaba "misiones pendientes" para un jugador sin hábitos o con el día ya cerrado.
 const BRIEFING_PROMPT: Record<Language, string> = {
-  es: 'Dale al jugador el parte del día: cuántas misiones le quedan y por dónde empezar (el eslabón débil si lo hay). Directo, útil y accionable, sin desprecio.',
-  en: "Give the player today's briefing: how many missions remain and where to start (the weak link if any). Direct, useful and actionable, with no contempt.",
+  es: 'Dale al jugador el parte del día según su estado. Si pendientes_hoy es mayor que 0: cuántas misiones le quedan y por dónde empezar (el eslabón débil si lo hay). Si habitos_activos es 0: invítalo a registrar su primera misión. Si habitos_hoy es 0: hoy no hay nada programado, dilo sin inventar tareas. Si no queda nada pendiente: reconoce el día cerrado, o señala los fallos sin hundirlo. Directo, útil y accionable, sin desprecio.',
+  en: "Give the player today's briefing based on their state. If pendientes_hoy is above 0: how many missions remain and where to start (the weak link if any). If habitos_activos is 0: invite them to register their first mission. If habitos_hoy is 0: nothing is scheduled today, say so without inventing tasks. If nothing is pending: acknowledge the closed day, or point out the failures without crushing them. Direct, useful and actionable, with no contempt.",
 };
 
 // Mensaje interno que dispara el micro-comentario de un hábito concreto: pide al Sistema UNA frase
@@ -428,7 +431,7 @@ export async function runLlamaDiagnostics(
   if (
     !(await runStep('installJsi', async () => {
       await installJsiWithRetry(llamaModule!.installJsi);
-      return 'JSI instalado y bindings movidos al closure interno de llama.rn';
+      return 'JSI installed; bindings moved into the llama.rn closure';
     }))
   ) {
     return steps;
@@ -470,7 +473,7 @@ export async function runLlamaDiagnostics(
     } catch {
       await llamaModule!.releaseAllLlama().catch(() => undefined);
     }
-    return 'Contexto cargado y liberado correctamente';
+    return 'context loaded and released';
   });
 
   return steps;
@@ -498,6 +501,8 @@ export async function runLlamaSurfaceDiagnostics(
 
   try {
     if (
+      // Las superficies de fondo se descartan si el motor está ocupado (p. ej. el chat generando):
+      // en ese caso el paso sale como ERROR "Inference skipped" y basta con repetir la prueba.
       !(await runStep('surface: daily briefing', async () => {
         const reply = await generateDailyBriefing(systemContext, language, modelPath);
         return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
@@ -515,7 +520,13 @@ export async function runLlamaSurfaceDiagnostics(
     }
 
     await runStep('surface: interjection', async () => {
-      const reply = await generate(systemContext, INTERJECTION_DESCRIPTION.mission_complete[language], language, modelPath);
+      const reply = await generate(
+        systemContext,
+        INTERJECTION_DESCRIPTION.mission_complete[language],
+        language,
+        modelPath,
+        'background',
+      );
       return reply.kind === 'text' ? reply.text : summarizeDiagnosticValue(reply);
     });
   } finally {
@@ -527,6 +538,45 @@ export async function runLlamaSurfaceDiagnostics(
   return steps;
 }
 
+// Cola única de inferencias: un solo LlamaContext no admite dos `completion` a la vez y
+// `stopCompletion` corta lo que esté corriendo, sea de quien sea. Ver inferenceQueue.ts.
+const inferenceQueue = createInferenceQueue();
+
+// Ejecuta UNA inferencia sobre el contexto cargado, pasando por la cola. `priority` decide si espera
+// turno ('chat') o se descarta cuando el motor está ocupado ('background').
+// Prompt a mano en formato gemma-4 + `prompt` directo (no `messages`): esta ruta de completion NO
+// pasa por minja, así que ninguna rareza de la plantilla embebida puede romper la inferencia.
+// Timeout: si se atasca, al vencer abortamos con stopCompletion (corta de verdad, libera CPU). El
+// timeout cuenta desde que la inferencia arranca, no desde que entra en la cola.
+async function complete(modelPath: string, prompt: string, priority: InferencePriority): Promise<string> {
+  // La carga del modelo queda FUERA de la cola: ya se deduplica sola (`loading`) y así la cola solo
+  // serializa lo que de verdad compite por el contexto.
+  const llama = await ensureContext(modelPath);
+  const stop = () => {
+    void llama.stopCompletion().catch(() => undefined);
+  };
+  const result = await inferenceQueue.run(
+    priority,
+    () =>
+      withTimeout(
+        llama.completion({
+          prompt,
+          n_predict: N_PREDICT,
+          temperature: TEMPERATURE,
+          top_p: TOP_P,
+          top_k: TOP_K,
+          penalty_repeat: PENALTY_REPEAT,
+          stop: STOP,
+        }),
+        COMPLETION_TIMEOUT_MS,
+        'completion',
+        stop,
+      ),
+    stop,
+  );
+  return getCompletionText(result);
+}
+
 // Genera una respuesta del Sistema a partir del bloque de instrucciones y el mensaje del usuario.
 // `systemNote` opcional se añade al final del bloque (lo usa el chat heredado de una aparición).
 async function generate(
@@ -534,32 +584,14 @@ async function generate(
   userMessage: string,
   language: Language,
   modelPath: string,
+  priority: InferencePriority,
   systemNote?: string,
 ): Promise<SystemReply> {
-  const llama = await ensureContext(modelPath);
   const instructionBlock = systemNote
     ? `${buildInstructionBlock(ctx, language)}\n\n${systemNote}`
     : buildInstructionBlock(ctx, language);
-  // Prompt a mano en formato gemma-4 + `prompt` directo (no `messages`): esta ruta de completion NO
-  // pasa por minja, así que ninguna rareza de la plantilla embebida puede romper la inferencia.
-  // Timeout: si se atasca, al vencer abortamos con stopCompletion (corta de verdad, libera CPU).
-  const result = await withTimeout(
-    llama.completion({
-      prompt: buildGemmaPrompt(instructionBlock, userMessage, language),
-      n_predict: N_PREDICT,
-      temperature: TEMPERATURE,
-      top_p: TOP_P,
-      top_k: TOP_K,
-      penalty_repeat: PENALTY_REPEAT,
-      stop: STOP,
-    }),
-    COMPLETION_TIMEOUT_MS,
-    'completion',
-    () => {
-      void llama.stopCompletion().catch(() => undefined);
-    },
-  );
-  return { kind: 'text', text: getCompletionText(result) };
+  const text = await complete(modelPath, buildGemmaPrompt(instructionBlock, userMessage, language), priority);
+  return { kind: 'text', text };
 }
 
 // Briefing diario accionable generado por el LLM. Reusa `generate` con el prompt de briefing: el
@@ -571,7 +603,7 @@ export function generateDailyBriefing(
   language: Language,
   modelPath: string,
 ): Promise<SystemReply> {
-  return generate(ctx, BRIEFING_PROMPT[language], language, modelPath);
+  return generate(ctx, BRIEFING_PROMPT[language], language, modelPath, 'background');
 }
 
 // Bloque de instrucciones del micro-comentario de un hábito: misma identidad de NYX que
@@ -590,44 +622,27 @@ function buildHabitInsightPrompt(ctx: HabitContext, language: Language): string 
 
 // Micro-comentario de un hábito generado por el LLM. Análogo a generateDailyBriefing pero standalone
 // (no pasa por `generate`, que asume SystemContext): construye el bloque de instrucciones del hábito
-// y corre la inferencia con el mismo timeout/abort. Devuelve TEXTO plano (no SystemReply): el store lo guarda tal
-// cual. Lo llama el store en la rama llama de ensureHabitInsight. Necesita modelPath porque se invoca
+// y corre la inferencia por la misma cola/timeout (`complete`). Devuelve TEXTO plano (no SystemReply):
+// el store lo guarda tal cual. Lo llama el store en la rama llama de ensureHabitInsight. Necesita modelPath porque se invoca
 // fuera de la factory del motor.
-export async function generateHabitInsight(
+export function generateHabitInsight(
   ctx: HabitContext,
   language: Language,
   modelPath: string,
 ): Promise<string> {
-  const llama = await ensureContext(modelPath);
-  const result = await withTimeout(
-    llama.completion({
-      prompt: buildGemmaPrompt(buildHabitInsightPrompt(ctx, language), HABIT_INSIGHT_PROMPT[language], language),
-      n_predict: N_PREDICT,
-      temperature: TEMPERATURE,
-      top_p: TOP_P,
-      top_k: TOP_K,
-      penalty_repeat: PENALTY_REPEAT,
-      stop: STOP,
-    }),
-    COMPLETION_TIMEOUT_MS,
-    'completion',
-    () => {
-      void llama.stopCompletion().catch(() => undefined);
-    },
+  return complete(
+    modelPath,
+    buildGemmaPrompt(buildHabitInsightPrompt(ctx, language), HABIT_INSIGHT_PROMPT[language], language),
+    'background',
   );
-  return getCompletionText(result);
 }
 
-// Aborta la generación en curso del contexto cargado (si lo hay). La usa el store para cancelar una
-// inferencia a petición del usuario (cancelGeneration). Best-effort: si no hay contexto o stopCompletion
-// falla, no rompe nada. No libera el modelo (eso es releaseLlama): solo corta la generación actual.
-export async function abortGeneration(): Promise<void> {
-  if (!context) return;
-  try {
-    await context.stopCompletion();
-  } catch {
-    // Si no hay generación activa o el nativo falla, lo ignoramos: el objetivo es desbloquear el chat.
-  }
+// Cancela la generación del CHAT (la que corre y las que esperan turno). La usa el store cuando el
+// usuario pulsa cancelar. Pasa por la cola para no cortar una inferencia de otra superficie: antes
+// llamaba a stopCompletion a ciegas y podía abortar un briefing o un comentario de hábito ajenos.
+// No libera el modelo (eso es releaseLlama).
+export function abortGeneration(): void {
+  inferenceQueue.cancel('chat');
 }
 
 // Libera toda la memoria del LLM (todos los contextos) y resetea el estado cacheado. La pantalla de
@@ -659,12 +674,19 @@ export function createLlamaEngine(modelPath: string): SystemChatEngine {
   return {
     id: 'llama',
     isReady: () => context !== null && loadedModelPath === modelPath,
-    greeting: (ctx, language) => generate(ctx, GREETING_PROMPT[language], language, modelPath),
+    greeting: (ctx, language) => generate(ctx, GREETING_PROMPT[language], language, modelPath, 'chat'),
     reply: (ctx, userMessage, language, contextNote) =>
-      generate(ctx, userMessage, language, modelPath, contextNote ? contextNotePrefix(contextNote, language) : undefined),
+      generate(
+        ctx,
+        userMessage,
+        language,
+        modelPath,
+        'chat',
+        contextNote ? contextNotePrefix(contextNote, language) : undefined,
+      ),
     // Aparición: describimos el evento del trigger como "mensaje de usuario" interno y pedimos al LLM
     // que comente ese momento concreto con el tono del Sistema.
     interjection: (ctx, trigger, language) =>
-      generate(ctx, INTERJECTION_DESCRIPTION[trigger][language], language, modelPath),
+      generate(ctx, INTERJECTION_DESCRIPTION[trigger][language], language, modelPath, 'background'),
   };
 }
