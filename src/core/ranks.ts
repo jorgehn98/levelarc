@@ -3,7 +3,7 @@ import type { Rank } from '@/theme/colors';
 const LEVEL_CURVE_BASE = 30;
 const LEVEL_CURVE_EXPONENT = 1.6;
 
-const rankThresholds: Array<{ rank: Rank; minLevel: number }> = [
+const rankThresholds: { rank: Rank; minLevel: number }[] = [
   { rank: 'S', minLevel: 100 },
   { rank: 'A', minLevel: 70 },
   { rank: 'B', minLevel: 45 },

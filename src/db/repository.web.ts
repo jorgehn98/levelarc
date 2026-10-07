@@ -537,12 +537,6 @@ export async function getAiProfile(): Promise<AiProfile> {
   return db.aiProfile;
 }
 
-async function ensureAiProfile(): Promise<AiProfile> {
-  const db = await loadDb();
-  await saveDb(db);
-  return db.aiProfile;
-}
-
 export async function setAiEnabled(enabled: boolean): Promise<void> {
   const db = await loadDb();
   db.aiProfile.enabled = enabled;

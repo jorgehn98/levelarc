@@ -39,6 +39,8 @@
     "babel-preset-expo": "~56.0.12",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~56.0.4",
     "tailwindcss": "^3.4.17",
     "typescript": "~6.0.3",
     "vitest": "^4.1.7"
@@ -50,13 +52,14 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "tsc --noEmit && vitest run",
+    "check": "tsc --noEmit && eslint . --max-warnings 0 && vitest run",
     "doctor": "npx expo-doctor",
     "db:generate": "drizzle-kit generate",
     "build:android:preview": "npx eas-cli build --platform android --profile preview",
     "build:android:production": "npx eas-cli build --platform android --profile production",
     "update:preview": "npx eas-cli update --channel preview --environment preview",
-    "update:production": "npx eas-cli update --channel production --environment production"
+    "update:production": "npx eas-cli update --channel production --environment production",
+    "lint": "eslint ."
   },
   "private": true,
   "knip": {

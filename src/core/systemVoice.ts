@@ -112,7 +112,7 @@ type Intent = 'hello' | 'status' | 'help' | 'ideas' | 'tone' | 'completed' | 'th
 // Palabras clave por intención, ya normalizadas (sin tildes, minúsculas), ES y EN juntas. Las de
 // una sola palabra se buscan por token exacto (evita falsos positivos como 'hi' dentro de
 // "history"); las multi-palabra (con espacio) se buscan como substring sobre el mensaje.
-const INTENT_KEYWORDS: Array<{ intent: Intent; words: string[] }> = [
+const INTENT_KEYWORDS: { intent: Intent; words: string[] }[] = [
   { intent: 'thanks', words: ['gracias', 'thanks', 'thank you', 'thx'] },
   {
     intent: 'ideas',

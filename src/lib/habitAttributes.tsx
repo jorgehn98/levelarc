@@ -3,14 +3,14 @@ import { Brain, Dumbbell, Flame, HeartPulse, MessageCircle, Wrench } from 'lucid
 import type { AttributeId } from '@/core/attributes';
 import { colors } from '@/theme/colors';
 
-export const habitAttributes: Array<{
+export const habitAttributes: {
   id: AttributeId;
   code: string;
   label: string;
   description: string;
   color: string;
   icon: typeof Dumbbell;
-}> = [
+}[] = [
   {
     id: 'fuerza',
     code: 'FUE',

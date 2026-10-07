@@ -910,7 +910,7 @@ export async function exportAllData() {
 export async function importAllData(data: unknown) {
   const backup = normalizeBackupData(data);
   const existingHabits = await listHabits(true);
-  const restoredHabits: Array<HabitRecord & { notificationId: string | null }> = [];
+  const restoredHabits: (HabitRecord & { notificationId: string | null })[] = [];
 
   for (const habit of backup.habits) {
     const notificationId = habit.archivado
@@ -1558,18 +1558,18 @@ function isAiModelStatus(value: unknown): value is AiModelStatus {
 type NormalizedBackupData = {
   habits: HabitRecord[];
   events: EventRecord[];
-  habitDailyProgress: Array<{
+  habitDailyProgress: {
     id: string;
     habitId: string;
     fecha: string;
     cantidad: number;
     estado: ProgressState;
     actualizadoEn: string;
-  }>;
+  }[];
   player: PlayerRecord | null;
   dailyMissions: DailyMissionRecord[];
-  playerRewards: Array<{ id: string; rewardId: string; kind: string; adquiridoEn: string }>;
-  achievementsUnlocked: Array<{ id: string; achievementId: string; desbloqueadoEn: string }>;
+  playerRewards: { id: string; rewardId: string; kind: string; adquiridoEn: string }[];
+  achievementsUnlocked: { id: string; achievementId: string; desbloqueadoEn: string }[];
   aiProfile: AiProfile | null;
   aiMessages: AiMessage[];
 };
