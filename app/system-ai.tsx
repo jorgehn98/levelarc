@@ -99,7 +99,7 @@ export default function SystemAiScreen() {
   const buildVersion = Constants.nativeBuildVersion ?? 'dev';
   const updateInfo = [
     `runtime ${Updates.runtimeVersion ?? 'dev'}`,
-    `channel ${Updates.channel ?? 'n/a'}`,
+    `channel ${Updates.channel || 'n/a'}`,
     Updates.isEmbeddedLaunch ? 'embedded' : `update ${Updates.updateId ?? 'dev'}`,
   ].join(' · ');
 
@@ -154,7 +154,7 @@ export default function SystemAiScreen() {
             appVersion,
             buildVersion,
             runtimeVersion: Updates.runtimeVersion ?? 'dev',
-            updateChannel: Updates.channel ?? 'n/a',
+            updateChannel: Updates.channel || 'n/a',
             updateId: Updates.updateId ?? 'embedded',
             launchSource: Updates.isEmbeddedLaunch ? 'embedded' : 'ota',
             platform: Platform.OS,
@@ -192,7 +192,7 @@ export default function SystemAiScreen() {
           appVersion,
           buildVersion,
           runtimeVersion: Updates.runtimeVersion ?? 'dev',
-          updateChannel: Updates.channel ?? 'n/a',
+          updateChannel: Updates.channel || 'n/a',
           updateId: Updates.updateId ?? 'embedded',
           launchSource: Updates.isEmbeddedLaunch ? 'embedded' : 'ota',
           platform: Platform.OS,
