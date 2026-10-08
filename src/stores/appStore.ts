@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { create } from 'zustand';
+import { create, type StoreApi, type UseBoundStore } from 'zustand';
+
+import { runAction, type ActionHost, type ActionOptions } from './runAction';
 
 import { attributeIds, getAttributeLevelProgress } from '@/core/attributes';
 import { compareRanks, getLevelProgress } from '@/core/ranks';
@@ -10,7 +12,8 @@ import { ShareUnavailableError, pickBackupFile, shareBackupFile } from '@/lib/ba
 import { notify } from '@/lib/confirm';
 import { configureNotifications } from '@/lib/notifications';
 import { warnRemindersDisabled } from '@/lib/reminderNotice';
-import { clearEndOfDayReminder, syncReminders } from '@/lib/reminders';
+import type { ReminderStatus } from '@/lib/reminderPlan';
+import { clearEndOfDayReminder, syncReminders, syncRemindersIfPermissionChanged } from '@/lib/reminders';
 import type { Rank } from '@/theme/colors';
 import { getDateKeysBetween, getYesterdayDateKey, toDateKey } from '@/lib/date';
 import {
@@ -70,6 +73,8 @@ type AppState = {
   isBusy: boolean;
   // Hábitos con una acción en curso (completar, +1, fallar, deshacer): su tarjeta se deshabilita.
   pendingHabitIds: string[];
+  // Sube cada vez que termina una sincronización de recordatorios: quien pinta su estado lo relee.
+  reminderSyncVersion: number;
   language: Language;
   habits: HabitRecord[];
   todayHabits: TodayHabit[];
@@ -85,8 +90,9 @@ type AppState = {
   runAchievementCheck: (celebrate: boolean) => Promise<void>;
   consumeCelebrations: () => void;
   consumeRankUp: () => void;
-  // Las acciones pasan por runAction: nunca rechazan. Si fallan, avisan al usuario y devuelven
-  // false (o null donde hay resultado), para que la pantalla no siga como si hubiera ido bien.
+  // Las acciones pasan por runAction: nunca rechazan. Devuelven false (o null donde hay resultado)
+  // si la escritura falló, y entonces ya avisaron al usuario, o si se descartaron por haber otra en
+  // curso, y entonces el botón ya se veía ocupado. En ambos casos la pantalla no sigue adelante.
   saveHabit: (input: HabitInput, id?: string) => Promise<boolean>;
   getHabitById: (id: string) => Promise<HabitRecord | null>;
   getHabitInsightById: (id: string) => Promise<HabitInsightRecord | null>;
@@ -112,11 +118,10 @@ type AppState = {
   pickBackup: () => Promise<string | null>;
   importBackup: (rawBackup: string) => Promise<boolean>;
   resetAll: () => Promise<boolean>;
+  // Vuelta a primer plano: reprograma los recordatorios si el permiso de notificaciones cambió
+  // mientras la app estaba en segundo plano (concedido o revocado en los ajustes del sistema).
+  syncRemindersOnForeground: () => void;
 };
-
-type AppGet = () => AppState;
-
-type AppSet = (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void;
 
 const LANGUAGE_KEY = 'levelarc.language';
 const LAST_ACTIVE_DATE_KEY = 'levelarc.lastActiveDate';
@@ -207,10 +212,6 @@ function queueProgressCelebrations(
   return celebrations;
 }
 
-type ActionOutcome<T> = { ok: true; value: T } | { ok: false };
-
-const ACTION_FAILED: ActionOutcome<never> = { ok: false };
-
 function reportActionError(language: Language) {
   notify(t(language, 'actionFailed'), t(language, 'actionFailedCopy'));
 }
@@ -220,37 +221,41 @@ function reportImportError(error: unknown, language: Language) {
   notify(t(language, 'importFailed'), t(language, 'importFailedCopy', { reason: t(language, getImportFailureReasonKey(error)) }));
 }
 
-// Único punto por el que pasan las acciones del usuario. Marca la acción como en curso (por hábito
-// si lleva habitId, global si no), descarta una repetición mientras dura, y si la tarea falla avisa
-// al usuario y devuelve { ok: false } en vez de rechazar: las pantallas llaman con `void`. La cola
-// del repositorio ya impide escrituras dobles; esto evita lanzarlas y da respuesta visible.
-async function runAction<T>(
-  set: AppSet,
-  get: AppGet,
-  task: () => Promise<T>,
-  options: { habitId?: string; report?: (error: unknown, language: Language) => void } = {},
-): Promise<ActionOutcome<T>> {
-  const { habitId } = options;
-  if (habitId ? get().pendingHabitIds.includes(habitId) : get().isBusy) return ACTION_FAILED;
+// El hábito ya se guardó; lo que no se pudo es avisar. Se dice por qué.
+function reportReminderStatus(status: ReminderStatus, language: Language) {
+  if (status === 'denied') warnRemindersDisabled(language, 'habitReminderDisabledCopy');
+  if (status === 'failed') notify(t(language, 'reminderUnavailable'), t(language, 'reminderFailedCopy'));
+}
 
-  set(habitId ? (state) => ({ pendingHabitIds: [...state.pendingHabitIds, habitId] }) : { isBusy: true });
-  try {
-    return { ok: true, value: await task() };
-  } catch (error) {
-    if (options.report) options.report(error, get().language);
-    else reportActionError(get().language);
-    return ACTION_FAILED;
-  } finally {
-    set(habitId ? (state) => ({ pendingHabitIds: state.pendingHabitIds.filter((id) => id !== habitId) }) : { isBusy: false });
-  }
+function warnInDev(scope: string, error: unknown) {
+  if (__DEV__) console.warn(`[${scope}]`, error);
+}
+
+// Enlaza runAction (src/stores/runAction.ts) con este store: marcas de ocupado, refresco y aviso
+// de fallo en el idioma actual. El store se resuelve al llamar, no al cargar el módulo.
+const actionHost: ActionHost = {
+  getState: () => useAppStore.getState(),
+  setState: (update) => useAppStore.setState(update),
+  refresh: () => useAppStore.getState().refresh(),
+  reportFailure: () => reportActionError(useAppStore.getState().language),
+  onAfterError: (error) => warnInDev('action', error),
+};
+
+function run<T>(task: () => Promise<T>, options?: ActionOptions<T>) {
+  return runAction(actionHost, task, options);
 }
 
 // Reprograma los recordatorios sin bloquear ni romper nada: un fallo aquí solo deja la agenda como
-// estaba hasta la siguiente sincronización.
+// estaba hasta la siguiente sincronización. Al terminar avisa a las pantallas que muestran el estado
+// de los recordatorios (Ajustes) para que lo vuelvan a leer.
 function syncRemindersInBackground(language: Language) {
-  syncReminders(language).catch((error) => {
-    if (__DEV__) console.warn('[reminders] sync failed', error);
-  });
+  syncReminders(language)
+    .catch((error) => warnInDev('reminders', error))
+    .finally(markRemindersSynced);
+}
+
+function markRemindersSynced() {
+  useAppStore.setState((state) => ({ reminderSyncVersion: state.reminderSyncVersion + 1 }));
 }
 
 // boot y closeMissedDays no se solapan consigo mismos: Reintentar o dos avisos de cambio de día
@@ -288,11 +293,14 @@ function fireLevelUp(prevPlayer: PlayerRecord | null, nextPlayer: PlayerRecord |
   if (nextPlayer.nivel > prevPlayer.nivel) fireInterjection('level_up');
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+// Tipo explícito: los helpers del módulo usan el store dentro de las acciones y sin él TypeScript
+// no puede inferirlo.
+export const useAppStore: UseBoundStore<StoreApi<AppState>> = create<AppState>((set, get) => ({
   isReady: false,
   bootError: null,
   isBusy: false,
   pendingHabitIds: [],
+  reminderSyncVersion: 0,
   language: 'es',
   habits: [],
   todayHabits: [],
@@ -368,134 +376,92 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ pendingRankUp: null });
   },
   saveHabit: async (input, id) => {
-    const outcome = await runAction(set, get, async () => {
-      const reminder = id
-        ? await updateHabit(id, input, get().language)
-        : (await createHabit(input, get().language)).reminder;
-      await get().refresh();
-      await get().runAchievementCheck(true);
-      return reminder;
-    });
-    // El hábito se guardó; lo que no se pudo es avisar.
-    if (outcome.ok && outcome.value === 'denied') warnRemindersDisabled(get().language, 'habitReminderDisabledCopy');
+    const outcome = await run(
+      async () => (id ? updateHabit(id, input, get().language) : (await createHabit(input, get().language)).reminder),
+      { after: () => get().runAchievementCheck(true) },
+    );
+    if (outcome.ok) reportReminderStatus(outcome.value, get().language);
     return outcome.ok;
   },
   getHabitById: (id) => getHabit(id),
   getHabitInsightById: (id) => getHabitInsight(id),
-  archiveHabitById: async (id) => {
-    const outcome = await runAction(set, get, async () => {
-      await archiveHabit(id);
-      await get().refresh();
-    });
-    return outcome.ok;
-  },
+  archiveHabitById: async (id) => (await run(() => archiveHabit(id))).ok,
   unarchiveHabitById: async (id) => {
-    const outcome = await runAction(set, get, async () => {
-      const reminder = await unarchiveHabit(id, get().language);
-      await get().refresh();
-      return reminder;
-    });
-    if (outcome.ok && outcome.value === 'denied') warnRemindersDisabled(get().language, 'habitReminderDisabledCopy');
+    const outcome = await run(() => unarchiveHabit(id, get().language));
+    if (outcome.ok) reportReminderStatus(outcome.value, get().language);
     return outcome.ok;
   },
   incrementHabit: async (id) => {
-    const outcome = await runAction(
-      set,
-      get,
+    const outcome = await run(
       async () => {
-        const prev = get().player;
-        const prevMissionComplete = isMissionComplete(get().dailyMission);
-        // Estado del hábito ANTES del incremento: solo nos interesa la transición a 'completado' para
-        // evaluar su hito de racha (un hábito que ya estaba completado no vuelve a saltar).
-        const prevHabitState = get().todayHabits.find((habit) => habit.id === id)?.estado;
+        // Estado ANTES del incremento, para detectar después qué transiciones provocó.
+        const before = {
+          player: get().player,
+          missionComplete: isMissionComplete(get().dailyMission),
+          habitState: get().todayHabits.find((habit) => habit.id === id)?.estado,
+        };
         await incrementHabitProgress(id);
-        await get().refresh();
-        appendCelebrations(set, queueProgressCelebrations(prev, get().player));
-        flagRankUp(set, prev, get().player);
-        // Subió de nivel (mismo rango) con este incremento → aparición de NYX.
-        fireLevelUp(prev, get().player);
-        // La misión diaria acaba de pasar a completada con este incremento → aparición del Sistema.
-        if (!prevMissionComplete && isMissionComplete(get().dailyMission)) {
-          fireInterjection('mission_complete');
-        }
-        // Cerca de subir de nivel: el progreso cruzó el umbral con este incremento sin subir de nivel.
-        if (crossedNearLevel(prev, get().player)) {
-          fireInterjection('near_level');
-        }
-        // Hito de racha: si el hábito acaba de pasar a 'completado', leemos su racha actual y, si alcanza
-        // exactamente un hito (7/30), el Sistema lo celebra. Lectura puntual solo en la transición (no en
-        // cada +1), con el getter existente; no añadimos datos al refresh por algo tan acotado.
-        const nextHabitState = get().todayHabits.find((habit) => habit.id === id)?.estado;
-        if (prevHabitState !== 'completado' && nextHabitState === 'completado') {
-          const insight = await getHabitInsight(id);
-          if (insight && STREAK_MILESTONES.includes(insight.currentStreak)) {
-            fireInterjection('streak_milestone');
-          }
-        }
-        await get().runAchievementCheck(true);
+        return before;
       },
-      { habitId: id },
+      {
+        habitId: id,
+        // La tarjeta ya se soltó: un +1 seguido no espera a las lecturas y comprobaciones de abajo.
+        after: async (before) => {
+          const player = get().player;
+          appendCelebrations(set, queueProgressCelebrations(before.player, player));
+          flagRankUp(set, before.player, player);
+          // Subió de nivel (mismo rango) con este incremento → aparición de NYX.
+          fireLevelUp(before.player, player);
+          // La misión diaria acaba de pasar a completada con este incremento → aparición del Sistema.
+          if (!before.missionComplete && isMissionComplete(get().dailyMission)) {
+            fireInterjection('mission_complete');
+          }
+          // Cerca de subir de nivel: el progreso cruzó el umbral con este incremento sin subir de nivel.
+          if (crossedNearLevel(before.player, player)) {
+            fireInterjection('near_level');
+          }
+          // Hito de racha: si el hábito acaba de pasar a 'completado', leemos su racha actual y, si
+          // alcanza exactamente un hito (7/30), el Sistema lo celebra. Lectura puntual solo en la
+          // transición (no en cada +1), con el getter existente.
+          const habitState = get().todayHabits.find((habit) => habit.id === id)?.estado;
+          if (before.habitState !== 'completado' && habitState === 'completado') {
+            const insight = await getHabitInsight(id);
+            if (insight && STREAK_MILESTONES.includes(insight.currentStreak)) {
+              fireInterjection('streak_milestone');
+            }
+          }
+          await get().runAchievementCheck(true);
+        },
+      },
     );
     return outcome.ok;
   },
   failHabit: async (id) => {
-    const outcome = await runAction(
-      set,
-      get,
+    const outcome = await run(
       async () => {
         // Racha del hábito ANTES de fallar: si era una racha que merecía la pena (>= STREAK_BROKEN_MIN),
-        // NYX reacciona a su ruptura en el acto (feedback inmediato del fallo, no solo al cerrar el día).
-        // Lectura puntual con el getter existente, solo en esta transición.
-        const insightBefore = await getHabitInsight(id);
-        const brokenStreak = insightBefore?.currentStreak ?? 0;
+        // NYX reacciona a su ruptura en el acto. Es una lectura previa a la escritura: si falla, no se
+        // ha guardado nada todavía.
+        const brokenStreak = (await getHabitInsight(id))?.currentStreak ?? 0;
         await markHabitFailed(id);
-        await get().refresh();
-        if (brokenStreak >= STREAK_BROKEN_MIN) {
-          fireInterjection('streak_broken');
-        }
-        await get().runAchievementCheck(true);
+        return brokenStreak;
       },
-      { habitId: id },
+      {
+        habitId: id,
+        after: async (brokenStreak) => {
+          if (brokenStreak >= STREAK_BROKEN_MIN) {
+            fireInterjection('streak_broken');
+          }
+          await get().runAchievementCheck(true);
+        },
+      },
     );
     return outcome.ok;
   },
-  undoHabit: async (id) => {
-    const outcome = await runAction(
-      set,
-      get,
-      async () => {
-        await undoTodayHabit(id);
-        await get().refresh();
-        await get().runAchievementCheck(true);
-      },
-      { habitId: id },
-    );
-    return outcome.ok;
-  },
-  claimMission: async () => {
-    const outcome = await runAction(set, get, async () => {
-      const prev = get().player;
-      await claimDailyMission();
-      await get().refresh();
-      appendCelebrations(set, queueProgressCelebrations(prev, get().player));
-      flagRankUp(set, prev, get().player);
-      fireLevelUp(prev, get().player);
-      await get().runAchievementCheck(true);
-    });
-    return outcome.ok;
-  },
-  claimPerfectWeekMission: async () => {
-    const outcome = await runAction(set, get, async () => {
-      const prev = get().player;
-      await claimPerfectWeekMissionRepo();
-      await get().refresh();
-      appendCelebrations(set, queueProgressCelebrations(prev, get().player));
-      flagRankUp(set, prev, get().player);
-      fireLevelUp(prev, get().player);
-      await get().runAchievementCheck(true);
-    });
-    return outcome.ok;
-  },
+  undoHabit: async (id) =>
+    (await run(() => undoTodayHabit(id), { habitId: id, after: () => get().runAchievementCheck(true) })).ok,
+  claimMission: async () => (await run(() => claimWith(claimDailyMission), { after: afterClaim })).ok,
+  claimPerfectWeekMission: async () => (await run(() => claimWith(claimPerfectWeekMissionRepo), { after: afterClaim })).ok,
   closeMissedDays: () => {
     closeMissedDaysInFlight ??= (async () => {
       try {
@@ -533,71 +499,54 @@ export const useAppStore = create<AppState>((set, get) => ({
     return closeMissedDaysInFlight;
   },
   closeToday: async () => {
-    const outcome = await runAction(set, get, async () => {
-      await closeDay();
-      await get().refresh();
-      // El día se cerró con la misión diaria INCOMPLETA (tenía objetivo>0 y no se alcanzó) → aparición
-      // del Sistema. Simétrico a 'mission_complete'; si el día no tenía objetivo o la misión se
-      // completó, no salta.
-      if (isMissionIncomplete(get().dailyMission)) {
-        fireInterjection('mission_failed');
-      }
-      await get().runAchievementCheck(true);
+    const outcome = await run(() => closeDay(), {
+      after: async () => {
+        // El día se cerró con la misión diaria INCOMPLETA (tenía objetivo>0 y no se alcanzó) →
+        // aparición del Sistema. Simétrico a 'mission_complete'; si el día no tenía objetivo o la
+        // misión se completó, no salta.
+        if (isMissionIncomplete(get().dailyMission)) {
+          fireInterjection('mission_failed');
+        }
+        await get().runAchievementCheck(true);
+      },
     });
     return outcome.ok;
   },
   setLanguage: async (language) => {
-    const outcome = await runAction(set, get, async () => {
-      await AsyncStorage.setItem(LANGUAGE_KEY, language);
-      set({ language });
-    });
-    // El texto de un recordatorio queda fijado al programarlo: hay que reprogramar en el idioma nuevo.
-    if (outcome.ok) syncRemindersInBackground(language);
+    const outcome = await run(
+      async () => {
+        await AsyncStorage.setItem(LANGUAGE_KEY, language);
+        set({ language });
+      },
+      {
+        refresh: false,
+        // El texto de un recordatorio queda fijado al programarlo: hay que reprogramar en el idioma nuevo.
+        after: () => syncRemindersInBackground(language),
+      },
+    );
     return outcome.ok;
   },
-  setPlayerName: async (name) => {
-    const outcome = await runAction(set, get, async () => {
-      await updatePlayerName(name);
-      await get().refresh();
-    });
-    return outcome.ok;
-  },
+  setPlayerName: async (name) => (await run(() => updatePlayerName(name))).ok,
   purchaseReward: async (id) => {
-    const outcome = await runAction(set, get, async () => {
-      const result = await purchaseReward(id);
-      await get().refresh();
-      await get().runAchievementCheck(true);
-      return result;
-    });
+    const outcome = await run(() => purchaseReward(id), { after: () => get().runAchievementCheck(true) });
     return outcome.ok ? outcome.value : null;
   },
   equipReward: async (id) => {
-    const outcome = await runAction(set, get, async () => {
-      const result = await equipReward(id);
-      await get().refresh();
-      return result;
-    });
+    const outcome = await run(() => equipReward(id));
     return outcome.ok ? outcome.value : null;
   },
-  unequipTitle: async () => {
-    const outcome = await runAction(set, get, async () => {
-      await unequipTitle();
-      await get().refresh();
-    });
-    return outcome.ok;
-  },
+  unequipTitle: async () => (await run(() => unequipTitle())).ok,
   exportBackup: async () => {
-    const outcome = await runAction(
-      set,
-      get,
+    const outcome = await run(
       async () => {
         await shareBackupFile(serializeBackupPayload(await exportAllData()), t(get().language, 'backupShareTitle'));
       },
       {
-        report: (error, language) =>
+        refresh: false,
+        report: (error) =>
           error instanceof ShareUnavailableError
-            ? notify(t(language, 'backupShareUnavailable'), t(language, 'backupShareUnavailableCopy'))
-            : reportActionError(language),
+            ? notify(t(get().language, 'backupShareUnavailable'), t(get().language, 'backupShareUnavailableCopy'))
+            : reportActionError(get().language),
       },
     );
     return outcome.ok;
@@ -615,29 +564,46 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   importBackup: async (rawBackup) => {
-    const outcome = await runAction(
-      set,
-      get,
-      async () => {
-        const payload = parseBackupPayload(rawBackup);
-        await importAllData(payload.data);
-        await get().refresh();
-      },
-      { report: reportImportError },
-    );
-    if (outcome.ok) await afterDataReplaced(get().language);
+    const outcome = await run(() => importAllData(parseBackupPayload(rawBackup).data), {
+      report: (error) => reportImportError(error, get().language),
+      after: () => afterDataReplaced(get().language),
+    });
     return outcome.ok;
   },
   resetAll: async () => {
-    const outcome = await runAction(set, get, async () => {
-      await resetAllData();
-      await clearEndOfDayReminder();
-      await get().refresh();
+    const outcome = await run(() => resetAllData(), {
+      after: async () => {
+        // El reinicio ya entró. Si no se puede borrar el recordatorio de fin de día, no se deshace:
+        // la sincronización de después deja la agenda como digan las preferencias.
+        await clearEndOfDayReminder().catch((error) => warnInDev('reminders', error));
+        await afterDataReplaced(get().language);
+      },
     });
-    if (outcome.ok) await afterDataReplaced(get().language);
     return outcome.ok;
   },
+  syncRemindersOnForeground: () => {
+    syncRemindersIfPermissionChanged(get().language)
+      .then((synced) => {
+        if (synced) markRemindersSynced();
+      })
+      .catch((error) => warnInDev('reminders', error));
+  },
 }));
+
+// Reclamar una misión: se guarda el jugador de antes para celebrar después lo que cambió.
+async function claimWith(claim: () => Promise<unknown>) {
+  const playerBefore = useAppStore.getState().player;
+  await claim();
+  return playerBefore;
+}
+
+async function afterClaim(playerBefore: PlayerRecord | null) {
+  const { player, runAchievementCheck } = useAppStore.getState();
+  appendCelebrations(useAppStore.setState, queueProgressCelebrations(playerBefore, player));
+  flagRankUp(useAppStore.setState, playerBefore, player);
+  fireLevelUp(playerBefore, player);
+  await runAchievementCheck(true);
+}
 
 // Tras reset o importación la base es otra: la sesión de IA en memoria y la agenda de recordatorios
 // siguen siendo las de los datos anteriores. Import dinámico por el ciclo appStore ↔ aiStore; un

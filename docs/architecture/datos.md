@@ -93,9 +93,15 @@ La base guarda lo que el usuario quiere (`hora_recordatorio`, `dias_semana`) y, 
 2. Programa los hábitos activos con una hora y días válidos, y el recordatorio de fin de día.
 3. Guarda los ids nuevos con `saveHabitNotificationIds`, una mutación que solo actualiza un hábito si sigue como se leyó; los ids que ya no corresponden se cancelan.
 
-Se ejecuta al arrancar, tras importar o reiniciar y al cambiar de idioma, porque el texto de una notificación queda fijado al programarla. No pide permiso: sin permiso deja la agenda vacía y los ids a `null`, y la siguiente sincronización lo repara. Así se recuperan también un permiso concedido más tarde y una restauración del sistema que no trae las alarmas. Las sincronizaciones se encadenan de una en una.
+Se ejecuta al arrancar, tras importar o reiniciar y al cambiar de idioma, porque el texto de una notificación queda fijado al programarla. También al volver a primer plano, pero solo si el permiso de notificaciones cambió desde la última sincronización (`syncRemindersIfPermissionChanged`): cubre al usuario que lo concede o lo revoca en los ajustes del sistema sin cerrar la app. No pide permiso: sin permiso deja la agenda vacía y los ids a `null`, y la siguiente sincronización lo repara. Así se recupera también una restauración del sistema que no trae las alarmas.
 
-Al crear o editar un hábito sí se pide permiso. Si se deniega, el hábito se guarda con su hora y sin id, y el repositorio devuelve el estado (`scheduled`, `denied`, `none`, `unsupported`) para que la pantalla lo diga.
+El paso 1 vacía la agenda, así que el resto no puede quedarse a medias. Un hábito que el sistema no deja programar queda sin id y no corta a los demás, y los ids guardados y el recordatorio de fin de día se actualizan siempre, aunque algo falle por el camino.
+
+**Cola de recordatorios.** Todo lo que programa o cancela un recordatorio y guarda su id pasa por `enqueueReminderWork` (`src/lib/reminderQueue.ts`), de una en una: la sincronización, crear, editar y desarchivar un hábito, y guardar o quitar el recordatorio de fin de día. Sin ella, una sincronización podía cancelar el recordatorio que un alta acababa de programar antes de que su id llegara a la base, o dejar dos avisos de fin de día. Es una cola distinta de la de mutaciones: aquí sí cabe el diálogo de permisos, y la escritura en la base sigue siendo una mutación corta dentro de la tarea.
+
+Al crear o editar un hábito sí se pide permiso. Si se deniega, o si el sistema falla al programar, el hábito se guarda igualmente con su hora y sin id, y el repositorio devuelve el estado (`scheduled`, `denied`, `failed`, `none`, `unsupported`) para que la pantalla lo diga.
+
+El recordatorio de fin de día guarda la hora aunque después se revoque el permiso. `getEndOfDayReminderState` distingue "hora guardada" de "programado", y Ajustes muestra el aviso de notificaciones desactivadas con el acceso a los ajustes del sistema en vez de un interruptor encendido sin nada detrás.
 
 ## Tests
 

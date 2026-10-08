@@ -40,7 +40,7 @@ import { confirmAction, notify } from '@/lib/confirm';
 import { CONTACT_EMAIL, getLegalUrl } from '@/lib/links';
 import { requestNotificationPermissions } from '@/lib/notifications';
 import { warnRemindersDisabled } from '@/lib/reminderNotice';
-import { clearEndOfDayReminder, getEndOfDayReminderTime, saveEndOfDayReminder } from '@/lib/reminders';
+import { clearEndOfDayReminder, getEndOfDayReminderState, saveEndOfDayReminder } from '@/lib/reminders';
 import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
@@ -52,6 +52,8 @@ type SettingsState = {
   isEndOfDayReminderOpen: boolean;
   playerName: string;
   endOfDayReminderTime: string | null;
+  // Hay hora guardada, pero el sistema no la tiene programada (permiso denegado o revocado).
+  endOfDayReminderScheduled: boolean;
   endOfDayReminderDraft: string | null;
   interjectionsEnabled: boolean;
   isCheckingUpdate: boolean;
@@ -68,6 +70,7 @@ type SettingsAction =
   | {
       type: 'loadPreferences';
       reminderTime: string | null;
+      reminderScheduled: boolean;
       interjectionsEnabled: boolean;
     }
   | { type: 'clearEndOfDayReminder' }
@@ -79,6 +82,7 @@ function createSettingsState(playerName: string): SettingsState {
     isEndOfDayReminderOpen: false,
     playerName,
     endOfDayReminderTime: null,
+    endOfDayReminderScheduled: false,
     endOfDayReminderDraft: '21:30',
     interjectionsEnabled: true,
     isCheckingUpdate: false,
@@ -106,12 +110,14 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
         ...state,
         interjectionsEnabled: action.interjectionsEnabled,
         endOfDayReminderTime: action.reminderTime,
+        endOfDayReminderScheduled: action.reminderScheduled,
         endOfDayReminderDraft: action.reminderTime ?? state.endOfDayReminderDraft,
       };
     case 'clearEndOfDayReminder':
       return {
         ...state,
         endOfDayReminderTime: null,
+        endOfDayReminderScheduled: false,
         endOfDayReminderDraft: null,
         isEndOfDayReminderOpen: false,
       };
@@ -119,6 +125,7 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
       return {
         ...state,
         endOfDayReminderTime: action.value,
+        endOfDayReminderScheduled: true,
         endOfDayReminderDraft: action.value,
         isEndOfDayReminderOpen: false,
       };
@@ -135,10 +142,13 @@ export default function SettingsScreen() {
   const importBackup = useAppStore((state) => state.importBackup);
   const closeToday = useAppStore((state) => state.closeToday);
   const resetAll = useAppStore((state) => state.resetAll);
+  const isBusy = useAppStore((state) => state.isBusy);
+  const reminderSyncVersion = useAppStore((state) => state.reminderSyncVersion);
   const setInterjectionsEnabled = useAiStore((store) => store.setInterjectionsEnabled);
   const [state, dispatch] = useReducer(settingsReducer, player?.nombre ?? '', createSettingsState);
   const {
     endOfDayReminderDraft,
+    endOfDayReminderScheduled,
     endOfDayReminderTime,
     isCheckingUpdate,
     isEndOfDayReminderOpen,
@@ -150,20 +160,26 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     async function loadEndOfDayReminder() {
-      const [storedTime, storedInterjections] = await Promise.all([
-        getEndOfDayReminderTime(),
+      const [reminder, storedInterjections] = await Promise.all([
+        getEndOfDayReminderState(),
         AsyncStorage.getItem(INTERJECTIONS_ENABLED_KEY),
       ]);
       dispatch({
         type: 'loadPreferences',
-        reminderTime: storedTime,
+        reminderTime: reminder.time,
+        reminderScheduled: reminder.scheduled,
         interjectionsEnabled: storedInterjections !== 'false',
       });
     }
 
     // Si las preferencias no se pueden leer, la pantalla sigue con los valores por defecto.
+    // Se relee tras cada sincronización de recordatorios: es la que cambia si el aviso está programado
+    // (por ejemplo, al volver de conceder o revocar el permiso en los ajustes del sistema).
     loadEndOfDayReminder().catch(() => undefined);
-  }, []);
+  }, [reminderSyncVersion]);
+
+  // Hora guardada que el sistema no está programando: el interruptor no puede darse por activo sin más.
+  const endOfDayReminderBlocked = Boolean(endOfDayReminderTime) && !endOfDayReminderScheduled;
 
   // Los manejadores locales de esta pantalla (preferencias y recordatorio) no pasan por el store:
   // si fallan, avisan igual que una acción en vez de perderse en una promesa sin tratar.
@@ -301,6 +317,7 @@ export default function SettingsScreen() {
             <View style={styles.segmentActions}>
               <Button
                 accessibilityLabel={t(language, 'spanish')}
+                busy={isBusy}
                 label="ES"
                 onPress={() => void setLanguage('es')}
                 selected={language === 'es'}
@@ -308,6 +325,7 @@ export default function SettingsScreen() {
               />
               <Button
                 accessibilityLabel={t(language, 'english')}
+                busy={isBusy}
                 label="EN"
                 onPress={() => void setLanguage('en')}
                 selected={language === 'en'}
@@ -333,10 +351,33 @@ export default function SettingsScreen() {
             <Text style={styles.fixedValue}>{t(language, 'fixed').toUpperCase()}</Text>
           </SettingRow>
 
-          <SettingRow compact icon={Bell} title={t(language, 'notifications')} value={t(language, 'endOfDayReminderCopy')}>
+          <SettingRow
+            compact
+            footer={
+              endOfDayReminderBlocked ? (
+                <Button
+                  label={t(language, 'openSystemSettings')}
+                  onPress={() => void Linking.openSettings().catch(() => undefined)}
+                  variant="secondary"
+                />
+              ) : null
+            }
+            icon={Bell}
+            iconColor={endOfDayReminderBlocked ? colors.state.pending : undefined}
+            title={t(language, 'notifications')}
+            value={
+              endOfDayReminderBlocked
+                ? t(language, 'endOfDayReminderBlockedCopy', { time: endOfDayReminderTime ?? '' })
+                : t(language, 'endOfDayReminderCopy')
+            }
+          >
             <Toggle
               active={Boolean(endOfDayReminderTime)}
-              hint={t(language, 'endOfDayReminderCopy')}
+              hint={
+                endOfDayReminderBlocked
+                  ? t(language, 'endOfDayReminderBlockedCopy', { time: endOfDayReminderTime ?? '' })
+                  : t(language, 'endOfDayReminderCopy')
+              }
               label={t(language, 'endOfDayReminder')}
               onPress={() => {
                 if (endOfDayReminderTime) {
@@ -389,8 +430,8 @@ export default function SettingsScreen() {
         <SettingsSection label={t(language, 'data')}>
           <SettingRow icon={Download} title={t(language, 'backup')} value={t(language, 'backupCopy')}>
             <View style={styles.inlineActions}>
-              <Button icon={Download} label={t(language, 'export')} onPress={() => void exportBackup()} />
-              <Button icon={Upload} label={t(language, 'import')} onPress={() => void handleImportBackup()} variant="secondary" />
+              <Button busy={isBusy} icon={Download} label={t(language, 'export')} onPress={() => void exportBackup()} />
+              <Button busy={isBusy} icon={Upload} label={t(language, 'import')} onPress={() => void handleImportBackup()} variant="secondary" />
             </View>
           </SettingRow>
 
@@ -426,13 +467,13 @@ export default function SettingsScreen() {
         <SettingsSection accent={colors.state.failed} label={t(language, 'danger')}>
           <SettingRow icon={Skull} iconColor={colors.state.failed} title={t(language, 'closeDay')} value={t(language, 'closeDayCopy')}>
             <View style={styles.inlineActions}>
-              <Button label={t(language, 'closeDay')} onPress={handleCloseToday} variant="danger" />
+              <Button busy={isBusy} label={t(language, 'closeDay')} onPress={handleCloseToday} variant="danger" />
             </View>
           </SettingRow>
 
           <SettingRow icon={X} iconColor={colors.state.failed} title={t(language, 'resetAll')} value={t(language, 'resetAllCopy')}>
             <View style={styles.inlineActions}>
-              <Button label={t(language, 'resetAll')} onPress={handleResetAll} variant="danger" />
+              <Button busy={isBusy} label={t(language, 'resetAll')} onPress={handleResetAll} variant="danger" />
             </View>
           </SettingRow>
         </SettingsSection>
@@ -475,6 +516,7 @@ export default function SettingsScreen() {
         language={language}
         onCancel={() => dispatch({ type: 'setNameOpen', value: false })}
         onChange={(value) => dispatch({ type: 'setPlayerName', value: value.slice(0, 24) })}
+        isSaving={isBusy}
         onSave={() => void handleSaveName()}
         playerName={playerName}
         visible={isNameOpen}
@@ -494,6 +536,7 @@ export default function SettingsScreen() {
 }
 
 function PlayerNameModal({
+  isSaving,
   language,
   onCancel,
   onChange,
@@ -501,6 +544,7 @@ function PlayerNameModal({
   playerName,
   visible,
 }: {
+  isSaving: boolean;
   language: Language;
   onCancel: () => void;
   onChange: (value: string) => void;
@@ -530,8 +574,9 @@ function PlayerNameModal({
           <View style={styles.modalActions}>
             <Button label={t(language, 'cancel')} onPress={onCancel} variant="secondary" />
             <Button
+              busy={isSaving}
               disabled={playerName.trim().length < 2}
-              label={t(language, 'saveName')}
+              label={isSaving ? t(language, 'saving') : t(language, 'saveName')}
               onPress={onSave}
             />
           </View>
@@ -601,6 +646,7 @@ function SettingsSection({ children, label, accent }: { children: ReactNode; lab
 function SettingRow({
   children,
   compact,
+  footer,
   icon: Icon,
   iconColor = colors.brand.cyanCore,
   title,
@@ -608,6 +654,8 @@ function SettingRow({
 }: {
   children?: ReactNode;
   compact?: boolean;
+  // Acción extra bajo una fila compacta, cuyo hueco lateral ya ocupa el control.
+  footer?: ReactNode;
   icon: ComponentType<LucideProps>;
   iconColor?: string;
   title: string;
@@ -626,6 +674,7 @@ function SettingRow({
         {compact && children ? <View style={styles.rowTrailing}>{children}</View> : null}
       </View>
       {!compact && children ? <View style={styles.rowActions}>{children}</View> : null}
+      {footer ? <View style={[styles.rowActions, styles.inlineActions]}>{footer}</View> : null}
     </View>
   );
 }

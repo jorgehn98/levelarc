@@ -82,8 +82,9 @@ Detalle en [`architecture/datos.md`](./architecture/datos.md).
 ## Resiliencia
 
 - Si la base no abre, el arranque muestra una pantalla de error con Reintentar en vez de un indicador infinito. El layout raíz exporta un `ErrorBoundary` para fallos de render.
-- Las acciones del store no rechazan: avisan del fallo, devuelven un resultado y marcan los botones como ocupados mientras duran.
-- `syncReminders` reconstruye la agenda de notificaciones desde la base al arrancar, tras importar o resetear y al cambiar de idioma. Un hábito se guarda aunque su recordatorio no se pueda programar.
+- Las acciones del store pasan por `runAction` (`src/stores/runAction.ts`): no rechazan, avisan solo si falló la escritura y marcan los botones como ocupados mientras duran. Lo que viene después de la escritura (releer el estado, logros, recordatorios) no convierte un éxito en fallo, para no invitar a repetir algo que ya se guardó.
+- `syncReminders` reconstruye la agenda de notificaciones desde la base al arrancar, tras importar o resetear, al cambiar de idioma y al volver a primer plano si el permiso de notificaciones cambió. Un hábito se guarda aunque su recordatorio no se pueda programar.
+- Si el cambio de día falla tres veces seguidas, la app avisa una vez y deja de reintentar hasta la siguiente vuelta a primer plano.
 
 ## Base técnica
 

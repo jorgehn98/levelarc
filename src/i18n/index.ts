@@ -448,7 +448,7 @@ const dictionary = {
     importFailedCopy: 'No se importó nada y tus datos siguen como estaban. Motivo: {reason}',
     habitLoadFailed: 'El Sistema no pudo cargar este hábito.',
     habitReminderDisabledCopy:
-      'El hábito se guardó, pero LevelArc no tiene permiso para notificar. Actívalo en los ajustes del sistema y el recordatorio se programará al volver a abrir la app.',
+      'El hábito se guardó, pero LevelArc no tiene permiso para notificar. Actívalo en los ajustes del sistema y el recordatorio se programará cuando vuelvas a la app.',
     openSystemSettings: 'Abrir ajustes',
     reminderUnavailable: 'Recordatorio no programado',
     reminderUnavailableCopy: 'Este dispositivo no permite programar recordatorios.',
@@ -519,6 +519,12 @@ const dictionary = {
     legalCopy: 'Se abren en el navegador.',
     openLinkFailed: 'Enlace no abierto',
     openLinkFailedCopy: 'No se pudo abrir {url}.',
+    endOfDayReminderBlockedCopy:
+      'Hora guardada: {time}. LevelArc no tiene permiso para notificar, así que el aviso no se enviará hasta que lo actives en los ajustes del sistema.',
+    reminderFailedCopy:
+      'El hábito se guardó, pero el sistema no pudo programar su recordatorio. LevelArc lo reintentará la próxima vez que abras la app.',
+    dayChangeFailed: 'Día no actualizado',
+    dayChangeFailedCopy: 'El Sistema no pudo pasar al día nuevo y Hoy puede mostrar datos de ayer. Se reintentará cuando vuelvas a la app.',
   },
   en: {
     today: 'Today',
@@ -966,7 +972,7 @@ const dictionary = {
     importFailedCopy: 'Nothing was imported and your data is as it was. Reason: {reason}',
     habitLoadFailed: 'The System could not load this habit.',
     habitReminderDisabledCopy:
-      'The habit was saved, but LevelArc is not allowed to send notifications. Enable them in system settings and the reminder will be scheduled the next time you open the app.',
+      'The habit was saved, but LevelArc is not allowed to send notifications. Enable them in system settings and the reminder will be scheduled when you return to the app.',
     openSystemSettings: 'Open settings',
     reminderUnavailable: 'Reminder not scheduled',
     reminderUnavailableCopy: 'This device cannot schedule reminders.',
@@ -1037,6 +1043,12 @@ const dictionary = {
     legalCopy: 'They open in the browser.',
     openLinkFailed: 'Link not opened',
     openLinkFailedCopy: 'Could not open {url}.',
+    endOfDayReminderBlockedCopy:
+      'Saved time: {time}. LevelArc is not allowed to send notifications, so the reminder will not be sent until you enable them in system settings.',
+    reminderFailedCopy:
+      'The habit was saved, but the system could not schedule its reminder. LevelArc will retry the next time you open the app.',
+    dayChangeFailed: 'Day not updated',
+    dayChangeFailedCopy: 'The System could not move to the new day and Today may show data from yesterday. It will retry when you return to the app.',
   },
 } as const;
 

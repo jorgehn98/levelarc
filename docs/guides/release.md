@@ -87,6 +87,7 @@ Instala el APK de preview en un Android real. Marca cada punto con el resultado,
 ### Acciones y datos
 
 - [ ] Completar, fallar, deshacer y reclamar con toques muy rápidos y repetidos. No se duplica XP ni Esencia y los botones se ven ocupados.
+- [ ] En un hábito contable, varios `+1` seguidos a ritmo normal entran todos.
 - [ ] Cerrar la app a la fuerza a mitad de una acción y volver a abrir. El estado es coherente: la acción entró entera o no entró.
 - [ ] Dejar la app abierta al cruzar la medianoche. Hoy pasa al día nuevo y el día anterior se cierra.
 - [ ] Cambiar la zona horaria del teléfono sin conexión. Hoy usa la fecha local nueva.
@@ -106,6 +107,9 @@ Instala el APK de preview en un Android real. Marca cada punto con el resultado,
 - [ ] Un recordatorio salta el día de la semana y a la hora local correctos.
 - [ ] El icono de la notificación es la silueta del emblema y el tinte es cian.
 - [ ] Con el permiso denegado, el aviso lo explica y "Abrir ajustes" lleva a los ajustes de la app.
+- [ ] Conceder el permiso en los ajustes del sistema y volver a la app sin cerrarla: el recordatorio queda programado.
+- [ ] Con el recordatorio de cierre activo, revocar el permiso y volver: Ajustes muestra la hora guardada, el aviso de notificaciones desactivadas y "Abrir ajustes".
+- [ ] Crear dos hábitos con recordatorio seguidos y cambiar de idioma justo después: cada hábito conserva un único recordatorio.
 - [ ] Tras cambiar de idioma, el texto de los recordatorios programados cambia.
 - [ ] Tras importar un backup y tras resetear, la agenda coincide con los hábitos.
 
