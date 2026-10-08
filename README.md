@@ -2,14 +2,14 @@
 
 Tracker de hábitos gamificado para Android, **offline-first**, sin cuentas ni servidor. Convierte hábitos reales en misiones, XP, atributos, rangos, logros y recompensas cosméticas. Incluye un asistente RPG opcional que puede ejecutarse íntegramente en el dispositivo con Gemma.
 
-> Estado: producto funcional en desarrollo y validado en Android real. Aún no está publicado en Play Store.
+> Estado: versión `1.2.0` preparada para un primer build de producción. El último build probado en un dispositivo es el `1.1.6`; lo posterior está verificado con tests y previsualización web, no en Android. Aún no está publicado en Play Store.
 
 ## Diferenciales
 
 - **Offline-first real:** hábitos, progreso, recordatorios, backups e IA funcionan sin backend propio.
 - **Gamificación con reglas testeadas:** XP, rangos E-S, seis atributos, rachas, misiones, Esencia, tienda y 21 logros.
 - **IA local opcional:** `llama.rn` + Gemma 4 E2B GGUF Q4_K_M, con descarga bajo demanda y fallback determinista.
-- **Persistencia robusta:** SQLite en Android con migraciones versionadas, mutaciones transaccionales e importación/exportación JSON validada.
+- **Persistencia robusta:** SQLite en Android con migraciones versionadas, mutaciones transaccionales y backup en fichero JSON validado.
 - **Producto bilingüe:** interfaz y personalidad del Sistema en español e inglés.
 
 La visión original está en [`docs/LevelArc-PROYECTO.md`](docs/LevelArc-PROYECTO.md), el estado técnico detallado en [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) y las decisiones de la IA local en [`docs/IA-SISTEMA.md`](docs/IA-SISTEMA.md).
@@ -28,12 +28,13 @@ Producto funcional:
 - Atributos RPG con la misma curva de niveles que el jugador y potenciador x1.5 sobre el XP repartido entre 1-3 atributos por hábito.
 - Rachas por hábito según ocurrencias programadas, con multiplicador máximo `x1.50`.
 - Misión diaria dinámica: completar todos los hábitos de hoy y reclamar bonus.
-- Misión extra por racha perfecta de 7 días.
+- Bonus de racha perfecta cada 7 días perfectos consecutivos; los días sin hábitos programados no rompen rachas.
 - Racha de misión basada en reclamaciones consecutivas, no en total acumulado de reclamaciones.
 - Recordatorios locales en native.
 - Recordatorio diario configurable de cierre del día.
-- Backup/exportación JSON e importación/restauración pegando JSON.
-- Idioma ES/EN.
+- Backup como fichero: exportar comparte un `.json` e importar lo elige con el selector de documentos.
+- Idioma ES/EN, con el idioma del dispositivo como valor inicial.
+- Roles, etiquetas y estados para lectores de pantalla.
 - Modo oscuro fijo.
 - Identidad visual inicial con logo LevelArc en icono, splash y UI.
 - Economía de Esencia, tienda de cosméticos y 21 logros persistentes.
@@ -47,7 +48,7 @@ Producto funcional:
 - Expo Splash Screen
 - Expo Updates / EAS Update
 - Zustand
-- NativeWind/Tailwind
+- NativeWind/Tailwind (configurado; las pantallas usan `StyleSheet`)
 - SQLite (`expo-sqlite`, SQL directo) en native
 - AsyncStorage como fallback web de desarrollo
 - Vitest para lógica pura y para el repositorio SQLite (SQL real sobre `node:sqlite`, Node >= 22.13)
@@ -63,7 +64,7 @@ pnpm android
 pnpm check
 pnpm test
 pnpm exec tsc --noEmit
-npx expo-doctor
+pnpm run doctor
 pnpm build:android:preview
 pnpm build:android:production
 pnpm update:preview --message "Fix UI copy"
@@ -79,6 +80,8 @@ pnpm update:production --message "Fix UI copy"
 - `src/db/repository.ts`: repositorio native con SQLite.
 - `src/db/repository.web.ts`: fallback web con AsyncStorage para poder probar en navegador.
 - `src/stores/appStore.ts`: estado global y acciones del producto.
+- `src/lib/`: backup, recordatorios, fechas y utilidades puras.
+- `plugins/`: config plugins locales (reglas de copia de seguridad de Android).
 - `src/components/`: UI reutilizable.
 - `src/ai/`: motores del Sistema, gestión del modelo y diagnóstico de IA local.
 - `assets/brand/`: set de logos/emblemas LevelArc.
@@ -98,16 +101,18 @@ pnpm update:production --message "Fix UI copy"
 
 ## Próximos pasos
 
-1. Completar la QA prolongada de las superficies secundarias de IA local.
-2. Seguir afinando balance, métricas y experiencia con uso real.
-3. Preparar publicación en Play Store cuando el producto alcance el nivel de acabado buscado.
+1. Build `preview` de la `1.2.0` y QA en dispositivo.
+2. Capturas y recursos gráficos de la ficha de Play.
+3. Build `production` y prueba interna en Play.
+
+El detalle está en [`docs/guides/release.md`](docs/guides/release.md) y lo pendiente en [`docs/PENDIENTES.md`](docs/PENDIENTES.md).
 
 ## Build Android
 
 El proyecto usa EAS con perfiles separados:
 
 - `preview`: APK interno para QA en dispositivo.
-- `production`: AAB preparado para una futura publicación.
+- `production`: AAB para Google Play.
 - EAS Update: parches de JavaScript, textos, estilos y assets compatibles con el runtime instalado.
 
 ```bash
@@ -116,19 +121,19 @@ pnpm check
 pnpm build:android:preview
 ```
 
-Los cambios en dependencias nativas, permisos, plugins, SDK de Expo o `runtimeVersion` requieren un build nuevo. Antes de validar una build con IA local se comprueba que el APK contiene las librerías nativas de `llama.rn` para `arm64-v8a`.
+Los cambios en dependencias nativas, permisos, plugins, SDK de Expo o `runtimeVersion` requieren un build nuevo. La `1.2.0` es uno de esos casos. La guía completa, con la lista de QA y la marcha atrás, está en [`docs/guides/release.md`](docs/guides/release.md). Antes de validar una build con IA local se comprueba que el APK contiene las librerías nativas de `llama.rn` para `arm64-v8a`.
 
 La integración de `llama.rn` incluye un parche para React Native bridgeless y `TurboModuleWithJSIBindings`. La explicación técnica, diagnóstico y estado de QA se mantienen en [`docs/IA-SISTEMA.md`](docs/IA-SISTEMA.md) y [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md).
 
 ## Calidad
 
-El gate local autoritativo ejecuta typecheck y tests:
+El gate local ejecuta TypeScript, ESLint sin avisos y tests. Es el mismo comando que corre GitHub Actions en cada pull request:
 
 ```bash
 pnpm check
 ```
 
-`expo-doctor` puede advertir de duplicados transitivos de `expo-constants` en Expo SDK 56; el aviso está documentado y no bloquea las builds internas actuales.
+`pnpm run doctor` ejecuta `expo-doctor` (`pnpm doctor` a secas es un comando propio de pnpm). Deja tres avisos conocidos: el duplicado transitivo de `expo-constants`, parches de Expo SDK 56 por detrás del último publicado y una regresión de memoria de Hermes V1 que se corrige en SDK 57.
 
 ## Contribuir
 

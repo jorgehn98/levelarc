@@ -1,5 +1,7 @@
 # LevelArc — Biblia de proyecto
 
+> Nota: la mención a Drizzle ORM de este documento está superada. El esquema y las migraciones actuales están en [`architecture/datos.md`](./architecture/datos.md).
+
 > Documento maestro de referencia. Recoge todas las decisiones cerradas antes de escribir código.
 > Estado: identidad visual y gamificación cerradas. Pendiente: esquema de BD y código.
 

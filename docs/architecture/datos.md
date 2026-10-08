@@ -55,7 +55,15 @@ Las lecturas no pasan por la cola. Una lectura lanzada mientras corre una mutaci
 
 ## Backup
 
-El backup es un JSON compacto: `{ version, exportedAt, data }`. Lo crea y lo lee `src/lib/backup.ts`.
+El backup es un fichero JSON compacto: `{ version, exportedAt, data }`. Lo crea y lo lee `src/lib/backup.ts`.
+
+Se mueve como fichero, no como texto. Compartir toda la base como una cadena topaba con el límite de ~1 MB de los intents de Android, y pegar un JSON en un campo de texto no escala.
+
+- **Exportar** (`src/lib/backupTransfer.ts`): escribe `levelarc-backup-AAAA-MM-DD.json` en el directorio de caché con la File API de `expo-file-system`, borra antes las exportaciones anteriores (llevan todos los datos del usuario) y comparte la URI con `expo-sharing` y tipo `application/json`. El sistema no informa de si el usuario llegó a guardar el fichero.
+- **Importar**: `expo-document-picker` abre el selector, la app lee el texto y borra la copia que el selector deja en la caché. Un fichero de más de 50 MB se rechaza sin leerlo: no puede ser un backup dentro de los límites de validación. El formato y la versión se comprueban antes de pedir la confirmación; la validación completa y la escritura van después de confirmar.
+- **Web**: `backupTransfer.web.ts` descarga el fichero y usa el selector del navegador, con la misma interfaz.
+- La parte pura (nombre del fichero, reconocimiento de exportaciones, tope de tamaño) está en `src/lib/backupFile.ts` y tiene tests.
+- Los errores de formato son `BackupFormatError` con un motivo (`invalid`, `version`, `tooLarge`). La app lo traduce a una frase en el idioma del usuario en vez de mostrar el mensaje técnico; cualquier otro fallo se explica como error de lectura o escritura.
 
 - **Versión actual: 2.** Añade el instante de cada claim, admite saldo de Esencia negativo y limita el historial de chat. La versión 1 se sigue leyendo; lo que le falta se deriva al importar.
 - `data` lleva las filas de cada tabla. La app nativa exporta en `snake_case` y el fallback web en `camelCase`; la importación acepta ambos.
@@ -70,6 +78,12 @@ El backup es un JSON compacto: `{ version, exportedAt, data }`. Lo crea y lo lee
 - El historial de chat nunca hace fallar la importación: se conservan los 1000 mensajes más recientes y el texto se corta a 4000 caracteres. La tabla `ai_messages` se poda al mismo tamaño en cada inserción.
 
 Al importar no se copia la caché del jugador que trae el fichero. XP, nivel, rango, atributos y racha se recalculan desde el ledger importado. La configuración de IA vuelve a plantilla porque la ruta del modelo no es portable. Los hábitos entran sin id de recordatorio: la importación no programa nada, solo cancela los recordatorios de los hábitos sustituidos una vez confirmada, y `syncReminders` reprograma después.
+
+## Copia de seguridad de Android
+
+Aparte del backup manual, Android copia `files/` y las preferencias a la cuenta de Google del usuario si este tiene activada la copia del sistema. La app la mantiene (`allowBackup`) porque cubre la base SQLite (`files/SQLite/`) sin que el usuario haga nada. El modelo de IA (`files/models/`) queda fuera mediante `plugins/withAndroidBackupRules.js`, que escribe las reglas para API 30 o inferior (`fullBackupContent`) y para API 31 o superior (`dataExtractionRules`).
+
+Una restauración trae la base y AsyncStorage, pero no las alarmas ni el modelo: `syncReminders` reprograma al arrancar y el estado del modelo se reconcilia a no descargado. No se ha probado en un dispositivo.
 
 ## Recordatorios
 
