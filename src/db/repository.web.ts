@@ -653,14 +653,15 @@ export async function importAllData(data: unknown) {
     nivelEsenciaOtorgado: Math.max(backup.player.nivelEsenciaOtorgado, progress.level),
   };
   ensureMission(db, toDateKey());
-  syncMission(db, toDateKey());
+  if (syncMission(db, toDateKey())) recalculatePlayerFromLedger(db);
   await saveDb(db);
 }
 
 async function ensureDailyMission(dateKey: string) {
   const db = await loadDb();
   ensureMission(db, dateKey);
-  syncMission(db, dateKey);
+  // Si la sincronización revoca una misión reclamada, el XP del bonus sale también de la caché.
+  if (syncMission(db, dateKey)) recalculatePlayerFromLedger(db);
   await saveDb(db);
 }
 

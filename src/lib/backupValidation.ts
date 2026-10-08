@@ -105,6 +105,8 @@ export function normalizeBackupData(data: unknown): NormalizedBackup {
     rows(data.achievementsUnlocked ?? data.achievements, 'achievementsUnlocked', BACKUP_LIMITS.achievementsUnlocked).flatMap(normalizeAchievement),
     (achievement) => achievement.achievementId,
   );
+  assertUnique(playerRewards.map((reward) => reward.id), 'reward id');
+  assertUnique(achievementsUnlocked.map((achievement) => achievement.id), 'achievement id');
 
   return {
     habits,

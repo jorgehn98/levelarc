@@ -6,7 +6,9 @@ import { DatabaseSync } from 'node:sqlite';
 
 class TestDatabase {
   constructor() {
-    this.db = new DatabaseSync(':memory:');
+    // node:sqlite activa las foreign keys por defecto y SQLite en Android no: se abre apagado para que
+    // los tests dependan del PRAGMA de migrate.ts, como en el dispositivo.
+    this.db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false });
   }
 
   async execAsync(source) {
