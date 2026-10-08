@@ -1,5 +1,3 @@
-import '../global.css';
-
 import * as SystemUI from 'expo-system-ui';
 import * as Updates from 'expo-updates';
 import { Stack, usePathname, useRouter, type ErrorBoundaryProps } from 'expo-router';

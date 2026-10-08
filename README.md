@@ -48,7 +48,7 @@ Producto funcional:
 - Expo Splash Screen
 - Expo Updates / EAS Update
 - Zustand
-- NativeWind/Tailwind (configurado; las pantallas usan `StyleSheet`)
+- Estilos con `StyleSheet` y los tokens de `src/theme/`
 - SQLite (`expo-sqlite`, SQL directo) en native
 - AsyncStorage como fallback web de desarrollo
 - Vitest para lógica pura y para el repositorio SQLite (SQL real sobre `node:sqlite`, Node >= 22.13)
