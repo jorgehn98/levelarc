@@ -58,11 +58,47 @@ function keyReply(key: string, params?: Record<string, string | number>): System
   return { kind: 'key', key, params };
 }
 
-// Briefing diario accionable cuando hay misiones pendientes. Si conocemos el eslabón débil (hábito de
-// peor consistencia entre los de hoy), dice por dónde empezar; si no, degrada al empujón genérico
-// `sys_pending`. Determinista: misma entrada, misma clave.
+// Situación del día, de la que depende qué puede decir el Sistema sin inventar nada:
+//  - 'no_habits': el jugador aún no ha registrado ningún hábito.
+//  - 'rest': tiene hábitos, pero ninguno programado hoy.
+//  - 'pending': quedan misiones por hacer hoy.
+//  - 'done': todo lo de hoy está completado.
+//  - 'failed': no queda nada pendiente y hubo algún fallo.
+type DayState = 'no_habits' | 'rest' | 'pending' | 'done' | 'failed';
+
+export function getDayState(ctx: SystemContext): DayState {
+  if (ctx.pendientesHoy > 0) return 'pending';
+  if (ctx.habitosHoyTotal === 0) return ctx.habitosActivos === 0 ? 'no_habits' : 'rest';
+  return ctx.falladosHoy > 0 ? 'failed' : 'done';
+}
+
+// Firma gruesa del estado del día para decidir si un mensaje ya generado sigue valiendo. Incluye el
+// número de pendientes porque el texto suele citarlo; no incluye nada más para que el LLM no se
+// reejecute por cambios que no alteran lo que diría (progreso parcial de un contable, esencia, XP).
+export function getDailyStateSignature(ctx: SystemContext): string {
+  return `${getDayState(ctx)}:${ctx.pendientesHoy}`;
+}
+
+// Mensaje del día (banner de Hoy) según la situación. Con pendientes es un briefing accionable: si
+// conocemos el eslabón débil dice por dónde empezar; si no, degrada al empujón genérico. Sin
+// pendientes NUNCA habla de "misiones pendientes": invita a crear la primera, reconoce el descanso o
+// cierra el día. Determinista: misma entrada, misma clave.
 export function getDailyBriefing(ctx: SystemContext): SystemReply {
   const params = statusParams(ctx);
+  switch (getDayState(ctx)) {
+    case 'no_habits':
+      return keyReply(pick('sys_no_habits', 2, ctx), params);
+    case 'rest':
+      return keyReply(pick('sys_rest_day', 2, ctx), params);
+    case 'done':
+      return keyReply(pick('sys_perfect', 2, ctx), params);
+    case 'failed':
+      return keyReply(pick('sys_failed', 2, ctx), params);
+    case 'pending':
+      break;
+  }
+  // Una sola misión: frase en singular (las genéricas dirían "1 misiones").
+  if (ctx.pendientesHoy === 1) return keyReply('sys_pending_one', params);
   if (ctx.eslabonDebil) {
     return keyReply(pick('sys_briefing', 2, ctx), {
       ...params,
@@ -77,6 +113,11 @@ export function getDailyBriefing(ctx: SystemContext): SystemReply {
 // cumple gana, de mayor a menor urgencia.
 export function getSystemGreeting(ctx: SystemContext): SystemReply {
   const params = statusParams(ctx);
+
+  // 0) Sin ningún hábito registrado → lo único útil es invitar a crear el primero.
+  if (getDayState(ctx) === 'no_habits') {
+    return getDailyBriefing(ctx);
+  }
 
   // 1) Hay misiones pendientes hoy → briefing accionable (empieza por el eslabón débil si lo hay).
   if (ctx.pendientesHoy > 0) {

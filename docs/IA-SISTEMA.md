@@ -47,6 +47,7 @@ El LLM on-device ya está implementado sobre la misma interface `SystemChatEngin
 ### Modelo
 
 - **Gemma 4 E2B GGUF Q4_K_M (~3,1 GB)** desde `unsloth/gemma-4-E2B-it-GGUF`. Decisión del usuario frente a Gemma 3 1B. llama.cpp lo soporta (gemma4.cpp, PLE resuelto, Q4 seguro) y `llama.rn` 0.12.4 trae un build reciente que lo carga.
+- **URL anclada a una revisión inmutable**: `src/ai/modelMetadata.ts` descarga de `resolve/739965d73654c0ead8020786aa998fc813070087/…`, no de `resolve/main/`. La validación final exige el tamaño exacto (`3 106 736 256` bytes) y el publicador resube el fichero: desde el 2026-07-17 `main` sirve `3 106 738 272` bytes (plantilla de chat nueva), así que con `main` toda descarga nueva fallaba al 100 %. La revisión anclada es la última con el tamaño validado en dispositivo (SHA-256 LFS `9378bc47…b8672d`). Para cambiar de modelo hay que actualizar a la vez `MODEL_REVISION` y `MODEL_SIZE_BYTES` (el `size` de `https://huggingface.co/api/models/unsloth/gemma-4-E2B-it-GGUF/tree/<revisión>`) y revalidar en Android real; el test `modelMetadata.test.ts` fija ambos.
 - **Stop**: `<end_of_turn>`. CPU-only en el primer build.
 - **Peso**: ~3,1 GB. Cómodo en 6 GB de RAM, justo en 4 GB. El manejo de error cubre el fallo de carga sin romper la app.
 - Plan B (no usado): Llama 3.2 1B o Qwen 2.5 1.5B.
@@ -76,23 +77,31 @@ El LLM on-device ya está implementado sobre la misma interface `SystemChatEngin
 - `File.createDownloadTask` con progreso y cancelación.
 - Guardado en `Paths.document` (NO en cache, que puede vaciarse).
 - Solo native; en web no aplica.
+- **Comprobación previa de espacio**: antes de empezar se lee `Paths.availableDiskSpace` y se exige el tamaño del modelo más 500 MB de margen (~3,6 GB). Si no cabe, no se descarga nada y la pantalla muestra un error específico (`aiDownloadNoSpace`) en vez del genérico. Una lectura no fiable del sistema no bloquea la descarga.
+- **Sin reanudación**: si la red cae o la app se cierra a mitad, el parcial se borra y hay que empezar de nuevo. `DownloadTask` expone `pause`/`resumeAsync`/`savable`, pero reanudar tras matar el proceso exige persistir ese estado y validar el parcial; queda pendiente.
+- **La pantalla puede apagarse durante la descarga**: `expo-keep-awake` solo llega como dependencia transitiva de `expo` y con pnpm no es resoluble desde la app; añadirlo requiere tocar `package.json`.
 
 ### Pantalla de gestión
 
 `app/system-ai.tsx`: descargar / progreso / activar IA avanzada / eliminar modelo, con estados `none` → `downloading` → `ready` → `error` y aviso en web. Accesible desde Ajustes (sección Sistema → "IA avanzada") y desde la cabecera del chat.
+
+**Diagnóstico solo en builds internos.** `isInternalBuild()` (`src/lib/buildInfo.ts`) es una lista de permitidos: `__DEV__` o canal `preview` / `development` (predicado puro y testeado en `src/lib/buildChannel.ts`). Solo con ese helper en `true` (dev client, Expo Go, APK `preview`) la pantalla enseña versión/build/runtime/canal/update, los botones **Diagnóstico IA** y **Probar superficies IA** y el detalle en crudo del último fallo del motor. En `production` el usuario ve un aviso corto ("El motor local falló") con **Reintentar**, que suelta el contexto cargado y limpia el aviso; nunca una traza. La traza JS tampoco se guarda en producción. Un build sin canal reconocible (canal vacío, o `expo-updates` arrancado sin cabeceras) cuenta como build de usuario: ante la duda, el diagnóstico se oculta.
 
 El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y batería y produce throttling térmico en generaciones largas.
 
 ### Store (`aiStore`)
 
 - `downloadModel` / `deleteModel` / `cancelDownload`.
-- Reconciliación del estado del modelo en `loadAi`: limpia descargas huérfanas y estados `ready` sin fichero en disco.
+- Reconciliación del estado del modelo en `loadAi` (reglas puras en `src/ai/modelReconcile.ts`): limpia descargas huérfanas, degrada estados `ready` sin fichero en disco y **adopta como `ready` un modelo completo que siga en disco con el perfil en `none`**. Esto último ocurre tras "Resetear todo" o importar un backup, que reescriben `ai_profile` sin tocar el fichero: antes la pantalla ofrecía "Descargar" con 3,1 GB huérfanos imposibles de borrar. Al adoptar no se activa el motor; lo decide el usuario.
+- `resetAiSession()` (export de `aiStore`): vacía chat, mensaje del día, comentarios de hábito, aparición y avisos en memoria/cache y relee el perfil. Hay que llamarla después de resetear o importar datos.
+- El chat carga en memoria como mucho los 200 mensajes más recientes. El historial en BD no se poda todavía.
 - Selección de motor vía `resolveEngine`: usa `llama` solo si `engine='llama'` + `modelStatus='ready'` + `modelPath` + native; en cualquier otro caso cae a plantillas.
 - Observabilidad runtime: los fallos del LLM en chat, briefing diario, micro-comentarios de hábito y apariciones autónomas se guardan en Ajustes IA con source/perfil/modelo para no confundir una plantilla de fallback con una respuesta LLM real. La misma pantalla tiene una prueba manual de superficies IA que genera briefing, micro-comentario y aparición con Gemma.
 
 ### Motor (`llamaEngine`)
 
 - `src/ai/llamaEngine.ts`: `initLlama` con `modelPath` + `completion`, implementando la misma interface `SystemChatEngine`.
+- **Inferencias serializadas** (`src/ai/inferenceQueue.ts`, puro y testeado): hay un solo `LlamaContext` y `stopCompletion` corta lo que esté corriendo, así que todas las `completion` pasan por una cola. El chat (saludo y respuestas) espera turno; briefing, comentario de hábito y aparición son de fondo y **no esperan**: si el motor está ocupado se descartan y la superficie se queda con su plantilla, sin registrar fallo. Si el chat llega mientras corre una de fondo, la corta y su texto parcial se desecha. Cancelar el chat solo afecta a inferencias del chat. La carga del modelo va dentro del trabajo, así que cancelar durante una carga en frío lo descarta de verdad. Tras un timeout de inferencia se esperan hasta 5 s a que el nativo suelte el contexto antes de ceder el turno. `releaseLlama()` vacía la cola y espera antes de soltar el modelo, de modo que borrar el modelo con una respuesta a medias termina en `none` y la respuesta cae a plantilla. Cada carga de modelo lleva su propio token de aborto: una carga que vence el timeout de 180 s se libera sola si acaba más tarde.
 - Reusa `buildSystemContextText` (de `src/core/aiContext.ts`) dentro del bloque de instrucciones de Gemma: el tono ya está definido. Gemma no se invoca con rol `system` separado; las instrucciones de NYX, el estado y el mensaje/evento actual van en el primer turno `user`, manteniendo los delimitadores reales observados en el GGUF (`<|turn>` / `<turn|>`).
 
 ### Config nativa
@@ -110,11 +119,12 @@ El primer intento de build falló por un bug de `eas-cli` en Windows: al hacer g
 
 La IA no es solo una pantalla de chat: aparece en el flujo de juego.
 
-- **Mensaje del Sistema en Hoy (banner)**: la app te recibe cada día con una línea contextual del Sistema. Componente `SystemMessageCard`. Instantáneo con plantillas; cuando la IA está activa lo genera Gemma y se **cachea por día**.
+- **Mensaje del Sistema en Hoy (banner)**: la app te recibe cada día con una línea contextual del Sistema. Componente `SystemMessageCard`. La línea depende de la situación del día (`getDayState` en `src/core/systemVoice.ts`): sin hábitos registrados invita a crear la primera misión, sin nada programado hoy lo dice, con pendientes da el briefing (singular si queda una) y sin pendientes cierra el día o señala los fallos; nunca habla de "0 misiones pendientes". El texto de plantilla **se recalcula siempre** (al enfocar Hoy y cada vez que cambian hábitos, estados de hoy o idioma) y no se cachea. Solo se cachea el texto de Gemma, con clave **día + idioma + firma del estado** (`situación:pendientes`): cambiar de idioma o completar una misión lo invalida, y el progreso parcial o el XP no. Mientras Gemma regenera se ve la plantilla correcta.
 - **Apariciones autónomas del Sistema**: el Sistema salta solo en momentos clave (completar la misión diaria, volver tras ausencia) con un personaje y bocadillo (overlay `SystemInterjectionOverlay`), con **cooldown** (1/sesión, 1/día por trigger). El botón "Continuar" abre el chat heredando el contexto de por qué saltó.
   - Personaje placeholder enchufable (sprites en `assets/character/`).
   - Toggle "Apariciones del Sistema" en Ajustes.
   - Funciona offline con plantillas; con IA activa lo genera Gemma.
+  - El botón atrás de Android cierra la aparición (no navega la pantalla de detrás). Cuando el texto de Gemma sustituye al de plantilla no se repite la entrada ni se reinician los 14 s de auto-cierre.
   - Triggers extra preparados (`streak`, `near_level`, `mission_failed`) pero **no cableados aún**.
 
 ### Prompt de sistema
@@ -127,7 +137,7 @@ El build `5cf2587d` ya no se considera suficiente para validar IA local. El buil
 
 1. Mantener como APK preview válido el EAS build `9b238105-e0db-460e-a69e-92110759df24` (`1.1.6`, versionCode `11`, commit `631d914`): <https://expo.dev/artifacts/eas/ka7LYDJr7W4QTMiu7Qbeqh.apk>. Ya está inspeccionado a nivel de APK: `14` `librnllama*.so` en `arm64-v8a`, SHA-256 `f7f60b3f92ad4b2e198cd2cadd2fba3c3023e8a041cabff62438b5570e0ae186`, bundle JS con el `installJsi` parcheado y `.so` JNI con `BindingsInstallerHolder`.
 2. Chat IA local validado por el usuario en Android real: ya responde con el modelo local y no reproduce el fallo inicial de JSI/desactivación al primer mensaje.
-3. Si vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla; ahora incluye entorno/perfil/modelo además de `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`. El error runtime se guarda también para briefing, micro-comentarios y apariciones si `engine=llama` acaba en plantilla o no cumple precondiciones de modelo.
+3. Si vuelve a caer a plantillas, ejecutar **Diagnóstico IA** desde esa pantalla (solo visible en builds internos: dev o canal `preview`); ahora incluye entorno/perfil/modelo además de `import llama.rn`, `installJsi`, `getBackendDevicesInfo`, `loadLlamaModelInfo` e `initLlama + release`. El error runtime se guarda también para briefing, micro-comentarios y apariciones si `engine=llama` acaba en plantilla o no cumple precondiciones de modelo.
 4. Ejecutar **Probar superficies IA** en la misma pantalla: fuerza generación real de briefing, comentario de hábito y aparición con el LLM local, sin esperar a eventos naturales del juego. El diagnóstico corta en el primer ERROR, libera el contexto al terminar para no dejar el modelo ocupando RAM tras la prueba y guarda el último resultado con timestamp/build/runtime/update para que la evidencia no se pierda al salir de la pantalla.
 5. QA secundaria: revisar briefing diario, micro-comentarios de hábito y apariciones en flujo real, más estabilidad RAM/batería/calor.
 6. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.

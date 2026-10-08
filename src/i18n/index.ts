@@ -451,6 +451,16 @@ const dictionary = {
     sys_rankup_2: 'Ascenso confirmado: {from} → {to}. Has roto tu límite. Sigue subiendo.',
     sys_rankup_s_1: 'Rango S alcanzado. La cima. Pocos llegan aquí. El Sistema se inclina.',
     sys_rankup_s_2: 'De {from} a S. Has llegado al clímax. Ahora eres la cúspide del Sistema.',
+    // Endurecimiento de la IA: mensaje del día sin pendientes, descarga del modelo y accesibilidad.
+    sys_no_habits_1: 'Registro vacío. Define tu primera misión y el Sistema empezará a medir tu ascenso.',
+    sys_no_habits_2: 'Aún no hay misiones registradas. Crea la primera: algo pequeño que puedas repetir.',
+    sys_rest_day_1: 'Hoy no hay misiones programadas. Descansa o adelanta algo; el Sistema sigue en línea.',
+    sys_rest_day_2: 'Jornada sin misiones programadas. Recupera fuerzas para la siguiente.',
+    sys_pending_one: 'Te queda 1 misión hoy. Ciérrala antes de que termine el día.',
+    aiDownloadNoSpace:
+      'No hay espacio suficiente. El modelo necesita {size} libres. Libera espacio y vuelve a intentarlo.',
+    aiDiagnosticSampleHabit: 'Leer 30 minutos',
+    goBack: 'Volver',
   },
   en: {
     today: 'Today',
@@ -902,6 +912,15 @@ const dictionary = {
     sys_rankup_2: 'Ascent confirmed: {from} → {to}. You broke your limit. Keep climbing.',
     sys_rankup_s_1: 'Rank S reached. The summit. Few make it here. The System bows.',
     sys_rankup_s_2: 'From {from} to S. You reached the climax. You are now the System peak.',
+    // AI hardening: daily message with nothing pending, model download and accessibility.
+    sys_no_habits_1: 'Empty record. Define your first mission and the System will start tracking your ascent.',
+    sys_no_habits_2: 'No missions registered yet. Create the first one: something small you can repeat.',
+    sys_rest_day_1: 'No missions scheduled today. Rest or get ahead; the System stays online.',
+    sys_rest_day_2: 'Nothing on the schedule today. Recover for the next one.',
+    sys_pending_one: 'You have 1 mission left today. Finish it before the day ends.',
+    aiDownloadNoSpace: 'Not enough storage. The model needs {size} free. Free up space and try again.',
+    aiDiagnosticSampleHabit: 'Read for 30 minutes',
+    goBack: 'Back',
   },
 } as const;
 

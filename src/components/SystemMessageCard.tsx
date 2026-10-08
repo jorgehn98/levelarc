@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { ChevronRight, Cpu, Terminal } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { t } from '@/i18n';
@@ -14,13 +15,27 @@ import { colors, radii, typography } from '@/theme/colors';
 export function SystemMessageCard() {
   const language = useAppStore((state) => state.language);
   const dailyMessage = useAiStore((state) => state.dailyMessage);
+  const ensureDailyMessage = useAiStore((state) => state.ensureDailyMessage);
+
+  // El mensaje depende del estado del día: se revisa cada vez que cambia lo que lo condiciona (crear o
+  // archivar un hábito, completar/fallar/deshacer una misión, cambiar de idioma), no solo al enfocar
+  // Hoy. ensureDailyMessage es idempotente: si nada relevante cambió, no hace nada visible.
+  const dayStateKey = useAppStore(
+    (state) =>
+      `${state.language}|${state.habits.filter((habit) => !habit.archivado).length}|${state.todayHabits
+        .map((habit) => `${habit.id}:${habit.estado}`)
+        .join(',')}`,
+  );
+  useEffect(() => {
+    void ensureDailyMessage();
+  }, [dayStateKey, ensureDailyMessage]);
 
   if (!dailyMessage) return null;
 
   return (
     <Pressable
       accessibilityHint={t(language, 'systemMessageTapHint')}
-      accessibilityLabel={t(language, 'systemChatLabel')}
+      accessibilityLabel={`${t(language, 'systemChatLabel')}. ${dailyMessage.text}`}
       accessibilityRole="button"
       onPress={() => router.push('/system-chat')}
       style={styles.card}
