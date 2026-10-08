@@ -85,6 +85,8 @@ export default function OnboardingScreen() {
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 12, 26) }]}>
         <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ busy: isSubmitting, disabled: isSubmitting || (isFirstRun && !isValid) }}
           disabled={isSubmitting || (isFirstRun && !isValid)}
           onPress={() => void handleContinue()}
           style={({ pressed }) => [styles.ctaPressable, pressed && styles.pressed]}
@@ -281,6 +283,7 @@ function FirstRunPanel({
         <Text style={styles.inputLabel}>◇ {t(language, 'playerName')}</Text>
         <View style={styles.inputWrap}>
           <TextInput
+            accessibilityLabel={t(language, 'playerName')}
             autoCapitalize="words"
             cursorColor={colors.brand.cyanCore}
             maxLength={24}
@@ -378,7 +381,7 @@ function ReturnPanel({ accent, activeHabits, equippedTitle, language, name, prog
       <View style={styles.statGrid}>
         <MiniStat color={colors.state.streak} icon={Flame} label={t(language, 'missionStreak')} unit={t(language, 'daysUnit')} value={streak} />
         <MiniStat color={accent} icon={Swords} label={t(language, 'activeHabits')} unit={t(language, 'missionsUnit')} value={activeHabits} />
-        <MiniStat color={accent} icon={Trophy} label={t(language, 'level', { level: '' }).trim()} unit={`Rango ${progress.rank}`} value={progress.level} />
+        <MiniStat color={accent} icon={Trophy} label={t(language, 'level', { level: '' }).trim()} unit={t(language, 'rank', { rank: progress.rank })} value={progress.level} />
       </View>
     </View>
   );
@@ -791,7 +794,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   disabled: {
-    opacity: 0.78,
+    opacity: 0.45,
   },
   pressed: {
     opacity: 0.88,

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { create } from 'zustand';
 
 import { resolveEngine, templateEngine } from '@/ai';
@@ -133,6 +134,9 @@ type AiState = {
 // AbortController de la descarga en curso (vive fuera del estado: no es UI, solo un handle de
 // cancelación). cancelDownload lo aborta; al terminar/fallar la descarga se limpia.
 let downloadController: AbortController | null = null;
+
+// Etiqueta propia para mantener la pantalla encendida solo mientras dura la descarga del modelo.
+const DOWNLOAD_KEEP_AWAKE_TAG = 'levelarc.modelDownload';
 
 // Token incremental de la generación del chat en curso. sendMessage captura el token al empezar; si
 // cancelGeneration (o un nuevo envío) lo cambia, el resultado de la inferencia vieja se descarta en
@@ -902,6 +906,9 @@ export const useAiStore = create<AiState>((set, get) => ({
     set({ profile: toProfileState(await getAiProfile()) });
 
     try {
+      // La descarga dura minutos: si la pantalla se apaga, Android puede suspender la app y cortarla.
+      // Es una ayuda, no un requisito: si no se puede activar, la descarga sigue.
+      await activateKeepAwakeAsync(DOWNLOAD_KEEP_AWAKE_TAG).catch(() => undefined);
       const uri = await modelManager.downloadModel(
         (ratio) => set({ modelProgress: ratio }),
         downloadController.signal,
@@ -926,6 +933,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       });
     } finally {
       downloadController = null;
+      await deactivateKeepAwake(DOWNLOAD_KEEP_AWAKE_TAG).catch(() => undefined);
     }
   },
   // Aborta la descarga en curso. El catch de downloadModel se encarga de la limpieza y del estado.

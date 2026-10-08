@@ -1,25 +1,23 @@
-export const weekDays = [
-  { id: 1, label: 'L' },
-  { id: 2, label: 'M' },
-  { id: 3, label: 'X' },
-  { id: 4, label: 'J' },
-  { id: 5, label: 'V' },
-  { id: 6, label: 'S' },
-  { id: 7, label: 'D' },
-] as const;
+import { t, type Language } from '@/i18n';
 
-const weekdayLabels = new Map<number, string>(weekDays.map((day) => [day.id, day.label]));
+// Convención LevelArc: lunes = 1 … domingo = 7.
+export const weekdayIds = [1, 2, 3, 4, 5, 6, 7] as const;
 
-export function formatWeekdays(weekdaysCsv: string) {
-  const days = weekdaysCsv
-    .split(',')
-    .map((value) => Number(value))
-    .filter((value, index, values) => Number.isInteger(value) && weekdayLabels.has(value) && values.indexOf(value) === index)
-    .sort((a, b) => a - b);
+export type WeekdayId = (typeof weekdayIds)[number];
 
-  if (days.length === weekDays.length) return 'Diario';
+export function getWeekdayInitial(language: Language, id: WeekdayId) {
+  return t(language, `weekdayShort_${id}`);
+}
 
-  return days
-    .map((value) => weekdayLabels.get(value))
-    .join(' · ');
+export function getWeekdayName(language: Language, id: WeekdayId) {
+  return t(language, `weekday_${id}`);
+}
+
+export function formatWeekdays(weekdaysCsv: string, language: Language) {
+  const selected = new Set(weekdaysCsv.split(',').map(Number));
+  const days = weekdayIds.filter((id) => selected.has(id));
+
+  if (days.length === weekdayIds.length) return t(language, 'everyDay');
+
+  return days.map((id) => getWeekdayInitial(language, id)).join(' · ');
 }

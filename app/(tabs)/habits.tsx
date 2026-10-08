@@ -46,14 +46,19 @@ export default function HabitsScreen() {
         subtitle={t(language, 'registeredMissions')}
         title={t(language, 'habits')}
         action={(
-          <Pressable onPress={() => router.push('/habit/new')} style={styles.iconButton}>
+          <Pressable
+            accessibilityLabel={t(language, 'newHabit')}
+            accessibilityRole="button"
+            onPress={() => router.push('/habit/new')}
+            style={styles.iconButton}
+          >
             <Plus color={colors.background.void} size={22} />
           </Pressable>
         )}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} style={styles.scroll}>
-        <View style={styles.filters}>
+        <View accessibilityRole="tablist" style={styles.filters}>
           <FilterChip active={filter === 'active'} count={counts.active} label={t(language, 'active')} onPress={() => setFilter('active')} />
           <FilterChip active={filter === 'archived'} count={counts.archived} label={t(language, 'archived')} onPress={() => setFilter('archived')} />
           <FilterChip active={filter === 'all'} count={counts.all} label={t(language, 'all')} onPress={() => setFilter('all')} />
@@ -88,7 +93,7 @@ function EmptyHabitsState({ filter, language }: { filter: HabitFilter; language:
       <Text style={styles.emptyTitle}>{t(language, titleKey)}</Text>
       <Text style={styles.emptyText}>{t(language, copyKey)}</Text>
       {filter === 'archived' ? null : (
-        <Pressable onPress={() => router.push('/habit/new')} style={styles.emptyAction}>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/habit/new')} style={styles.emptyAction}>
           <Plus color={colors.background.void} size={18} />
           <Text style={styles.emptyActionText}>{t(language, 'createHabit')}</Text>
         </Pressable>
@@ -99,7 +104,13 @@ function EmptyHabitsState({ filter, language }: { filter: HabitFilter; language:
 
 function FilterChip({ active, count, label, onPress }: { active: boolean; count: number; label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.filterChip, active && styles.activeFilter]}>
+    <Pressable
+      accessibilityLabel={`${label}, ${count}`}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={[styles.filterChip, active && styles.activeFilter]}
+    >
       <Text style={[styles.filterText, active && styles.activeFilterText]}>{label}</Text>
       <Text style={[styles.filterCount, active && styles.activeFilterText]}>{count}</Text>
     </Pressable>
@@ -115,7 +126,12 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
   return (
     <View style={[styles.habitCard, isArchived && styles.archivedRow]}>
       <View style={styles.statusRail} />
-      <Pressable onPress={() => router.push(`/habit/${habit.id}`)} style={({ pressed }) => [styles.pressTarget, pressed && styles.pressedRow]}>
+      <Pressable
+        accessibilityLabel={`${habit.nombre}${isArchived ? `, ${t(language, 'archivedHabit')}` : ''}, ${formatWeekdays(habit.diasSemana, language)}`}
+        accessibilityRole="button"
+        onPress={() => router.push(`/habit/${habit.id}`)}
+        style={({ pressed }) => [styles.pressTarget, pressed && styles.pressedRow]}
+      >
         <View style={styles.rowLayout}>
           <View style={styles.rowIcon}>
             {isArchived ? <Archive color={colors.state.pending} size={19} /> : <Icon color={colors.brand.cyanCore} size={19} />}
@@ -130,12 +146,12 @@ function HabitRow({ habit, language }: { habit: HabitRecord; language: Language 
                   const attribute = getHabitAttribute(attributeId);
                   return (
                     <View key={attribute.id} style={[styles.attributeChip, { borderColor: attribute.color, backgroundColor: `${attribute.color}14` }]}>
-                      <Text style={[styles.attributeChipText, { color: attribute.color }]}>{attribute.code}</Text>
+                      <Text style={[styles.attributeChipText, { color: attribute.color }]}>{t(language, `attr_${attribute.id}_code`)}</Text>
                     </View>
                   );
                 })}
               </View>
-              <Text numberOfLines={1} style={styles.daysText}>{formatWeekdays(habit.diasSemana)}</Text>
+              <Text numberOfLines={1} style={styles.daysText}>{formatWeekdays(habit.diasSemana, language)}</Text>
             </View>
             <View style={styles.importanceLine}>
               {Array.from({ length: 5 }).map((_, index) => (
@@ -195,7 +211,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
-    minHeight: 34,
+    minHeight: 44,
     paddingHorizontal: 8,
   },
   activeFilter: {

@@ -66,6 +66,7 @@ export function HabitCard({ habit, language, busy = false, onIncrement, onFail, 
           accessibilityLabel={habit.nombre}
           accessibilityRole="button"
           disabled={!onOpenDetail}
+          hitSlop={ICON_HIT_SLOP}
           onPress={onOpenDetail}
           style={[styles.iconTile, { borderColor: accent, backgroundColor: `${accent}10` }, isFailed && styles.failedIconTile]}
         >
@@ -87,7 +88,7 @@ export function HabitCard({ habit, language, busy = false, onIncrement, onFail, 
               const attribute = getHabitAttribute(attributeId);
               return (
                 <Text key={attribute.id} style={[styles.attributeCode, { color: attribute.color }]}>
-                  {attribute.code}
+                  {t(language, `attr_${attribute.id}_code`)}
                 </Text>
               );
             })}
@@ -109,6 +110,7 @@ export function HabitCard({ habit, language, busy = false, onIncrement, onFail, 
       {isPending ? (
         <View style={styles.pendingActions}>
           <Pressable
+            accessibilityLabel={`${habit.tipo === 'binario' ? t(language, 'complete') : '+1'}: ${habit.nombre}`}
             accessibilityRole="button"
             accessibilityState={{ busy, disabled: busy }}
             disabled={busy}
@@ -120,6 +122,7 @@ export function HabitCard({ habit, language, busy = false, onIncrement, onFail, 
           </Pressable>
 
           <Pressable
+            accessibilityLabel={`${t(language, 'fail')}: ${habit.nombre}`}
             accessibilityRole="button"
             accessibilityState={{ busy, disabled: busy || habit.cantidad > 0 }}
             disabled={busy || habit.cantidad > 0}
@@ -133,9 +136,11 @@ export function HabitCard({ habit, language, busy = false, onIncrement, onFail, 
 
       {(isDone || isFailed || habit.cantidad > 0) ? (
         <Pressable
+          accessibilityLabel={`${t(language, 'undo')}: ${habit.nombre}`}
           accessibilityRole="button"
           accessibilityState={{ busy, disabled: busy }}
           disabled={busy}
+          hitSlop={UNDO_HIT_SLOP}
           onPress={onUndo}
           style={[styles.undoButton, busy && styles.busyAction]}
         >
@@ -144,10 +149,15 @@ export function HabitCard({ habit, language, busy = false, onIncrement, onFail, 
         </Pressable>
       ) : null}
 
-      <Text style={[styles.cornerDots, { color: accent }]}>•••</Text>
+      <Text accessible={false} importantForAccessibility="no" style={[styles.cornerDots, { color: accent }]}>•••</Text>
     </View>
   );
 }
+
+// El icono mide 42 pt y "Deshacer" unos 18 pt de alto: el hitSlop los lleva al mínimo táctil de 44 pt
+// sin crecer la tarjeta. El de Deshacer cabe en el hueco con los botones (12) y el margen inferior (18).
+const ICON_HIT_SLOP = 1;
+const UNDO_HIT_SLOP = { top: 12, bottom: 14, left: 12, right: 12 };
 
 const styles = StyleSheet.create({
   card: {

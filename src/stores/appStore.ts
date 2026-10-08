@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Share } from 'react-native';
 import { create } from 'zustand';
 
 import { attributeIds, getAttributeLevelProgress } from '@/core/attributes';
 import { compareRanks, getLevelProgress } from '@/core/ranks';
-import { parseBackupPayload, serializeBackupPayload } from '@/lib/backup';
 import { t, type Language } from '@/i18n';
+import { getDeviceLocale, resolveInitialLanguage } from '@/i18n/deviceLanguage';
+import { getImportFailureReasonKey, parseBackupPayload, serializeBackupPayload } from '@/lib/backup';
+import { ShareUnavailableError, pickBackupFile, shareBackupFile } from '@/lib/backupTransfer';
 import { notify } from '@/lib/confirm';
 import { configureNotifications } from '@/lib/notifications';
 import { warnRemindersDisabled } from '@/lib/reminderNotice';
@@ -106,6 +107,9 @@ type AppState = {
   equipReward: (id: string) => Promise<EquipResult | null>;
   unequipTitle: () => Promise<boolean>;
   exportBackup: () => Promise<boolean>;
+  // Abre el selector de ficheros y devuelve el contenido elegido; null si se cancela o no se pudo
+  // leer (en ese caso ya se avisó). No marca la app como ocupada: en web una cancelación no se notifica.
+  pickBackup: () => Promise<string | null>;
   importBackup: (rawBackup: string) => Promise<boolean>;
   resetAll: () => Promise<boolean>;
 };
@@ -211,6 +215,11 @@ function reportActionError(language: Language) {
   notify(t(language, 'actionFailed'), t(language, 'actionFailedCopy'));
 }
 
+// En una importación el motivo importa: casi siempre es un fichero que no valida.
+function reportImportError(error: unknown, language: Language) {
+  notify(t(language, 'importFailed'), t(language, 'importFailedCopy', { reason: t(language, getImportFailureReasonKey(error)) }));
+}
+
 // Único punto por el que pasan las acciones del usuario. Marca la acción como en curso (por hábito
 // si lleva habitId, global si no), descarta una repetición mientras dura, y si la tarea falla avisa
 // al usuario y devuelve { ok: false } en vez de rechazar: las pantallas llaman con `void`. La cola
@@ -298,11 +307,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     bootInFlight ??= (async () => {
       set({ bootError: null });
       try {
+        // El idioma va primero: si la base no abre, la pantalla de error ya sale en el idioma correcto.
+        set({ language: resolveInitialLanguage(await AsyncStorage.getItem(LANGUAGE_KEY), getDeviceLocale()) });
         await initializeDatabase();
-        const storedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
-        if (storedLanguage === 'es' || storedLanguage === 'en') {
-          set({ language: storedLanguage });
-        }
         await get().closeMissedDays();
         // Desbloqueo silencioso al arrancar: otorga la Esencia de logros ya cumplidos por el estado
         // actual sin celebrar (evita una avalancha de toasts al actualizar la app). El regalo inicial
@@ -580,13 +587,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     return outcome.ok;
   },
   exportBackup: async () => {
-    const outcome = await runAction(set, get, async () => {
-      await Share.share({
-        title: 'LevelArc backup',
-        message: serializeBackupPayload(await exportAllData()),
-      });
-    });
+    const outcome = await runAction(
+      set,
+      get,
+      async () => {
+        await shareBackupFile(serializeBackupPayload(await exportAllData()), t(get().language, 'backupShareTitle'));
+      },
+      {
+        report: (error, language) =>
+          error instanceof ShareUnavailableError
+            ? notify(t(language, 'backupShareUnavailable'), t(language, 'backupShareUnavailableCopy'))
+            : reportActionError(language),
+      },
+    );
     return outcome.ok;
+  },
+  pickBackup: async () => {
+    try {
+      const rawBackup = await pickBackupFile();
+      // Comprobación temprana de formato y versión: un fichero que no es un backup se rechaza aquí,
+      // antes de pedir al usuario que confirme el reemplazo de sus datos.
+      if (rawBackup !== null) parseBackupPayload(rawBackup);
+      return rawBackup;
+    } catch (error) {
+      reportImportError(error, get().language);
+      return null;
+    }
   },
   importBackup: async (rawBackup) => {
     const outcome = await runAction(
@@ -597,14 +623,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         await importAllData(payload.data);
         await get().refresh();
       },
-      {
-        // Aquí el motivo importa: casi siempre es un fichero que no valida.
-        report: (error, language) =>
-          notify(
-            t(language, 'importFailed'),
-            t(language, 'importFailedCopy', { reason: error instanceof Error ? error.message : String(error) }),
-          ),
-      },
+      { report: reportImportError },
     );
     if (outcome.ok) await afterDataReplaced(get().language);
     return outcome.ok;

@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { Check, ChevronLeft, CircleAlert, Cpu, Download, Trash2 } from 'lucide-react-native';
@@ -20,7 +19,7 @@ import {
 import { buildHabitContext, type HabitInsightInput } from '@/core/aiContext';
 import { buildSystemContext } from '@/db/repository';
 import { t, type Language } from '@/i18n';
-import { isInternalBuild } from '@/lib/buildInfo';
+import { getAppVersionInfo, isInternalBuild } from '@/lib/buildInfo';
 import { confirmAction } from '@/lib/confirm';
 import type { LlamaDiagnosticStep } from '@/ai/llamaEngine';
 import { getLlmRuntimeError, retryLlmEngine, useAiStore } from '@/stores/aiStore';
@@ -95,8 +94,7 @@ export default function SystemAiScreen() {
   const internal = isInternalBuild();
   const status = profile.modelStatus;
   const usingLlama = profile.engine === 'llama';
-  const appVersion = Constants.expoConfig?.version ?? 'dev';
-  const buildVersion = Constants.nativeBuildVersion ?? 'dev';
+  const { version: appVersion, build: buildVersion } = getAppVersionInfo();
   const updateInfo = [
     `runtime ${Updates.runtimeVersion ?? 'dev'}`,
     `channel ${Updates.channel || 'n/a'}`,

@@ -10,8 +10,9 @@ import { maxHabitAttributes, normalizeHabitAttributes, type AttributeId } from '
 import { getCompletionXp, type HabitImportance } from '@/core/xp';
 import { t, type Language } from '@/i18n';
 import { habitAttributes } from '@/lib/habitAttributes';
+import { getMissingHabitFields, type MissingHabitField } from '@/lib/habitFormValidation';
 import { defaultHabitIcon, getHabitIconComponent, habitIcons, normalizeHabitIcon, type HabitIconId } from '@/lib/habitIcons';
-import { weekDays } from '@/lib/weekdays';
+import { getWeekdayInitial, getWeekdayName, weekdayIds } from '@/lib/weekdays';
 import { colors, radii, typography } from '@/theme/colors';
 
 type HabitFormProps = {
@@ -114,7 +115,7 @@ function habitFormReducer(state: HabitFormState, action: HabitFormAction): Habit
           : [...state.days, action.dayId].sort((a, b) => a - b),
       };
     case 'selectEveryDay':
-      return { ...state, isAttributePickerOpen: false, days: weekDays.map((day) => day.id) };
+      return { ...state, isAttributePickerOpen: false, days: [...weekdayIds] };
     case 'setReminder':
       return { ...state, reminder: action.reminder };
   }
@@ -135,7 +136,12 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
     type,
   } = state;
 
-  const canSave = name.trim().length > 0 && days.length > 0 && attributes.length > 0;
+  const missingFields = getMissingHabitFields({ name, days, attributes });
+  const canSave = missingFields.length === 0;
+  const missingCopy = canSave
+    ? undefined
+    : t(language, 'habitMissing', { fields: missingFields.map((field) => t(language, missingFieldKeys[field])).join(', ') });
+  const isEveryDay = days.length === weekdayIds.length;
   const normalizedGoal = useMemo(() => Math.max(1, Number.parseInt(goal, 10) || 1), [goal]);
   const xpPreview = getCompletionXp(importance, 0);
   const selectedIcon = habitIcons.find((item) => item.id === icon) ?? habitIcons[0];
@@ -178,9 +184,13 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
   const actions = (
     <View style={styles.actions}>
       <View style={styles.actionDivider} />
+      {missingCopy ? (
+        <Text accessibilityLiveRegion="polite" style={styles.missingText}>{missingCopy}</Text>
+      ) : null}
       <View style={styles.actionRow}>
         {onCancel ? <Button icon={X} label={t(language, 'cancel')} onPress={onCancel} style={styles.cancelAction} variant="secondary" /> : null}
         <Button
+          accessibilityHint={missingCopy}
           busy={isSaving}
           disabled={!canSave}
           icon={habit ? Check : Plus}
@@ -229,23 +239,29 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
             <View style={styles.summaryIconTile}>
               <SelectedIcon color={colors.brand.cyanCore} size={17} />
             </View>
-            <Text style={styles.summaryText}>{selectedIcon.label}</Text>
+            <Text style={styles.summaryText}>{t(language, `icon_${selectedIcon.id}`)}</Text>
           </View>
         )}
       >
-        <View style={styles.iconGrid}>
+        <View accessibilityLabel={t(language, 'pickIcon')} accessibilityRole="radiogroup" style={styles.iconGrid}>
           {habitIcons.map((item) => {
             const Icon = item.icon;
             const isSelected = icon === item.id;
 
             return (
               <Pressable
+                accessibilityLabel={t(language, `icon_${item.id}`)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected }}
                 key={item.id}
                 onPress={() => selectIcon(item.id)}
                 style={[styles.iconOption, isSelected && styles.selectedIconOption]}
               >
                 <Icon color={isSelected ? colors.background.void : colors.brand.bone} size={20} />
-                <Text numberOfLines={1} style={[styles.iconOptionText, isSelected && styles.selectedIconOptionText]}>{item.label}</Text>
+                <Text numberOfLines={1} style={[styles.iconOptionText, isSelected && styles.selectedIconOptionText]}>
+                  {t(language, `icon_${item.id}`)}
+                </Text>
+                {isSelected ? <SelectedMark color={colors.background.void} /> : null}
               </Pressable>
             );
           })}
@@ -260,7 +276,7 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
           <View style={styles.selectedAttributeSummary}>
             {selectedAttributes.map((item) => (
               <View key={item.id} style={[styles.attributePill, { borderColor: item.color, backgroundColor: `${item.color}14` }]}>
-                <Text style={[styles.attributePillText, { color: item.color }]}>{item.code}</Text>
+                <Text style={[styles.attributePillText, { color: item.color }]}>{t(language, `attr_${item.id}_code`)}</Text>
               </View>
             ))}
           </View>
@@ -275,6 +291,10 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
 
             return (
               <Pressable
+                accessibilityLabel={`${t(language, `attr_${item.id}`)}. ${t(language, `attr_${item.id}_desc`)}`}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected, disabled: isDisabled }}
+                disabled={isDisabled}
                 key={item.id}
                 onPress={() => toggleAttribute(item.id)}
                 style={[
@@ -289,11 +309,12 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
                     <Icon color={item.color} size={17} />
                   </View>
                   <View style={styles.attributeTitleCopy}>
-                    <Text style={[styles.attributeCode, { color: item.color }]}>{item.code}</Text>
-                    <Text style={styles.attributeName}>{item.label}</Text>
+                    <Text style={[styles.attributeCode, { color: item.color }]}>{t(language, `attr_${item.id}_code`)}</Text>
+                    <Text style={styles.attributeName}>{t(language, `attr_${item.id}`)}</Text>
                   </View>
                 </View>
-                <Text style={styles.attributeDescription}>{item.description}</Text>
+                <Text style={styles.attributeDescription}>{t(language, `attr_${item.id}_desc`)}</Text>
+                {isSelected ? <SelectedMark color={item.color} /> : null}
               </Pressable>
             );
           })}
@@ -302,6 +323,7 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
 
       <Field label={t(language, 'name')}>
         <TextInput
+          accessibilityLabel={t(language, 'name')}
           cursorColor={colors.brand.cyanCore}
           onChangeText={(value) => dispatch({ type: 'setName', name: value })}
           onFocus={closeAttributePicker}
@@ -314,9 +336,12 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
       </Field>
 
       <Field label={t(language, 'importance')}>
-        <View style={styles.importanceGrid}>
+        <View accessibilityLabel={t(language, 'importance')} accessibilityRole="radiogroup" style={styles.importanceGrid}>
           {[1, 2, 3, 4, 5].map((value) => (
             <Pressable
+              accessibilityLabel={`${t(language, 'importanceLevel', { value })}, +${getCompletionXp(value as HabitImportance, 0)} XP`}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: importance === value }}
               key={value}
               onPress={() => {
                 closeAttributePicker();
@@ -326,13 +351,14 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
             >
               <Text style={[styles.importanceValue, importance === value && styles.selectedText]}>{value}</Text>
               <Text style={styles.importanceXp}>+{getCompletionXp(value as HabitImportance, 0)}</Text>
+              {importance === value ? <SelectedMark /> : null}
             </Pressable>
           ))}
         </View>
       </Field>
 
       <Field label={t(language, 'type')}>
-        <View style={styles.typeGrid}>
+        <View accessibilityLabel={t(language, 'type')} accessibilityRole="radiogroup" style={styles.typeGrid}>
           <TypeCard
             active={type === 'binario'}
             description={t(language, 'binaryHelp')}
@@ -359,6 +385,7 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
       {type === 'contable' ? (
         <Field label={t(language, 'dailyGoal')}>
           <TextInput
+            accessibilityLabel={t(language, 'dailyGoal')}
             cursorColor={colors.brand.cyanCore}
             keyboardType="number-pad"
             onChangeText={(value) => dispatch({ type: 'setGoal', goal: value })}
@@ -375,22 +402,34 @@ export function HabitForm({ habit, language, onSave, isSaving = false, onArchive
       <Field label={t(language, 'days')}>
         <View style={styles.daysToolbar}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: isEveryDay }}
             onPress={selectEveryDay}
-            style={[styles.quickDayButton, days.length === weekDays.length && styles.selectedQuickDayButton]}
+            style={[styles.quickDayButton, isEveryDay && styles.selectedQuickDayButton]}
           >
-            <Text style={[styles.quickDayText, days.length === weekDays.length && styles.selectedQuickDayText]}>{t(language, 'everyDay')}</Text>
+            {isEveryDay ? <Check color={colors.brand.cyanCore} size={12} strokeWidth={3} /> : null}
+            <Text style={[styles.quickDayText, isEveryDay && styles.selectedQuickDayText]}>{t(language, 'everyDay')}</Text>
           </Pressable>
         </View>
         <View style={styles.daysGrid}>
-          {weekDays.map((day) => (
-            <Pressable
-              key={day.id}
-              onPress={() => toggleDay(day.id)}
-              style={[styles.dayButton, days.includes(day.id) && styles.selectedDayButton]}
-            >
-              <Text style={[styles.dayText, days.includes(day.id) && styles.selectedDayText]}>{day.label}</Text>
-            </Pressable>
-          ))}
+          {weekdayIds.map((dayId) => {
+            const isSelected = days.includes(dayId);
+
+            return (
+              <Pressable
+                accessibilityLabel={getWeekdayName(language, dayId)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                hitSlop={DAY_HIT_SLOP}
+                key={dayId}
+                onPress={() => toggleDay(dayId)}
+                style={[styles.dayButton, isSelected && styles.selectedDayButton]}
+              >
+                <Text style={[styles.dayText, isSelected && styles.selectedDayText]}>{getWeekdayInitial(language, dayId)}</Text>
+                {isSelected ? <SelectedMark color={colors.background.void} /> : null}
+              </Pressable>
+            );
+          })}
         </View>
       </Field>
 
@@ -427,13 +466,39 @@ function TypeCard({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.typeCard, active && styles.selectedCard]}>
+    <Pressable
+      accessibilityLabel={`${label}. ${description}`}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
+      onPress={onPress}
+      style={[styles.typeCard, active && styles.selectedCard]}
+    >
       {icon}
       <Text style={[styles.typeTitle, active && styles.selectedText]}>{label}</Text>
       <Text style={styles.typeDescription}>{description}</Text>
+      {active ? <SelectedMark /> : null}
     </Pressable>
   );
 }
+
+// Marca de opción elegida. El color solo no basta para distinguir la selección, así que toda opción
+// elegida del formulario lleva además esta marca.
+function SelectedMark({ color = colors.brand.cyanCore }: { color?: string }) {
+  return (
+    <View pointerEvents="none" style={styles.selectedMark}>
+      <Check color={color} size={11} strokeWidth={3} />
+    </View>
+  );
+}
+
+const missingFieldKeys = {
+  name: 'habitMissingName',
+  days: 'habitMissingDays',
+  attributes: 'habitMissingAttributes',
+} as const satisfies Record<MissingHabitField, string>;
+
+// En pantallas estrechas un día mide menos de 44 pt de ancho: el hitSlop cubre el hueco entre días.
+const DAY_HIT_SLOP = { left: 3, right: 3 };
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -463,7 +528,13 @@ function CollapsibleField({
 
   return (
     <View style={styles.field}>
-      <Pressable onPress={onToggle} style={styles.collapsibleHeader}>
+      <Pressable
+        accessibilityLabel={label}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+        onPress={onToggle}
+        style={styles.collapsibleHeader}
+      >
         <View style={styles.collapsibleTitle}>
           <Text style={[styles.label, styles.collapsibleLabel, !isOpen && styles.collapsibleLabelClosed]}>{label}</Text>
           {isOpen ? null : summary}
@@ -504,7 +575,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'space-between',
-    minHeight: 36,
+    minHeight: 44,
   },
   collapsibleTitle: {
     flex: 1,
@@ -580,6 +651,18 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     color: colors.brand.cyanCore,
+  },
+  selectedMark: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+  },
+  missingText: {
+    color: colors.brand.boneMuted,
+    fontFamily: typography.font.bodyRegular,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 10,
   },
   importanceXp: {
     color: colors.state.pending,
@@ -727,7 +810,9 @@ const styles = StyleSheet.create({
     borderColor: colors.background.border,
     borderRadius: radii.sm,
     borderWidth: 1,
-    minHeight: 34,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 44,
     paddingHorizontal: 12,
     justifyContent: 'center',
   },
@@ -746,14 +831,13 @@ const styles = StyleSheet.create({
   },
   dayButton: {
     alignItems: 'center',
-    aspectRatio: 1,
     backgroundColor: colors.background.card,
     borderColor: colors.background.border,
     borderRadius: radii.sm,
     borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
-    minHeight: 38,
+    minHeight: 44,
   },
   selectedDayButton: {
     backgroundColor: colors.brand.cyanCore,

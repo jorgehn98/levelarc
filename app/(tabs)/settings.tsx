@@ -1,6 +1,5 @@
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import {
   Bell,
@@ -8,14 +7,14 @@ import {
   Cpu,
   Download,
   Eye,
+  FileText,
   Globe,
   Info,
+  Mail,
   Moon,
-  Music,
   RefreshCw,
   Shield,
   Skull,
-  Snowflake,
   Sparkles,
   Store,
   Terminal,
@@ -28,7 +27,7 @@ import {
 import type { LucideProps } from 'lucide-react-native';
 import type { ComponentType, ReactNode } from 'react';
 import { useEffect, useReducer } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
@@ -36,7 +35,9 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { TimePickerField } from '@/components/TimePickerField';
 import { t, type Language } from '@/i18n';
-import { notify } from '@/lib/confirm';
+import { getAppVersionInfo, isInternalBuild } from '@/lib/buildInfo';
+import { confirmAction, notify } from '@/lib/confirm';
+import { CONTACT_EMAIL, getLegalUrl } from '@/lib/links';
 import { requestNotificationPermissions } from '@/lib/notifications';
 import { warnRemindersDisabled } from '@/lib/reminderNotice';
 import { clearEndOfDayReminder, getEndOfDayReminderTime, saveEndOfDayReminder } from '@/lib/reminders';
@@ -44,42 +45,29 @@ import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
-const VIBRATION_KEY = 'levelarc.settings.vibration';
-const SOUND_KEY = 'levelarc.settings.sound';
 const INTERJECTIONS_ENABLED_KEY = 'levelarc.interjectionsEnabled';
-const APP_VERSION = Constants.expoConfig?.version ?? '1.0.2';
 
 type SettingsState = {
-  isImportOpen: boolean;
   isNameOpen: boolean;
   isEndOfDayReminderOpen: boolean;
-  backupJson: string;
   playerName: string;
   endOfDayReminderTime: string | null;
   endOfDayReminderDraft: string | null;
-  vibrationEnabled: boolean;
-  soundEnabled: boolean;
   interjectionsEnabled: boolean;
   isCheckingUpdate: boolean;
 };
 
 type SettingsAction =
-  | { type: 'setImportOpen'; value: boolean }
   | { type: 'setNameOpen'; value: boolean }
   | { type: 'setEndOfDayReminderOpen'; value: boolean }
-  | { type: 'setBackupJson'; value: string }
   | { type: 'setPlayerName'; value: string }
   | { type: 'setEndOfDayReminderTime'; value: string | null }
   | { type: 'setEndOfDayReminderDraft'; value: string | null }
-  | { type: 'setVibrationEnabled'; value: boolean }
-  | { type: 'setSoundEnabled'; value: boolean }
   | { type: 'setInterjectionsEnabled'; value: boolean }
   | { type: 'setCheckingUpdate'; value: boolean }
   | {
       type: 'loadPreferences';
       reminderTime: string | null;
-      vibrationEnabled: boolean;
-      soundEnabled: boolean;
       interjectionsEnabled: boolean;
     }
   | { type: 'clearEndOfDayReminder' }
@@ -87,15 +75,11 @@ type SettingsAction =
 
 function createSettingsState(playerName: string): SettingsState {
   return {
-    isImportOpen: false,
     isNameOpen: false,
     isEndOfDayReminderOpen: false,
-    backupJson: '',
     playerName,
     endOfDayReminderTime: null,
     endOfDayReminderDraft: '21:30',
-    vibrationEnabled: true,
-    soundEnabled: false,
     interjectionsEnabled: true,
     isCheckingUpdate: false,
   };
@@ -103,24 +87,16 @@ function createSettingsState(playerName: string): SettingsState {
 
 function settingsReducer(state: SettingsState, action: SettingsAction): SettingsState {
   switch (action.type) {
-    case 'setImportOpen':
-      return { ...state, isImportOpen: action.value };
     case 'setNameOpen':
       return { ...state, isNameOpen: action.value };
     case 'setEndOfDayReminderOpen':
       return { ...state, isEndOfDayReminderOpen: action.value };
-    case 'setBackupJson':
-      return { ...state, backupJson: action.value };
     case 'setPlayerName':
       return { ...state, playerName: action.value };
     case 'setEndOfDayReminderTime':
       return { ...state, endOfDayReminderTime: action.value };
     case 'setEndOfDayReminderDraft':
       return { ...state, endOfDayReminderDraft: action.value };
-    case 'setVibrationEnabled':
-      return { ...state, vibrationEnabled: action.value };
-    case 'setSoundEnabled':
-      return { ...state, soundEnabled: action.value };
     case 'setInterjectionsEnabled':
       return { ...state, interjectionsEnabled: action.value };
     case 'setCheckingUpdate':
@@ -128,8 +104,6 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
     case 'loadPreferences':
       return {
         ...state,
-        vibrationEnabled: action.vibrationEnabled,
-        soundEnabled: action.soundEnabled,
         interjectionsEnabled: action.interjectionsEnabled,
         endOfDayReminderTime: action.reminderTime,
         endOfDayReminderDraft: action.reminderTime ?? state.endOfDayReminderDraft,
@@ -157,38 +131,32 @@ export default function SettingsScreen() {
   const setLanguage = useAppStore((state) => state.setLanguage);
   const setPlayerName = useAppStore((state) => state.setPlayerName);
   const exportBackup = useAppStore((state) => state.exportBackup);
+  const pickBackup = useAppStore((state) => state.pickBackup);
   const importBackup = useAppStore((state) => state.importBackup);
   const closeToday = useAppStore((state) => state.closeToday);
   const resetAll = useAppStore((state) => state.resetAll);
   const setInterjectionsEnabled = useAiStore((store) => store.setInterjectionsEnabled);
   const [state, dispatch] = useReducer(settingsReducer, player?.nombre ?? '', createSettingsState);
   const {
-    backupJson,
     endOfDayReminderDraft,
     endOfDayReminderTime,
     isCheckingUpdate,
     isEndOfDayReminderOpen,
     interjectionsEnabled,
-    isImportOpen,
     isNameOpen,
     playerName,
-    soundEnabled,
-    vibrationEnabled,
   } = state;
+  const appVersion = getAppVersionInfo();
 
   useEffect(() => {
     async function loadEndOfDayReminder() {
-      const [storedTime, storedVibration, storedSound, storedInterjections] = await Promise.all([
+      const [storedTime, storedInterjections] = await Promise.all([
         getEndOfDayReminderTime(),
-        AsyncStorage.getItem(VIBRATION_KEY),
-        AsyncStorage.getItem(SOUND_KEY),
         AsyncStorage.getItem(INTERJECTIONS_ENABLED_KEY),
       ]);
       dispatch({
         type: 'loadPreferences',
         reminderTime: storedTime,
-        vibrationEnabled: storedVibration !== 'false',
-        soundEnabled: storedSound === 'true',
         interjectionsEnabled: storedInterjections !== 'false',
       });
     }
@@ -203,29 +171,35 @@ export default function SettingsScreen() {
     task().catch(() => notify(t(language, 'actionFailed'), t(language, 'actionFailedCopy')));
   };
 
-  const handleImportBackup = () => {
-    Alert.alert(t(language, 'restoreConfirmTitle'), t(language, 'restoreConfirmCopy'), [
-      { text: t(language, 'cancel'), style: 'cancel' },
-      {
-        text: t(language, 'restore'),
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            // Si falla, el store ya explicó el motivo: el diálogo sigue abierto con el texto pegado.
-            if (!(await importBackup(backupJson))) return;
-            dispatch({ type: 'setBackupJson', value: '' });
-            dispatch({ type: 'setImportOpen', value: false });
-            Alert.alert(t(language, 'backupImported'), t(language, 'backupImportedCopy'));
-          })();
-        },
+  // Primero se elige el fichero y después se confirma: hasta ese momento no se toca ningún dato. Si
+  // la lectura o la importación fallan, el store ya explicó el motivo.
+  const handleImportBackup = async () => {
+    const rawBackup = await pickBackup();
+    if (rawBackup === null) return;
+
+    confirmAction({
+      title: t(language, 'restoreConfirmTitle'),
+      message: t(language, 'restoreConfirmCopy'),
+      cancelText: t(language, 'cancel'),
+      confirmText: t(language, 'restore'),
+      destructive: true,
+      onConfirm: () => {
+        void (async () => {
+          if (!(await importBackup(rawBackup))) return;
+          notify(t(language, 'backupImported'), t(language, 'backupImportedCopy'));
+        })();
       },
-    ]);
+    });
+  };
+
+  const openLink = (url: string) => {
+    Linking.openURL(url).catch(() => notify(t(language, 'openLinkFailed'), t(language, 'openLinkFailedCopy', { url })));
   };
 
   const handleSaveName = async () => {
     if (!(await setPlayerName(playerName))) return;
     dispatch({ type: 'setNameOpen', value: false });
-    Alert.alert(t(language, 'nameUpdated'), t(language, 'nameUpdatedCopy'));
+    notify(t(language, 'nameUpdated'), t(language, 'nameUpdatedCopy'));
   };
 
   const handleCheckForUpdates = async () => {
@@ -233,17 +207,20 @@ export default function SettingsScreen() {
     try {
       const result = await Updates.checkForUpdateAsync();
       if (!result.isAvailable) {
-        Alert.alert(t(language, 'appUpdated'), t(language, 'appUpdatedCopy'));
+        notify(t(language, 'appUpdated'), t(language, 'appUpdatedCopy'));
         return;
       }
 
       await Updates.fetchUpdateAsync();
-      Alert.alert(t(language, 'updateReady'), t(language, 'updateReadyCopy'), [
-        { text: t(language, 'later'), style: 'cancel' },
-        { text: t(language, 'restart'), onPress: () => void Updates.reloadAsync() },
-      ]);
+      confirmAction({
+        title: t(language, 'updateReady'),
+        message: t(language, 'updateReadyCopy'),
+        cancelText: t(language, 'later'),
+        confirmText: t(language, 'restart'),
+        onConfirm: () => void Updates.reloadAsync(),
+      });
     } catch {
-      Alert.alert(t(language, 'updateUnavailable'), t(language, 'updateUnavailableCopy'));
+      notify(t(language, 'updateUnavailable'), t(language, 'updateUnavailableCopy'));
     } finally {
       dispatch({ type: 'setCheckingUpdate', value: false });
     }
@@ -268,25 +245,13 @@ export default function SettingsScreen() {
     }
 
     dispatch({ type: 'saveEndOfDayReminder', value: normalizedTime });
-    Alert.alert(t(language, 'reminderSaved'), t(language, 'reminderSavedCopy'));
+    notify(t(language, 'reminderSaved'), t(language, 'reminderSavedCopy'));
   };
 
   const handleDisableEndOfDayReminder = async () => {
     await clearEndOfDayReminder();
     dispatch({ type: 'clearEndOfDayReminder' });
-    Alert.alert(t(language, 'reminderDisabled'), t(language, 'reminderDisabledCopy'));
-  };
-
-  const handleToggleVibration = async () => {
-    const next = !vibrationEnabled;
-    dispatch({ type: 'setVibrationEnabled', value: next });
-    await AsyncStorage.setItem(VIBRATION_KEY, String(next));
-  };
-
-  const handleToggleSound = async () => {
-    const next = !soundEnabled;
-    dispatch({ type: 'setSoundEnabled', value: next });
-    await AsyncStorage.setItem(SOUND_KEY, String(next));
+    notify(t(language, 'reminderDisabled'), t(language, 'reminderDisabledCopy'));
   };
 
   const handleToggleInterjections = async () => {
@@ -298,29 +263,33 @@ export default function SettingsScreen() {
   };
 
   const handleResetAll = () => {
-    Alert.alert(t(language, 'resetAllConfirmTitle'), t(language, 'resetAllConfirmCopy'), [
-      { text: t(language, 'cancel'), style: 'cancel' },
-      {
-        text: t(language, 'resetAll'),
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            // resetAll también borra el recordatorio de fin de día, y solo si el reinicio entró.
-            if (!(await resetAll())) return;
-            dispatch({ type: 'clearEndOfDayReminder' });
-            Alert.alert(t(language, 'resetDone'), t(language, 'resetDoneCopy'));
-            router.replace('/onboarding');
-          })();
-        },
+    confirmAction({
+      title: t(language, 'resetAllConfirmTitle'),
+      message: t(language, 'resetAllConfirmCopy'),
+      cancelText: t(language, 'cancel'),
+      confirmText: t(language, 'resetAll'),
+      destructive: true,
+      onConfirm: () => {
+        void (async () => {
+          // resetAll también borra el recordatorio de fin de día, y solo si el reinicio entró.
+          if (!(await resetAll())) return;
+          dispatch({ type: 'clearEndOfDayReminder' });
+          notify(t(language, 'resetDone'), t(language, 'resetDoneCopy'));
+          router.replace('/onboarding');
+        })();
       },
-    ]);
+    });
   };
 
   const handleCloseToday = () => {
-    Alert.alert(t(language, 'closeDayConfirmTitle'), t(language, 'closeDayConfirmCopy'), [
-      { text: t(language, 'cancel'), style: 'cancel' },
-      { text: t(language, 'closeDay'), style: 'destructive', onPress: () => void closeToday() },
-    ]);
+    confirmAction({
+      title: t(language, 'closeDayConfirmTitle'),
+      message: t(language, 'closeDayConfirmCopy'),
+      cancelText: t(language, 'cancel'),
+      confirmText: t(language, 'closeDay'),
+      destructive: true,
+      onConfirm: () => void closeToday(),
+    });
   };
 
   return (
@@ -330,8 +299,20 @@ export default function SettingsScreen() {
         <SettingsSection label={t(language, 'preferences')}>
           <SettingRow compact icon={Globe} title={t(language, 'language')} value={language === 'es' ? 'Español' : 'English'}>
             <View style={styles.segmentActions}>
-              <Button label="ES" onPress={() => void setLanguage('es')} variant={language === 'es' ? 'primary' : 'secondary'} />
-              <Button label="EN" onPress={() => void setLanguage('en')} variant={language === 'en' ? 'primary' : 'secondary'} />
+              <Button
+                accessibilityLabel={t(language, 'spanish')}
+                label="ES"
+                onPress={() => void setLanguage('es')}
+                selected={language === 'es'}
+                variant={language === 'es' ? 'primary' : 'secondary'}
+              />
+              <Button
+                accessibilityLabel={t(language, 'english')}
+                label="EN"
+                onPress={() => void setLanguage('en')}
+                selected={language === 'en'}
+                variant={language === 'en' ? 'primary' : 'secondary'}
+              />
             </View>
           </SettingRow>
 
@@ -355,6 +336,8 @@ export default function SettingsScreen() {
           <SettingRow compact icon={Bell} title={t(language, 'notifications')} value={t(language, 'endOfDayReminderCopy')}>
             <Toggle
               active={Boolean(endOfDayReminderTime)}
+              hint={t(language, 'endOfDayReminderCopy')}
+              label={t(language, 'endOfDayReminder')}
               onPress={() => {
                 if (endOfDayReminderTime) {
                   guarded(handleDisableEndOfDayReminder);
@@ -366,19 +349,16 @@ export default function SettingsScreen() {
               }}
             />
           </SettingRow>
-
-          <SettingRow compact icon={Snowflake} title={t(language, 'vibration')} value={t(language, 'vibrationCopy')}>
-            <Toggle active={vibrationEnabled} onPress={() => guarded(handleToggleVibration)} />
-          </SettingRow>
-
-          <SettingRow compact icon={Music} title={t(language, 'sound')} value={t(language, 'soundCopy')}>
-            <Toggle active={soundEnabled} onPress={() => guarded(handleToggleSound)} />
-          </SettingRow>
         </SettingsSection>
 
         <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'system')}>
           <SettingRow compact icon={Cpu} title={t(language, 'interjectionsToggle')} value={t(language, 'interjectionsToggleCopy')}>
-            <Toggle active={interjectionsEnabled} onPress={() => guarded(handleToggleInterjections)} />
+            <Toggle
+              active={interjectionsEnabled}
+              hint={t(language, 'interjectionsToggleCopy')}
+              label={t(language, 'interjectionsToggle')}
+              onPress={() => guarded(handleToggleInterjections)}
+            />
           </SettingRow>
 
           <SettingRow icon={Terminal} title={t(language, 'systemChatTitle')} value={t(language, 'systemChatRowCopy')}>
@@ -410,7 +390,7 @@ export default function SettingsScreen() {
           <SettingRow icon={Download} title={t(language, 'backup')} value={t(language, 'backupCopy')}>
             <View style={styles.inlineActions}>
               <Button icon={Download} label={t(language, 'export')} onPress={() => void exportBackup()} />
-              <Button icon={Upload} label={t(language, 'import')} onPress={() => dispatch({ type: 'setImportOpen', value: true })} variant="secondary" />
+              <Button icon={Upload} label={t(language, 'import')} onPress={() => void handleImportBackup()} variant="secondary" />
             </View>
           </SettingRow>
 
@@ -426,19 +406,22 @@ export default function SettingsScreen() {
           </SettingRow>
         </SettingsSection>
 
-        <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'demo')}>
-          <SettingRow icon={Sparkles} title={t(language, 'rankAscension')} value={t(language, 'rankAscensionCopy')}>
-            <View style={styles.inlineActions}>
-              <Button icon={Zap} label={t(language, 'viewAscension')} onPress={() => router.push('/rank-up')} variant="selected" />
-            </View>
-          </SettingRow>
+        {/* Atajos de QA (ascenso falso, repetir la pantalla de inicio): nunca en un build de usuario. */}
+        {isInternalBuild() ? (
+          <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'demo')}>
+            <SettingRow icon={Sparkles} title={t(language, 'rankAscension')} value={t(language, 'rankAscensionCopy')}>
+              <View style={styles.inlineActions}>
+                <Button icon={Zap} label={t(language, 'viewAscension')} onPress={() => router.push('/rank-up')} variant="selected" />
+              </View>
+            </SettingRow>
 
-          <SettingRow icon={Eye} title={t(language, 'startScreen')} value={t(language, 'startScreenCopy')}>
-            <View style={styles.inlineActions}>
-              <Button icon={ChevronLeft} label={t(language, 'goHome')} onPress={() => router.push('/onboarding')} variant="secondary" />
-            </View>
-          </SettingRow>
-        </SettingsSection>
+            <SettingRow icon={Eye} title={t(language, 'startScreen')} value={t(language, 'startScreenCopy')}>
+              <View style={styles.inlineActions}>
+                <Button icon={ChevronLeft} label={t(language, 'goHome')} onPress={() => router.push('/onboarding')} variant="secondary" />
+              </View>
+            </SettingRow>
+          </SettingsSection>
+        ) : null}
 
         <SettingsSection accent={colors.state.failed} label={t(language, 'danger')}>
           <SettingRow icon={Skull} iconColor={colors.state.failed} title={t(language, 'closeDay')} value={t(language, 'closeDayCopy')}>
@@ -455,18 +438,39 @@ export default function SettingsScreen() {
         </SettingsSection>
 
         <SettingsSection label={t(language, 'about')}>
-          <SettingRow compact icon={Info} iconColor={colors.state.pending} title={`LevelArc ${APP_VERSION}`} value={t(language, 'versionLine')} />
+          <SettingRow compact icon={Info} title="LevelArc" value={t(language, 'appVersion', appVersion)} />
+
+          <SettingRow icon={FileText} title={t(language, 'legal')} value={t(language, 'legalCopy')}>
+            <View style={styles.inlineActions}>
+              <Button
+                accessibilityRole="link"
+                label={t(language, 'privacyPolicy')}
+                onPress={() => openLink(getLegalUrl(language, 'privacy'))}
+                variant="secondary"
+              />
+              <Button
+                accessibilityRole="link"
+                label={t(language, 'termsOfUse')}
+                onPress={() => openLink(getLegalUrl(language, 'terms'))}
+                variant="secondary"
+              />
+            </View>
+          </SettingRow>
+
+          <SettingRow icon={Mail} title={t(language, 'contact')} value={t(language, 'contactCopy')}>
+            <View style={styles.inlineActions}>
+              <Button
+                accessibilityRole="link"
+                icon={Mail}
+                label={CONTACT_EMAIL}
+                onPress={() => openLink(`mailto:${CONTACT_EMAIL}`)}
+                variant="secondary"
+              />
+            </View>
+          </SettingRow>
         </SettingsSection>
       </ScrollView>
 
-      <ImportBackupModal
-        backupJson={backupJson}
-        language={language}
-        onCancel={() => dispatch({ type: 'setImportOpen', value: false })}
-        onChange={(value) => dispatch({ type: 'setBackupJson', value })}
-        onRestore={handleImportBackup}
-        visible={isImportOpen}
-      />
       <PlayerNameModal
         language={language}
         onCancel={() => dispatch({ type: 'setNameOpen', value: false })}
@@ -486,54 +490,6 @@ export default function SettingsScreen() {
         visible={isEndOfDayReminderOpen}
       />
     </Screen>
-  );
-}
-
-function ImportBackupModal({
-  backupJson,
-  language,
-  onCancel,
-  onChange,
-  onRestore,
-  visible,
-}: {
-  backupJson: string;
-  language: Language;
-  onCancel: () => void;
-  onChange: (value: string) => void;
-  onRestore: () => void;
-  visible: boolean;
-}) {
-  return (
-    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalPanel}>
-          <Text style={styles.modalKicker}>◆ {t(language, 'systemLabel')}</Text>
-          <Text style={styles.modalTitle}>{t(language, 'importBackup')}</Text>
-          <Text style={styles.modalCopy}>{t(language, 'importBackupCopy')}</Text>
-          <TextInput
-            multiline
-            cursorColor={colors.brand.cyanCore}
-            onChangeText={onChange}
-            placeholder={t(language, 'pasteBackupJson')}
-            placeholderTextColor={colors.state.pending}
-            selectionColor={colors.brand.cyanShadow}
-            style={styles.backupInput}
-            textAlignVertical="top"
-            value={backupJson}
-          />
-          <View style={styles.modalActions}>
-            <Button label={t(language, 'cancel')} onPress={onCancel} variant="secondary" />
-            <Button
-              disabled={!backupJson.trim()}
-              label={t(language, 'restore')}
-              onPress={onRestore}
-              variant={backupJson.trim() ? 'primary' : 'secondary'}
-            />
-          </View>
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -560,6 +516,7 @@ function PlayerNameModal({
           <Text style={styles.modalTitle}>{t(language, 'changeName')}</Text>
           <Text style={styles.modalCopy}>{t(language, 'nameHelp')}</Text>
           <TextInput
+            accessibilityLabel={t(language, 'playerName')}
             autoCapitalize="words"
             cursorColor={colors.brand.cyanCore}
             maxLength={24}
@@ -576,7 +533,6 @@ function PlayerNameModal({
               disabled={playerName.trim().length < 2}
               label={t(language, 'saveName')}
               onPress={onSave}
-              variant={playerName.trim().length >= 2 ? 'primary' : 'secondary'}
             />
           </View>
         </View>
@@ -674,11 +630,14 @@ function SettingRow({
   );
 }
 
-function Toggle({ active, onPress }: { active: boolean; onPress: () => void }) {
+function Toggle({ active, hint, label, onPress }: { active: boolean; hint: string; label: string; onPress: () => void }) {
   return (
     <Pressable
+      accessibilityHint={hint}
+      accessibilityLabel={label}
       accessibilityRole="switch"
       accessibilityState={{ checked: active }}
+      hitSlop={TOGGLE_HIT_SLOP}
       onPress={onPress}
       style={[styles.toggle, active && styles.toggleActive]}
     >
@@ -686,6 +645,9 @@ function Toggle({ active, onPress }: { active: boolean; onPress: () => void }) {
     </Pressable>
   );
 }
+
+// El interruptor mide 44×28 pt: el hitSlop lo lleva al mínimo táctil de 44 pt de alto.
+const TOGGLE_HIT_SLOP = { top: 8, bottom: 8 };
 
 const styles = StyleSheet.create({
   scroll: {
@@ -818,18 +780,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginTop: 8,
-  },
-  backupInput: {
-    backgroundColor: colors.background.card,
-    borderColor: colors.background.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    color: colors.brand.bone,
-    fontFamily: typography.font.bodyRegular,
-    fontSize: 13,
-    marginTop: 14,
-    minHeight: 180,
-    padding: 12,
   },
   nameInput: {
     backgroundColor: colors.background.card,
