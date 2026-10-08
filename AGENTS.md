@@ -6,7 +6,7 @@ Expo HAS CHANGED. Before changing Expo-specific code, read the exact versioned d
 
 https://docs.expo.dev/versions/v56.0.0/
 
-Do not assume older Expo Router, Expo SQLite, notifications, or NativeWind setup still applies.
+Do not assume older Expo Router, Expo SQLite or notifications setup still applies.
 
 ## Referencias obligatorias
 
@@ -49,7 +49,7 @@ MVP stack:
 - Expo Router.
 - Expo Updates / EAS Update.
 - Zustand.
-- NativeWind/Tailwind.
+- Styling with `StyleSheet` and the tokens in `src/theme/` (no NativeWind/Tailwind).
 - SQLite on native through `expo-sqlite` with raw SQL (no ORM).
 - AsyncStorage fallback on web for development preview only.
 - Vitest for pure business logic and for the SQLite repository (real SQL through `node:sqlite`; needs Node >= 22.13).

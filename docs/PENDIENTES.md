@@ -31,7 +31,7 @@ Nada de la versión `1.2.0` se ha ejecutado en un Android real. La lista complet
 - [ ] Reanudar la descarga del modelo tras un corte; hoy se empieza de nuevo.
 - [ ] iOS y App Store.
 - [ ] Subir a Expo SDK 57 o a los últimos parches de SDK 56 (avisos de `expo-doctor`, incluida la regresión de memoria de Hermes V1). Cambia el binario y exige repetir la QA.
-- [ ] Retirar NativeWind/Tailwind: está configurado pero ninguna pantalla usa `className`.
+- [x] Retirar NativeWind/Tailwind: estaba configurado pero ninguna pantalla usaba `className`.
 - [ ] Quitar la referencia a "Solo Leveling" del prompt interno del LLM (`src/ai/llamaEngine.ts`). No se muestra al usuario, pero el proyecto evita esa marca.
 - [ ] Registro de marca (USPTO) si se va a registrar.
 - [ ] Más misiones no generativas y estadísticas avanzadas.
