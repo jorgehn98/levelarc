@@ -68,6 +68,17 @@ export function canClaimPerfectWeek(mission: PerfectWeekEntry | null | undefined
   return getPerfectWeekMissionProgress(mission.perfectStreakDays).isComplete;
 }
 
+// ¿Mostrar la tarjeta de racha perfecta en Hoy? Solo cuando el pago está cerca: con 6/7 en el
+// ciclo (falta un día perfecto, sea hoy o mañana) y el propio día de pago, reclamable o ya
+// reclamado. `perfectStreakDays` incluye hoy solo si hoy ya es perfecto, así que un múltiplo de 7
+// con el día sin completar es el pago de ayer: el ciclo nuevo va por 0 y la tarjeta se oculta.
+export function shouldShowPerfectWeekMission(mission: PerfectWeekEntry | null | undefined): boolean {
+  if (!mission) return false;
+  const cycle = getPerfectWeekMissionProgress(mission.perfectStreakDays);
+  if (cycle.isComplete) return mission.objetivo > 0 && mission.completados >= mission.objetivo;
+  return cycle.completed === PERFECT_WEEK_STREAK_DAYS - 1;
+}
+
 // Días programados consecutivos que cumplen `qualifies`, contando hacia atrás desde dateKey
 // (incluido). Misma convención que las rachas de hábito (streaks.ts): un día sin hábitos programados
 // (objetivo 0) ni rompe ni suma. Un día sin fila sí rompe: no hay registro de que fuera descanso.
