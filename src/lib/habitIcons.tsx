@@ -30,11 +30,11 @@ export const habitIcons = [
   { id: 'music', label: 'Música', icon: Music },
   { id: 'sparkles', label: 'Crear', icon: Sparkles },
   { id: 'smile', label: 'Ánimo', icon: Smile },
-] as const satisfies ReadonlyArray<{
+] as const satisfies readonly {
   id: string;
   label: string;
   icon: ComponentType<LucideProps>;
-}>;
+}[];
 
 export type HabitIconId = (typeof habitIcons)[number]['id'];
 
