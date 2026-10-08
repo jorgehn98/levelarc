@@ -18,6 +18,7 @@ function makeContext(overrides: Partial<SystemContext> = {}): SystemContext {
     faltaParaNivel: 80,
     rachaMisiones: 4,
     atributoTop: { id: 'voluntad', nivel: 6 },
+    habitosActivos: 6,
     habitosHoyTotal: 5,
     completadosHoy: 3,
     pendientesHoy: 2,
@@ -37,6 +38,7 @@ describe('buildSystemContextText', () => {
     expect(text).toContain('rango: D');
     expect(text).toContain('progreso_nivel: 50%');
     expect(text).toContain('atributo_top: voluntad (nivel 6)');
+    expect(text).toContain('habitos_activos: 6');
     expect(text).toContain('pendientes_hoy: 2');
     expect(text).toContain('dia_perfecto: no');
   });

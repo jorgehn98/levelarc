@@ -27,7 +27,7 @@ async function storedEssence({ sqlite }: Repository) {
 describe('concurrent mutations', () => {
   it('grants a double-tapped completion exactly once', async () => {
     const ctx = await openRepository();
-    const id = await ctx.repo.createHabit(habitInput({ importancia: 5 }));
+    const id = (await ctx.repo.createHabit(habitInput({ importancia: 5 }), 'es')).id;
 
     await Promise.all([ctx.repo.incrementHabitProgress(id), ctx.repo.incrementHabitProgress(id)]);
 
@@ -38,8 +38,8 @@ describe('concurrent mutations', () => {
 
   it('does not lose XP when two different habits complete at once', async () => {
     const ctx = await openRepository();
-    const a = await ctx.repo.createHabit(habitInput({ importancia: 5 }));
-    const b = await ctx.repo.createHabit(habitInput({ importancia: 3 }));
+    const a = (await ctx.repo.createHabit(habitInput({ importancia: 5 }), 'es')).id;
+    const b = (await ctx.repo.createHabit(habitInput({ importancia: 3 }), 'es')).id;
 
     await Promise.all([ctx.repo.incrementHabitProgress(a), ctx.repo.incrementHabitProgress(b)]);
 
@@ -50,7 +50,7 @@ describe('concurrent mutations', () => {
 
   it('grants a double-tapped mission claim exactly once', async () => {
     const ctx = await openRepository();
-    const id = await ctx.repo.createHabit(habitInput({ importancia: 1 }));
+    const id = (await ctx.repo.createHabit(habitInput({ importancia: 1 }), 'es')).id;
     await ctx.repo.incrementHabitProgress(id);
 
     await Promise.all([ctx.repo.claimDailyMission(), ctx.repo.claimDailyMission()]);
@@ -61,7 +61,7 @@ describe('concurrent mutations', () => {
 
   it('rolls back a mutation that fails midway and keeps the queue usable', async () => {
     const ctx = await openRepository();
-    const id = await ctx.repo.createHabit(habitInput({ importancia: 5 }));
+    const id = (await ctx.repo.createHabit(habitInput({ importancia: 5 }), 'es')).id;
     const realRun = ctx.sqlite.runAsync.bind(ctx.sqlite);
     const spy = vi.spyOn(ctx.sqlite, 'runAsync').mockImplementation(async (source, ...params) => {
       // Falla al actualizar la caché del jugador, después de haber insertado el evento.
@@ -84,7 +84,7 @@ describe('concurrent mutations', () => {
 describe('habit actions', () => {
   it('awards a countable habit only when the target is reached', async () => {
     const ctx = await openRepository();
-    const id = await ctx.repo.createHabit(habitInput({ importancia: 2, tipo: 'contable', meta: 3 }));
+    const id = (await ctx.repo.createHabit(habitInput({ importancia: 2, tipo: 'contable', meta: 3 }), 'es')).id;
 
     await ctx.repo.incrementHabitProgress(id);
     await ctx.repo.incrementHabitProgress(id);
@@ -101,8 +101,8 @@ describe('habit actions', () => {
 
   it('restores exact XP, attributes and Esencia on undo', async () => {
     const ctx = await openRepository();
-    const a = await ctx.repo.createHabit(habitInput({ importancia: 3 }));
-    const b = await ctx.repo.createHabit(habitInput({ importancia: 2, atributos: 'fuerza' }));
+    const a = (await ctx.repo.createHabit(habitInput({ importancia: 3 }), 'es')).id;
+    const b = (await ctx.repo.createHabit(habitInput({ importancia: 2, atributos: 'fuerza' }), 'es')).id;
     await ctx.repo.incrementHabitProgress(a);
     const before = await ctx.repo.getPlayer();
     expect(before).toMatchObject({ xpTotal: 15, esencia: 6 });
@@ -119,9 +119,9 @@ describe('habit actions', () => {
 
   it('never drops below the level floor on failure and stores the nominal penalty', async () => {
     const ctx = await openRepository();
-    const a = await ctx.repo.createHabit(habitInput({ importancia: 5 }));
-    const b = await ctx.repo.createHabit(habitInput({ importancia: 3 }));
-    const c = await ctx.repo.createHabit(habitInput({ importancia: 5 }));
+    const a = (await ctx.repo.createHabit(habitInput({ importancia: 5 }), 'es')).id;
+    const b = (await ctx.repo.createHabit(habitInput({ importancia: 3 }), 'es')).id;
+    const c = (await ctx.repo.createHabit(habitInput({ importancia: 5 }), 'es')).id;
     await ctx.repo.incrementHabitProgress(a);
     await ctx.repo.incrementHabitProgress(b);
 
@@ -134,10 +134,10 @@ describe('habit actions', () => {
 
   it('close-day penalises only untouched habits and is idempotent', async () => {
     const ctx = await openRepository();
-    const untouched = await ctx.repo.createHabit(habitInput({ nombre: 'untouched', importancia: 1 }));
-    const partial = await ctx.repo.createHabit(habitInput({ nombre: 'partial', tipo: 'contable', meta: 3 }));
-    const done = await ctx.repo.createHabit(habitInput({ nombre: 'done', importancia: 5 }));
-    const failed = await ctx.repo.createHabit(habitInput({ nombre: 'failed', importancia: 1 }));
+    const untouched = (await ctx.repo.createHabit(habitInput({ nombre: 'untouched', importancia: 1 }), 'es')).id;
+    const partial = (await ctx.repo.createHabit(habitInput({ nombre: 'partial', tipo: 'contable', meta: 3 }), 'es')).id;
+    const done = (await ctx.repo.createHabit(habitInput({ nombre: 'done', importancia: 5 }), 'es')).id;
+    const failed = (await ctx.repo.createHabit(habitInput({ nombre: 'failed', importancia: 1 }), 'es')).id;
     await ctx.repo.incrementHabitProgress(partial);
     await ctx.repo.incrementHabitProgress(done);
     await ctx.repo.markHabitFailed(failed);
@@ -169,7 +169,7 @@ describe('ledger and player cache', () => {
   it('keeps the cache equal to the ledger across a claimed mission and a clamped penalty', async () => {
     const ctx = await openRepository();
     goTo(0, '21:00:00');
-    const a = await ctx.repo.createHabit(habitInput({ importancia: 5 }));
+    const a = (await ctx.repo.createHabit(habitInput({ importancia: 5 }), 'es')).id;
     await ctx.repo.incrementHabitProgress(a);
     goTo(0, '21:05:00');
     await ctx.repo.claimDailyMission();
@@ -184,7 +184,7 @@ describe('ledger and player cache', () => {
 
     // Un deshacer que no tiene que ver obliga a reconstruir el jugador desde el ledger.
     goTo(1, '08:00:00');
-    const b = await ctx.repo.createHabit(habitInput({ importancia: 1 }));
+    const b = (await ctx.repo.createHabit(habitInput({ importancia: 1 }), 'es')).id;
     await ctx.repo.incrementHabitProgress(b);
     expect((await ctx.repo.getPlayer()).xpTotal).toBe(35);
     goTo(1, '08:01:00');
@@ -197,7 +197,7 @@ describe('ledger and player cache', () => {
     const ctx = await openRepository();
     const ids: string[] = [];
     for (let index = 0; index < 4; index += 1) {
-      ids.push(await ctx.repo.createHabit(habitInput({ importancia: 1 })));
+      ids.push((await ctx.repo.createHabit(habitInput({ importancia: 1 }), 'es')).id);
     }
     for (const id of ids) await ctx.repo.incrementHabitProgress(id);
     await ctx.repo.claimDailyMission();
@@ -208,8 +208,8 @@ describe('ledger and player cache', () => {
     // Con objetivo 3 el bonus sería 10 XP / 5 Esencia; el ya reclamado se conserva.
     expect(await ctx.repo.getDailyMission()).toMatchObject({ objetivo: 3, reclamada: true, xpBonus: 15, esenciaOtorgada: 8 });
 
-    await ctx.repo.unarchiveHabit(ids[3]);
-    await ctx.repo.updateHabit(ids[0], habitInput({ importancia: 4 }));
+    await ctx.repo.unarchiveHabit(ids[3], 'es');
+    await ctx.repo.updateHabit(ids[0], habitInput({ importancia: 4 }), 'es');
     expect(await ctx.repo.getDailyMission()).toMatchObject({ objetivo: 4, reclamada: true, xpBonus: 15, esenciaOtorgada: 8 });
 
     // Deshacer un hábito deja el día incompleto: se revoca exactamente lo que se concedió.
@@ -222,7 +222,7 @@ describe('ledger and player cache', () => {
 describe('missions and streaks', () => {
   it('pays the perfect-streak bonus on day 7 and 14 but not on day 8', async () => {
     const ctx = await openRepository();
-    const id = await ctx.repo.createHabit(habitInput({ importancia: 1 }));
+    const id = (await ctx.repo.createHabit(habitInput({ importancia: 1 }), 'es')).id;
     const paidOn: number[] = [];
 
     for (let day = 1; day <= 14; day += 1) {
@@ -242,7 +242,7 @@ describe('missions and streaks', () => {
 
   it('does not break mission or perfect streaks on days without scheduled habits', async () => {
     const ctx = await openRepository();
-    const id = await ctx.repo.createHabit(habitInput({ diasSemana: '1,2,3,4,5' }));
+    const id = (await ctx.repo.createHabit(habitInput({ diasSemana: '1,2,3,4,5' }), 'es')).id;
 
     for (let day = 0; day < 5; day += 1) {
       goTo(day);
@@ -279,7 +279,7 @@ describe('missions and streaks', () => {
 
   it('counts streaks longer than a month, live and when recalculated', async () => {
     const ctx = await openRepository();
-    const id = await ctx.repo.createHabit(habitInput());
+    const id = (await ctx.repo.createHabit(habitInput(), 'es')).id;
 
     for (let day = 0; day < 40; day += 1) {
       goTo(day);
@@ -301,7 +301,7 @@ describe('essence', () => {
     const ctx = await openRepository();
     const ids: string[] = [];
     for (let index = 0; index < 3; index += 1) {
-      ids.push(await ctx.repo.createHabit(habitInput({ importancia: 5 })));
+      ids.push((await ctx.repo.createHabit(habitInput({ importancia: 5 }), 'es')).id);
     }
     for (const id of ids) await ctx.repo.incrementHabitProgress(id);
     // 3 × 10 de completar + 15 por subir al nivel 2.
@@ -346,10 +346,10 @@ describe('backup', () => {
   async function seedRealisticDatabase(ctx: Repository) {
     const { repo } = ctx;
     await repo.updatePlayerName('Jorge');
-    const read = await repo.createHabit(habitInput({ nombre: 'Leer', importancia: 5, horaRecordatorio: '08:30' }));
-    const water = await repo.createHabit(habitInput({ nombre: 'Agua', importancia: 2, tipo: 'contable', meta: 3, atributos: 'vitalidad,fuerza' }));
-    const gym = await repo.createHabit(habitInput({ nombre: 'Gym', importancia: 4, diasSemana: '1,3,5', atributos: 'fuerza' }));
-    const old = await repo.createHabit(habitInput({ nombre: 'Viejo', importancia: 1 }));
+    const read = (await repo.createHabit(habitInput({ nombre: 'Leer', importancia: 5, horaRecordatorio: '08:30' }), 'es')).id;
+    const water = (await repo.createHabit(habitInput({ nombre: 'Agua', importancia: 2, tipo: 'contable', meta: 3, atributos: 'vitalidad,fuerza' }), 'es')).id;
+    const gym = (await repo.createHabit(habitInput({ nombre: 'Gym', importancia: 4, diasSemana: '1,3,5', atributos: 'fuerza' }), 'es')).id;
+    const old = (await repo.createHabit(habitInput({ nombre: 'Viejo', importancia: 1 }), 'es')).id;
 
     for (let day = 0; day < 9; day += 1) {
       goTo(day, '08:00:00');
@@ -408,10 +408,9 @@ describe('backup', () => {
 
     expect(comparable(await target.repo.exportAllData())).toEqual(comparable(exported));
     expect({ ...(await target.repo.getPlayer()), actualizadoEn: '' }).toEqual({ ...sourcePlayer, actualizadoEn: '' });
-    // Los recordatorios se reprograman en el dispositivo de destino, solo para hábitos activos.
-    expect(vi.mocked(target.notifications.scheduleHabitReminder).mock.calls.filter(([, time]) => time)).toEqual([
-      ['Leer', '08:30', '1,2,3,4,5,6,7'],
-    ]);
+    // La importación no programa nada: los hábitos entran sin id y syncReminders los reprograma.
+    expect(vi.mocked(target.notifications.scheduleHabitReminder)).not.toHaveBeenCalled();
+    expect(await count(target, 'habits', 'notification_id IS NOT NULL')).toBe(0);
   });
 
   it('imports a backup with more chat history than the limit', async () => {
@@ -442,7 +441,7 @@ describe('backup', () => {
     ['negative completion', -25],
   ])('rejects a ledger with a %s xp delta and leaves the database untouched', async (_label, xpDelta) => {
     const ctx = await openRepository();
-    const existing = await ctx.repo.createHabit(habitInput({ importancia: 3 }));
+    const existing = (await ctx.repo.createHabit(habitInput({ importancia: 3 }), 'es')).id;
     await ctx.repo.incrementHabitProgress(existing);
 
     await expect(ctx.repo.importAllData({ habits: [habitRow], events: [{ ...eventRow, xp_delta: xpDelta }] })).rejects.toThrow(
@@ -517,32 +516,75 @@ describe('backup', () => {
     expect(await ctx.repo.listUnlockedAchievementIds()).toEqual(['ach_first_habit']);
   });
 
-  it('cancels the reminders it created and restores the old ones when an import fails', async () => {
+  it('cancels the replaced reminders only when the import goes in', async () => {
+    const ctx = await openRepository();
+    const cancel = vi.mocked(ctx.notifications.cancelHabitReminder);
+    const existing = (await ctx.repo.createHabit(habitInput({ horaRecordatorio: '07:00' }), 'es')).id;
+    const oldNotification = (await ctx.repo.getHabit(existing))?.notificationId;
+    expect(oldNotification).toBeTruthy();
+
+    await expect(ctx.repo.importAllData({ habits: [habitRow], events: [{ ...eventRow, xp_delta: 1e300 }] })).rejects.toThrow('Invalid backup number');
+
+    expect(cancel).not.toHaveBeenCalled();
+    expect((await ctx.repo.getHabit(existing))?.notificationId).toBe(oldNotification);
+
+    await ctx.repo.importAllData({ habits: [{ ...habitRow, hora_recordatorio: '08:00', notification_id: 'from-another-device' }] });
+
+    expect(cancel.mock.calls.map(([id]) => id)).toEqual([oldNotification]);
+    expect(await ctx.repo.getHabit('h1')).toMatchObject({ horaRecordatorio: '08:00', notificationId: null });
+  });
+});
+
+describe('habit reminders', () => {
+  it('saves the habit and reports it when notifications are denied', async () => {
+    const ctx = await openRepository();
+    vi.mocked(ctx.notifications.hasNotificationPermission).mockResolvedValue(false);
+
+    const created = await ctx.repo.createHabit(habitInput({ horaRecordatorio: '07:00' }), 'es');
+
+    expect(created.reminder).toBe('denied');
+    expect(await ctx.repo.getHabit(created.id)).toMatchObject({ horaRecordatorio: '07:00', notificationId: null });
+    expect((await ctx.repo.createHabit(habitInput(), 'es')).reminder).toBe('none');
+
+    vi.mocked(ctx.notifications.hasNotificationPermission).mockResolvedValue(true);
+    expect(await ctx.repo.updateHabit(created.id, habitInput({ horaRecordatorio: '07:00' }), 'es')).toBe('scheduled');
+    expect((await ctx.repo.getHabit(created.id))?.notificationId).toBeTruthy();
+  });
+
+  it('never schedules a reminder for an archived habit', async () => {
     const ctx = await openRepository();
     const schedule = vi.mocked(ctx.notifications.scheduleHabitReminder);
-    const cancel = vi.mocked(ctx.notifications.cancelHabitReminder);
-    const existing = await ctx.repo.createHabit(habitInput({ horaRecordatorio: '07:00' }));
-    const oldNotification = (await ctx.repo.getHabit(existing))?.notificationId;
-    schedule
-      .mockImplementationOnce(async () => 'new-1')
-      .mockImplementationOnce(async () => {
-        throw new Error('scheduler unavailable');
-      });
-    cancel.mockClear();
+    const { id } = await ctx.repo.createHabit(habitInput({ horaRecordatorio: '07:00' }), 'es');
+    await ctx.repo.archiveHabit(id);
+    schedule.mockClear();
 
-    await expect(
-      ctx.repo.importAllData({
-        habits: [
-          { ...habitRow, id: 'n1', hora_recordatorio: '08:00' },
-          { ...habitRow, id: 'n2', hora_recordatorio: '09:00' },
-        ],
-      }),
-    ).rejects.toThrow('scheduler unavailable');
+    expect(await ctx.repo.updateHabit(id, habitInput({ nombre: 'Leer más', horaRecordatorio: '09:00' }), 'es')).toBe('none');
 
-    expect(cancel.mock.calls.map(([id]) => id)).toEqual([oldNotification, 'new-1']);
-    const restored = await ctx.repo.getHabit(existing);
-    expect(restored?.notificationId).toBeTruthy();
-    expect(restored?.notificationId).not.toBe(oldNotification);
-    expect((await ctx.repo.listHabits()).map((habit) => habit.id)).toEqual([existing]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(await ctx.repo.getHabit(id)).toMatchObject({ nombre: 'Leer más', horaRecordatorio: '09:00', notificationId: null });
+  });
+
+  it('cancels leftover ids before scheduling when a habit is unarchived', async () => {
+    const ctx = await openRepository();
+    const { id } = await ctx.repo.createHabit(habitInput({ horaRecordatorio: '07:00' }), 'en');
+    await ctx.repo.archiveHabit(id);
+    // Estado que dejaban las versiones que programaban al editar un archivado.
+    await ctx.sqlite.runAsync("UPDATE habits SET notification_id = 'stale-1,stale-2' WHERE id = ?", [id]);
+    const order: string[] = [];
+    vi.mocked(ctx.notifications.cancelHabitReminder).mockImplementation(async (notificationId) => {
+      order.push(`cancel:${notificationId}`);
+    });
+    const schedule = vi.mocked(ctx.notifications.scheduleHabitReminder);
+    schedule.mockClear();
+    schedule.mockImplementationOnce(async () => {
+      order.push('schedule');
+      return { status: 'scheduled', notificationId: 'fresh' };
+    });
+
+    expect(await ctx.repo.unarchiveHabit(id, 'en')).toBe('scheduled');
+
+    expect(order).toEqual(['cancel:stale-1,stale-2', 'schedule']);
+    expect(schedule.mock.calls[0]).toEqual(['Leer', '07:00', '1,2,3,4,5,6,7', 'en']);
+    expect(await ctx.repo.getHabit(id)).toMatchObject({ archivado: false, notificationId: 'fresh' });
   });
 });

@@ -36,7 +36,9 @@ import { BACKUP_LIMITS, isAiRole, normalizeBackupData, type NormalizedBackup } f
 import { getTodayWeekday, shiftDateKey, toDateKey, toIsoTimestamp } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
+import type { Language } from '@/i18n';
 import { cancelHabitReminder, scheduleHabitReminder } from '@/lib/notifications';
+import type { ReminderResult, ReminderStatus } from '@/lib/reminderPlan';
 import type { Rank } from '@/theme/colors';
 
 import type {
@@ -268,10 +270,11 @@ export async function getHabitInsight(id: string, dateKey = toDateKey()): Promis
 
 // Los recordatorios se programan y cancelan FUERA de la cola: programar puede abrir el diálogo de
 // permisos y no debe retener una transacción. Si la escritura falla, se cancela lo recién creado.
-export async function createHabit(input: HabitInput): Promise<string> {
+// El hábito se guarda aunque el recordatorio no se pueda programar; el estado devuelto lo cuenta.
+export async function createHabit(input: HabitInput, language: Language): Promise<{ id: string; reminder: ReminderStatus }> {
   const id = createId();
   const nombre = input.nombre.trim();
-  const notificationId = await scheduleHabitReminder(nombre, input.horaRecordatorio, input.diasSemana);
+  const reminder = await scheduleHabitReminder(nombre, input.horaRecordatorio, input.diasSemana, language);
   try {
     await mutate(() =>
       sqlite.runAsync(
@@ -289,21 +292,26 @@ export async function createHabit(input: HabitInput): Promise<string> {
           normalizeMeta(input),
           input.diasSemana,
           input.horaRecordatorio,
-          notificationId,
+          reminder.notificationId,
           toIsoTimestamp(),
         ],
       ),
     );
   } catch (error) {
-    await cancelHabitReminder(notificationId);
+    await cancelHabitReminder(reminder.notificationId);
     throw error;
   }
-  return id;
+  return { id, reminder: reminder.status };
 }
 
-export async function updateHabit(id: string, input: HabitInput) {
+export async function updateHabit(id: string, input: HabitInput, language: Language): Promise<ReminderStatus> {
   const nombre = input.nombre.trim();
-  const notificationId = await scheduleHabitReminder(nombre, input.horaRecordatorio, input.diasSemana);
+  // Un hábito archivado guarda su hora, pero no tiene recordatorio hasta que se desarchiva.
+  const current = await getHabit(id);
+  if (!current) return 'none';
+  const reminder: ReminderResult = current.archivado
+    ? { status: 'none', notificationId: null }
+    : await scheduleHabitReminder(nombre, input.horaRecordatorio, input.diasSemana, language);
   let previous: HabitRecord | null;
   try {
     previous = await mutate(async () => {
@@ -324,18 +332,24 @@ export async function updateHabit(id: string, input: HabitInput) {
           normalizeMeta(input),
           input.diasSemana,
           input.horaRecordatorio,
-          notificationId,
+          existing.archivado ? null : reminder.notificationId,
           id,
         ],
       );
       return existing;
     });
   } catch (error) {
-    await cancelHabitReminder(notificationId);
+    await cancelHabitReminder(reminder.notificationId);
     throw error;
   }
-  // Se cancela el recordatorio que este update sustituyó; si el hábito no existía, el recién creado.
-  await cancelHabitReminder(previous ? previous.notificationId : notificationId);
+  // Se cancela el recordatorio que este update sustituyó. Si el hábito desapareció o se archivó
+  // mientras se programaba, sobra también el recién creado.
+  await cancelHabitReminder(previous?.notificationId ?? null);
+  if (!previous || previous.archivado) {
+    await cancelHabitReminder(reminder.notificationId);
+    return 'none';
+  }
+  return reminder.status;
 }
 
 export async function archiveHabit(id: string) {
@@ -347,25 +361,61 @@ export async function archiveHabit(id: string) {
   await cancelHabitReminder(notificationId);
 }
 
-export async function unarchiveHabit(id: string) {
+export async function unarchiveHabit(id: string, language: Language): Promise<ReminderStatus> {
   const habit = await getHabit(id);
-  if (!habit?.archivado) return;
-  const notificationId = await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana);
+  if (!habit?.archivado) return 'none';
+  // Un archivado no debería guardar ids; si quedó alguno, se cancela para no duplicar el aviso.
+  await cancelHabitReminder(habit.notificationId);
+  const reminder = await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana, language);
   let restored: boolean;
   try {
     restored = await mutate(async () => {
       const result = await sqlite.runAsync(
         'UPDATE habits SET archivado = 0, notification_id = ? WHERE id = ? AND archivado = 1',
-        [notificationId, id],
+        [reminder.notificationId, id],
       );
       return result.changes > 0;
     });
   } catch (error) {
-    await cancelHabitReminder(notificationId);
+    await cancelHabitReminder(reminder.notificationId);
     throw error;
   }
   // Otra llamada lo desarchivó antes: su recordatorio es el válido.
-  if (!restored) await cancelHabitReminder(notificationId);
+  if (!restored) {
+    await cancelHabitReminder(reminder.notificationId);
+    return 'none';
+  }
+  return reminder.status;
+}
+
+// Guarda los ids que dejó una sincronización de recordatorios (src/lib/reminders.ts). Cada fila se
+// actualiza solo si el hábito sigue como la sincronización lo leyó; devuelve los ids que ya no
+// corresponden a nada, para que el llamador los cancele fuera de la cola.
+export function saveHabitNotificationIds(
+  entries: { habit: HabitRecord; notificationId: string | null }[],
+): Promise<string[]> {
+  return mutate(async () => {
+    const orphaned: string[] = [];
+    for (const { habit, notificationId } of entries) {
+      const result = await sqlite.runAsync(
+        `
+          UPDATE habits SET notification_id = ?
+          WHERE id = ? AND archivado = ? AND nombre = ? AND dias_semana = ? AND hora_recordatorio IS ? AND notification_id IS ?
+        `,
+        [
+          notificationId,
+          habit.id,
+          habit.archivado ? 1 : 0,
+          habit.nombre,
+          habit.diasSemana,
+          habit.horaRecordatorio,
+          habit.notificationId,
+        ],
+      );
+      if (result.changes === 0 && notificationId) orphaned.push(notificationId);
+    }
+    return orphaned;
+  });
 }
 
 export function incrementHabitProgress(habitId: string, dateKey = toDateKey()) {
@@ -699,6 +749,7 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
     faltaParaNivel: Math.max(0, progress.neededForLevel - progress.gainedInLevel),
     rachaMisiones: player.rachaMisiones,
     atributoTop,
+    habitosActivos: (await listHabits()).length,
     habitosHoyTotal,
     completadosHoy,
     pendientesHoy,
@@ -834,38 +885,16 @@ export function exportAllData() {
   }));
 }
 
+// No programa recordatorios: los hábitos importados entran sin id y el llamador sincroniza después
+// (syncReminders). Los de los hábitos sustituidos se cancelan solo si la importación entró.
 export async function importAllData(data: unknown) {
   const backup = normalizeBackupData(data);
-  const previousHabits = await listHabits(true);
-  const scheduled: (string | null)[] = [];
-
-  try {
-    // Primero se cancelan los recordatorios actuales para no acumularlos con los nuevos.
-    await cancelReminders(previousHabits.map((habit) => habit.notificationId));
-    const habits: HabitRecord[] = [];
-    for (const habit of backup.habits) {
-      const notificationId = habit.archivado
-        ? null
-        : await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana);
-      scheduled.push(notificationId);
-      habits.push({ ...habit, notificationId });
-    }
-    await mutate(() => replaceAllData({ ...backup, habits }));
-  } catch (error) {
-    // Nada se importó: fuera los recordatorios recién creados y de vuelta los de los hábitos que
-    // siguen en la base.
-    await cancelReminders(scheduled);
-    await restoreReminders(previousHabits).catch(() => undefined);
-    throw error;
-  }
-}
-
-async function restoreReminders(habits: HabitRecord[]) {
-  for (const habit of habits) {
-    if (habit.archivado || !habit.notificationId) continue;
-    const notificationId = await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana);
-    await mutate(() => sqlite.runAsync('UPDATE habits SET notification_id = ? WHERE id = ?', [notificationId, habit.id]));
-  }
+  const previousIds = await mutate(async () => {
+    const previous = await listHabits(true);
+    await replaceAllData({ ...backup, habits: backup.habits.map((habit) => ({ ...habit, notificationId: null })) });
+    return previous.map((habit) => habit.notificationId);
+  });
+  await cancelReminders(previousIds);
 }
 
 async function cancelReminders(notificationIds: (string | null)[]) {

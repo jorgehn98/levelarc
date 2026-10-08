@@ -23,7 +23,7 @@ afterEach(() => {
 describe('web repository parity', () => {
   it('pays the perfect-streak bonus on day 7 and 14 only, skipping rest days', async () => {
     const repo = await openWebRepository();
-    const id = await repo.createHabit(habitInput({ diasSemana: '1,2,3,4,5,6' }));
+    const id = (await repo.createHabit(habitInput({ diasSemana: '1,2,3,4,5,6' }))).id;
     const paidOn: number[] = [];
 
     // 17 días naturales; los domingos (offset 6 y 13) no hay nada programado.
@@ -48,7 +48,7 @@ describe('web repository parity', () => {
   it('creates no Esencia through complete, spend, undo, redo', async () => {
     const repo = await openWebRepository();
     const ids: string[] = [];
-    for (let index = 0; index < 3; index += 1) ids.push(await repo.createHabit(habitInput({ importancia: 5 })));
+    for (let index = 0; index < 3; index += 1) ids.push((await repo.createHabit(habitInput({ importancia: 5 }))).id);
     for (const id of ids) await repo.incrementHabitProgress(id);
     expect((await repo.getPlayer()).esencia).toBe(45);
 
@@ -64,7 +64,7 @@ describe('web repository parity', () => {
   it('keeps a claimed bonus fixed and persists the revocation done while claiming', async () => {
     const repo = await openWebRepository();
     const ids: string[] = [];
-    for (let index = 0; index < 4; index += 1) ids.push(await repo.createHabit(habitInput()));
+    for (let index = 0; index < 4; index += 1) ids.push((await repo.createHabit(habitInput())).id);
     for (const id of ids) await repo.incrementHabitProgress(id);
     await repo.claimDailyMission();
     await repo.archiveHabit(ids[3]);
@@ -83,7 +83,7 @@ describe('web repository parity', () => {
 
   it('round-trips its own export and recomputes a tampered player cache', async () => {
     const repo = await openWebRepository();
-    const id = await repo.createHabit(habitInput({ importancia: 5 }));
+    const id = (await repo.createHabit(habitInput({ importancia: 5 }))).id;
     await repo.incrementHabitProgress(id);
     await repo.claimDailyMission();
     await repo.addAiMessage('user', 'hola');

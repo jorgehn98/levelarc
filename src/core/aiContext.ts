@@ -14,9 +14,9 @@ export interface SystemContext {
   faltaParaNivel: number; // XP que falta para el siguiente nivel
   rachaMisiones: number;
   atributoTop: { id: string; nivel: number } | null;
-  // Hábitos activos (no archivados) en total, estén o no programados hoy. Opcional: si no se conoce,
-  // un día sin misiones se trata como "hoy no toca" en vez de "aún no hay hábitos".
-  habitosActivos?: number;
+  // Hábitos activos (no archivados) en total, estén o no programados hoy. Distingue "aún no hay
+  // hábitos" de "hoy no toca ninguno".
+  habitosActivos: number;
   habitosHoyTotal: number;
   completadosHoy: number;
   pendientesHoy: number;
@@ -117,7 +117,7 @@ export function buildSystemContextText(ctx: SystemContext): string {
     `falta_para_nivel: ${ctx.faltaParaNivel}`,
     `racha_misiones: ${ctx.rachaMisiones}`,
     `atributo_top: ${ctx.atributoTop ? `${ctx.atributoTop.id} (nivel ${ctx.atributoTop.nivel})` : '-'}`,
-    ...(ctx.habitosActivos === undefined ? [] : [`habitos_activos: ${ctx.habitosActivos}`]),
+    `habitos_activos: ${ctx.habitosActivos}`,
     `habitos_hoy: ${ctx.habitosHoyTotal}`,
     `completados_hoy: ${ctx.completadosHoy}`,
     `pendientes_hoy: ${ctx.pendientesHoy}`,

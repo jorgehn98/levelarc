@@ -36,7 +36,7 @@ Toda función exportada que escribe pasa por `mutate` en `src/db/repository.ts`.
 Se usa `withTransactionAsync` sobre la conexión principal. `withExclusiveTransactionAsync` abre otra conexión en cada llamada (expo-sqlite 56), donde `PRAGMA foreign_keys` vuelve a estar apagado y los helpers del repositorio escribirían fuera de la transacción. A cambio, `withTransactionAsync` no admite anidarse; la cola lo garantiza siempre que se respeten dos reglas:
 
 1. Dentro de una mutación se llaman los helpers internos, nunca otra función exportada que mute. Esperaría a la cola que la propia mutación ocupa.
-2. Dentro de una mutación solo hay SQL. Los recordatorios se programan antes y se cancelan después, fuera de la cola, porque programar puede abrir el diálogo de permisos.
+2. Dentro de una mutación solo hay SQL. Los recordatorios se programan antes y se cancelan después, fuera de la cola, porque programar puede abrir el diálogo de permisos. Un hábito archivado no tiene recordatorio: editarlo no programa nada y desarchivarlo cancela cualquier id que quedara antes de programar.
 
 Las lecturas no pasan por la cola. Una lectura lanzada mientras corre una mutación puede ver su estado intermedio; la app refresca al terminar cada mutación, que es cuando el dato es firme. `exportAllData` sí espera su turno para exportar un estado consistente. `getDailyMission` sincroniza la misión antes de devolverla, así que cuenta como mutación.
 
@@ -69,8 +69,20 @@ El backup es un JSON compacto: `{ version, exportedAt, data }`. Lo crea y lo lee
 - Recompensas y logros fuera de catálogo se descartan; solo se equipa lo que el backup dice poseer.
 - El historial de chat nunca hace fallar la importación: se conservan los 1000 mensajes más recientes y el texto se corta a 4000 caracteres. La tabla `ai_messages` se poda al mismo tamaño en cada inserción.
 
-Al importar no se copia la caché del jugador que trae el fichero. XP, nivel, rango, atributos y racha se recalculan desde el ledger importado. La configuración de IA vuelve a plantilla porque la ruta del modelo no es portable, y los recordatorios se reprograman en el dispositivo.
+Al importar no se copia la caché del jugador que trae el fichero. XP, nivel, rango, atributos y racha se recalculan desde el ledger importado. La configuración de IA vuelve a plantilla porque la ruta del modelo no es portable. Los hábitos entran sin id de recordatorio: la importación no programa nada, solo cancela los recordatorios de los hábitos sustituidos una vez confirmada, y `syncReminders` reprograma después.
+
+## Recordatorios
+
+La base guarda lo que el usuario quiere (`hora_recordatorio`, `dias_semana`) y, en `notification_id`, los ids de lo que el sistema tiene programado. La hora del recordatorio de fin de día y su id viven en preferencias (AsyncStorage). `syncReminders` (`src/lib/reminders.ts`) hace que la agenda del sistema coincida con esos datos:
+
+1. Cancela todo lo que la app tenga programado.
+2. Programa los hábitos activos con una hora y días válidos, y el recordatorio de fin de día.
+3. Guarda los ids nuevos con `saveHabitNotificationIds`, una mutación que solo actualiza un hábito si sigue como se leyó; los ids que ya no corresponden se cancelan.
+
+Se ejecuta al arrancar, tras importar o reiniciar y al cambiar de idioma, porque el texto de una notificación queda fijado al programarla. No pide permiso: sin permiso deja la agenda vacía y los ids a `null`, y la siguiente sincronización lo repara. Así se recuperan también un permiso concedido más tarde y una restauración del sistema que no trae las alarmas. Las sincronizaciones se encadenan de una en una.
+
+Al crear o editar un hábito sí se pide permiso. Si se deniega, el hábito se guarda con su hora y sin id, y el repositorio devuelve el estado (`scheduled`, `denied`, `none`, `unsupported`) para que la pantalla lo diga.
 
 ## Tests
 
-`src/db/repository.test.ts` y `src/db/migrate.test.ts` ejecutan el SQL real contra una base `node:sqlite` en memoria, mediante el adaptador `test/expoSqlite.js`. Cubren las reglas, las migraciones, la cola y el rollback. No cubren el comportamiento de `expo-sqlite` en un dispositivo (conexión, bloqueos, rendimiento con historiales grandes), que sigue necesitando QA en Android.
+`src/db/repository.test.ts` y `src/db/migrate.test.ts` ejecutan el SQL real contra una base `node:sqlite` en memoria, mediante el adaptador `test/expoSqlite.js`. Cubren las reglas, las migraciones, la cola y el rollback. `src/lib/reminders.test.ts` prueba la sincronización contra el mismo repositorio, con las notificaciones sustituidas por `test/notifications.ts`. No cubren el comportamiento de `expo-sqlite` en un dispositivo (conexión, bloqueos, rendimiento con historiales grandes), que sigue necesitando QA en Android.

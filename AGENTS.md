@@ -115,6 +115,7 @@ EAS workflows are manual by design. Do not trigger full builds on every push to 
 - `test/` — test-only stand-ins (`expo-sqlite` over `node:sqlite`, notifications, AsyncStorage) wired in `vitest.config.mjs`.
 - `docs/architecture/datos.md` — ledger/cache model, mutation queue, migrations, backup format.
 - `src/stores/appStore.ts` — Zustand state and app actions.
+- `src/lib/reminders.ts`, `src/lib/reminderPlan.ts`, `src/lib/notifications.ts` — reminder sync, pure reminder planning and the `expo-notifications` wrapper (`notifications.web.ts` is a no-op).
 - `src/components/` — shared UI.
 - `src/i18n/index.ts` — typed ES/EN dictionary.
 - `src/theme/` — color, type, spacing, radius, shadow, and rank tokens.
@@ -139,9 +140,11 @@ Important invariants:
 - XP penalties must never drop the user below the current level floor.
 - Countable habits award XP only when the full daily target is reached.
 - Countable habits with partial progress are not penalized by close-day.
-- Close-day is manual in the MVP.
+- Close-day is automatic for past days: `closeMissedDays` (`src/stores/appStore.ts`) closes every day from the last active date up to yesterday at boot and when the local day changes while the app is open. It never closes the current day; the manual close-day button in Settings is the only way to do that. `closeDay` is idempotent.
 - Weekly habit frequency uses LevelArc convention: Monday=1 ... Sunday=7.
-- Expo weekly notifications use Sunday=1, so map weekdays carefully in `src/lib/notifications.ts`.
+- Expo weekly notifications use Sunday=1; the mapping lives in `src/lib/reminderPlan.ts` (`toExpoWeekday`).
+- Reminders: `src/lib/reminderPlan.ts` is the pure part (triggers, sync plan), `src/lib/notifications.ts` talks to `expo-notifications` (one Android channel, text from i18n in the language passed in) and `src/lib/reminders.ts` owns `syncReminders`, which rebuilds the OS schedule from the database and the end-of-day preference. It runs at boot, after import/reset and on language change, and never prompts for permission. A habit is saved even when its reminder cannot be scheduled; the status is returned to the caller.
+- Store actions in `src/stores/appStore.ts` go through `runAction`: they never reject, report failures to the user and return `false`/`null`. Screens check that result before navigating; `isBusy` and `pendingHabitIds` drive the pending state of buttons.
 
 ## Tono de NYX / el Sistema
 

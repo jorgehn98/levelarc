@@ -9,6 +9,7 @@ import {
   getDailyMissionProgress,
   getPerfectDayStreak,
   getPerfectWeekMissionProgress,
+  shouldShowPerfectWeekMission,
 } from './missions';
 import { getDateKeysBetween, getTodayWeekday, getYesterdayDateKey, toDateKey } from '../lib/date';
 
@@ -80,6 +81,32 @@ describe('daily mission', () => {
     expect(canClaimPerfectWeek({ ...day7, completados: 1 })).toBe(false);
     expect(canClaimPerfectWeek({ ...day7, objetivo: 0, completados: 0 })).toBe(false);
     expect(canClaimPerfectWeek(null)).toBe(false);
+  });
+
+  it('shows the perfect week card only around a payout day', () => {
+    const day = (perfectStreakDays: number, completados: number, streakBonusClaimed = false) => ({
+      objetivo: 2,
+      completados,
+      perfectStreakDays,
+      streakBonusClaimed,
+    });
+
+    // Lejos del pago.
+    expect(shouldShowPerfectWeekMission(day(5, 2))).toBe(false);
+    expect(shouldShowPerfectWeekMission(day(0, 0))).toBe(false);
+    // Víspera: hoy fue el sexto día perfecto.
+    expect(shouldShowPerfectWeekMission(day(6, 2))).toBe(true);
+    // Día de pago en curso: seis perfectos hasta ayer, hoy pendiente.
+    expect(shouldShowPerfectWeekMission(day(6, 1))).toBe(true);
+    expect(shouldShowPerfectWeekMission(day(13, 0))).toBe(true);
+    // Día de pago completado: reclamable y, después, reclamado.
+    expect(shouldShowPerfectWeekMission(day(7, 2))).toBe(true);
+    expect(shouldShowPerfectWeekMission(day(14, 2, true))).toBe(true);
+    // El pago fue ayer: hoy empieza otro ciclo.
+    expect(shouldShowPerfectWeekMission(day(7, 1, true))).toBe(false);
+    expect(shouldShowPerfectWeekMission({ ...day(7, 0), objetivo: 0 })).toBe(false);
+    expect(shouldShowPerfectWeekMission(day(8, 2))).toBe(false);
+    expect(shouldShowPerfectWeekMission(null)).toBe(false);
   });
 
   it('counts only consecutive claimed daily missions', () => {

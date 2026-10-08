@@ -29,6 +29,7 @@ export default function ShopScreen() {
   const purchaseReward = useAppStore((state) => state.purchaseReward);
   const equipReward = useAppStore((state) => state.equipReward);
   const unequipTitle = useAppStore((state) => state.unequipTitle);
+  const isBusy = useAppStore((state) => state.isBusy);
 
   const esencia = player?.esencia ?? 0;
   const nivel = player?.nivel ?? 1;
@@ -44,8 +45,9 @@ export default function ShopScreen() {
       confirmText: t(language, 'buy'),
       onConfirm: () => {
         void (async () => {
+          // null: la compra falló y el store ya avisó.
           const result = await purchaseReward(item.id);
-          notifyPurchase(result, item, language);
+          if (result) notifyPurchase(result, item, language);
         })();
       },
     });
@@ -54,7 +56,7 @@ export default function ShopScreen() {
   function handleEquip(item: ShopItem) {
     void (async () => {
       const result = await equipReward(item.id);
-      notifyEquip(result, item, language);
+      if (result) notifyEquip(result, item, language);
     })();
   }
 
@@ -63,7 +65,13 @@ export default function ShopScreen() {
       <Stack.Screen options={{ title: t(language, 'systemShop') }} />
       <ScreenHeader
         action={
-          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
+          <Pressable
+            accessibilityLabel={t(language, 'goBack')}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <ChevronLeft color={colors.brand.cyanCore} size={20} />
           </Pressable>
         }
@@ -78,9 +86,10 @@ export default function ShopScreen() {
         <View style={styles.section}>
           <SectionHeader label={t(language, 'titles')} />
           <View style={styles.cards}>
-            <NoneTitleCard active={equippedTitle === null} language={language} onPress={() => void unequipTitle()} />
+            <NoneTitleCard active={equippedTitle === null} busy={isBusy} language={language} onPress={() => void unequipTitle()} />
             {getTitleItems().map((item) => (
               <ShopItemCard
+                busy={isBusy}
                 esencia={esencia}
                 isEquipped={equippedTitle === item.id}
                 isOwned={ownedRewards.includes(item.id)}
@@ -101,6 +110,7 @@ export default function ShopScreen() {
           <View style={styles.cards}>
             {getAuraItems().map((item) => (
               <ShopItemCard
+                busy={isBusy}
                 esencia={esencia}
                 isEquipped={equippedAura === item.id}
                 isOwned={ownedRewards.includes(item.id)}
@@ -166,6 +176,7 @@ function requirementText(item: ShopItem, language: Language): string | null {
 }
 
 type ShopItemCardProps = {
+  busy: boolean;
   esencia: number;
   isEquipped: boolean;
   isOwned: boolean;
@@ -177,7 +188,7 @@ type ShopItemCardProps = {
   rango: Rank;
 };
 
-function ShopItemCard({ esencia, isEquipped, isOwned, item, language, nivel, onBuy, onEquip, rango }: ShopItemCardProps) {
+function ShopItemCard({ busy, esencia, isEquipped, isOwned, item, language, nivel, onBuy, onEquip, rango }: ShopItemCardProps) {
   const name = t(language, item.nameKey as Parameters<typeof t>[1]);
   const swatch = item.kind === 'aura' ? getAuraColor(item.id) : null;
   const locked = !isOwned && !meetsRequirement(item, nivel, rango);
@@ -208,9 +219,9 @@ function ShopItemCard({ esencia, isEquipped, isOwned, item, language, nivel, onB
             <Text style={styles.equippedTagText}>{t(language, 'equipped')}</Text>
           </View>
         ) : isOwned ? (
-          <Button label={t(language, 'equip')} onPress={onEquip} variant="selected" />
+          <Button busy={busy} label={t(language, 'equip')} onPress={onEquip} variant="selected" />
         ) : locked ? null : affordable ? (
-          <Button label={t(language, 'buy')} onPress={onBuy} />
+          <Button busy={busy} label={t(language, 'buy')} onPress={onBuy} />
         ) : (
           <Button disabled label={t(language, 'notEnoughEssence')} onPress={onBuy} variant="secondary" />
         )}
@@ -219,7 +230,7 @@ function ShopItemCard({ esencia, isEquipped, isOwned, item, language, nivel, onB
   );
 }
 
-function NoneTitleCard({ active, language, onPress }: { active: boolean; language: Language; onPress: () => void }) {
+function NoneTitleCard({ active, busy, language, onPress }: { active: boolean; busy: boolean; language: Language; onPress: () => void }) {
   return (
     <View style={[styles.card, active && styles.cardEquipped]}>
       <View style={styles.cardInfo}>
@@ -235,7 +246,7 @@ function NoneTitleCard({ active, language, onPress }: { active: boolean; languag
             <Text style={styles.equippedTagText}>{t(language, 'equipped')}</Text>
           </View>
         ) : (
-          <Button label={t(language, 'equip')} onPress={onPress} variant="secondary" />
+          <Button busy={busy} label={t(language, 'equip')} onPress={onPress} variant="secondary" />
         )}
       </View>
     </View>

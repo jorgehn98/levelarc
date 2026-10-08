@@ -10,7 +10,12 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { SystemMessageCard } from '@/components/SystemMessageCard';
-import { canClaimPerfectWeek as canClaimPerfectWeekBonus, getDailyMissionProgress, getPerfectWeekMissionProgress } from '@/core/missions';
+import {
+  canClaimPerfectWeek as canClaimPerfectWeekBonus,
+  getDailyMissionProgress,
+  getPerfectWeekMissionProgress,
+  shouldShowPerfectWeekMission,
+} from '@/core/missions';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
 import { useAiStore } from '@/stores/aiStore';
@@ -27,6 +32,8 @@ export default function TodayScreen() {
   const claimMission = useAppStore((state) => state.claimMission);
   const claimPerfectWeekMission = useAppStore((state) => state.claimPerfectWeekMission);
   const language = useAppStore((state) => state.language);
+  const isBusy = useAppStore((state) => state.isBusy);
+  const pendingHabitIds = useAppStore((state) => state.pendingHabitIds);
   const ensureDailyMessage = useAiStore((state) => state.ensureDailyMessage);
 
   // Recepción del Sistema: al enfocar Hoy aseguramos el mensaje del día. ensureDailyMessage es barato
@@ -42,7 +49,7 @@ export default function TodayScreen() {
   const perfectWeekMission = getPerfectWeekMissionProgress(dailyMission?.perfectStreakDays ?? 0);
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
   const canClaimPerfectWeek = canClaimPerfectWeekBonus(dailyMission);
-  const showPerfectWeekMission = (dailyMission?.perfectStreakDays ?? 0) >= 6;
+  const showPerfectWeekMission = shouldShowPerfectWeekMission(dailyMission);
   const pendingHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'pendiente'), [todayHabits]);
   const completedHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'completado'), [todayHabits]);
   const failedHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'fallado'), [todayHabits]);
@@ -83,7 +90,7 @@ export default function TodayScreen() {
             <Text style={styles.metaText}>{t(language, 'noDailyMissionCopy')}</Text>
           ) : canClaim ? (
             <View style={styles.claim}>
-              <Button icon={Gift} label={t(language, 'claimXp', { xp: dailyMission?.xpBonus ?? 10 })} onPress={claimMission} />
+              <Button busy={isBusy} icon={Gift} label={t(language, 'claimXp', { xp: dailyMission?.xpBonus ?? 10 })} onPress={() => void claimMission()} />
             </View>
           ) : mission.isComplete ? (
             <Text style={styles.claimed}>{t(language, 'missionClaimed')} · +{dailyMission?.xpBonus ?? 10} XP</Text>
@@ -115,7 +122,12 @@ export default function TodayScreen() {
 
             {canClaimPerfectWeek ? (
               <View style={styles.claim}>
-                <Button icon={Flame} label={t(language, 'claimXp', { xp: dailyMission?.streakBonusXp ?? 30 })} onPress={claimPerfectWeekMission} />
+                <Button
+                  busy={isBusy}
+                  icon={Flame}
+                  label={t(language, 'claimXp', { xp: dailyMission?.streakBonusXp ?? 30 })}
+                  onPress={() => void claimPerfectWeekMission()}
+                />
               </View>
             ) : dailyMission?.streakBonusClaimed ? (
               <Text style={styles.claimed}>{t(language, 'perfectWeekClaimed')} · +{dailyMission?.streakBonusXp ?? 30} XP</Text>
@@ -148,6 +160,7 @@ export default function TodayScreen() {
               onFail={failHabit}
               onIncrement={incrementHabit}
               onUndo={undoHabit}
+              pendingHabitIds={pendingHabitIds}
             />
             <HabitGroup
               accent={colors.state.completed}
@@ -157,6 +170,7 @@ export default function TodayScreen() {
               onFail={failHabit}
               onIncrement={incrementHabit}
               onUndo={undoHabit}
+              pendingHabitIds={pendingHabitIds}
             />
             <HabitGroup
               accent={colors.state.failed}
@@ -166,6 +180,7 @@ export default function TodayScreen() {
               onFail={failHabit}
               onIncrement={incrementHabit}
               onUndo={undoHabit}
+              pendingHabitIds={pendingHabitIds}
             />
           </View>
         )}
@@ -200,12 +215,13 @@ type HabitGroupProps = {
   label: string;
   accent: string;
   language: Language;
-  onIncrement: (id: string) => Promise<void>;
-  onFail: (id: string) => Promise<void>;
-  onUndo: (id: string) => Promise<void>;
+  pendingHabitIds: string[];
+  onIncrement: (id: string) => Promise<boolean>;
+  onFail: (id: string) => Promise<boolean>;
+  onUndo: (id: string) => Promise<boolean>;
 };
 
-function HabitGroup({ habits, label, accent, language, onIncrement, onFail, onUndo }: HabitGroupProps) {
+function HabitGroup({ habits, label, accent, language, pendingHabitIds, onIncrement, onFail, onUndo }: HabitGroupProps) {
   if (habits.length === 0) return null;
 
   return (
@@ -215,6 +231,7 @@ function HabitGroup({ habits, label, accent, language, onIncrement, onFail, onUn
         {habits.map((item) => (
           <HabitCard
             key={item.id}
+            busy={pendingHabitIds.includes(item.id)}
             habit={item}
             language={language}
             onFail={() => void onFail(item.id)}

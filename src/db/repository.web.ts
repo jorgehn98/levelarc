@@ -32,6 +32,7 @@ import { evaluateUnlocked, getAchievement, type AchievementContext } from '@/cor
 import { isAiRole, keepNewestAiMessages, normalizeBackupData } from '@/lib/backupValidation';
 import { shiftDateKey, toDateKey, toIsoTimestamp, toLocalEndOfDay } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
+import type { ReminderStatus } from '@/lib/reminderPlan';
 import { createId } from '@/lib/id';
 
 import type {
@@ -160,10 +161,10 @@ export async function createHabit(input: HabitInput) {
     creadoEn: toIsoTimestamp(),
   });
   await saveDb(db);
-  return id;
+  return { id, reminder: 'unsupported' as ReminderStatus };
 }
 
-export async function updateHabit(id: string, input: HabitInput) {
+export async function updateHabit(id: string, input: HabitInput): Promise<ReminderStatus> {
   const db = await loadDb();
   db.habits = db.habits.map((habit) =>
     habit.id === id
@@ -181,6 +182,7 @@ export async function updateHabit(id: string, input: HabitInput) {
       : habit,
   );
   await saveDb(db);
+  return 'unsupported';
 }
 
 export async function archiveHabit(id: string) {
@@ -189,10 +191,16 @@ export async function archiveHabit(id: string) {
   await saveDb(db);
 }
 
-export async function unarchiveHabit(id: string) {
+export async function unarchiveHabit(id: string): Promise<ReminderStatus> {
   const db = await loadDb();
   db.habits = db.habits.map((habit) => (habit.id === id ? { ...habit, archivado: false } : habit));
   await saveDb(db);
+  return 'unsupported';
+}
+
+// La web no programa recordatorios: no hay ids que guardar.
+export async function saveHabitNotificationIds(): Promise<string[]> {
+  return [];
 }
 
 export async function incrementHabitProgress(habitId: string, dateKey = toDateKey()) {
@@ -540,6 +548,7 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
     faltaParaNivel: Math.max(0, progress.neededForLevel - progress.gainedInLevel),
     rachaMisiones: player.rachaMisiones,
     atributoTop,
+    habitosActivos: db.habits.filter((habit) => !habit.archivado).length,
     habitosHoyTotal,
     completadosHoy,
     pendientesHoy,

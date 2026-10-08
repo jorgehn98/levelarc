@@ -1,6 +1,6 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Archive, BarChart3, CalendarDays, Check, Clock, Cpu, Edit3, Flame, Target, Terminal, X } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -26,6 +26,7 @@ export default function HabitDetailScreen() {
   const [habit, setHabit] = useState<HabitRecord | null>(null);
   const [insight, setInsight] = useState<HabitInsightRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const archiveHabitById = useAppStore((state) => state.archiveHabitById);
   const getHabitById = useAppStore((state) => state.getHabitById);
   const getHabitInsightById = useAppStore((state) => state.getHabitInsightById);
@@ -34,25 +35,37 @@ export default function HabitDetailScreen() {
   const ensureHabitInsight = useAiStore((state) => state.ensureHabitInsight);
   const systemInsight = useAiStore((state) => (id ? state.habitInsights[id] : undefined));
 
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadHabit() {
+  // Lee el hábito y sus métricas. Devuelve false si la lectura falló; nunca rechaza. `isCurrent`
+  // descarta el resultado de una carga que ya no corresponde (pantalla sin foco o desmontada).
+  const loadHabit = useCallback(
+    async (isCurrent: () => boolean = () => true) => {
       if (!id) return;
-      setIsLoading(true);
-      const [nextHabit, nextInsight] = await Promise.all([getHabitById(id), getHabitInsightById(id)]);
-      if (!isActive) return;
-      setHabit(nextHabit);
-      setInsight(nextInsight);
-      setIsLoading(false);
-    }
+      try {
+        const [nextHabit, nextInsight] = await Promise.all([getHabitById(id), getHabitInsightById(id)]);
+        if (!isCurrent()) return;
+        setHabit(nextHabit);
+        setInsight(nextInsight);
+        setLoadFailed(false);
+      } catch {
+        if (isCurrent()) setLoadFailed(true);
+      } finally {
+        if (isCurrent()) setIsLoading(false);
+      }
+    },
+    [getHabitById, getHabitInsightById, id],
+  );
 
-    void loadHabit();
-
-    return () => {
-      isActive = false;
-    };
-  }, [getHabitById, getHabitInsightById, id]);
+  // Carga al enfocar, no solo al montar: al volver de editar, el detalle muestra lo guardado. El
+  // spinner solo sale en la primera carga; después se refresca con el contenido visible.
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      void loadHabit(() => isActive);
+      return () => {
+        isActive = false;
+      };
+    }, [loadHabit]),
+  );
 
   // Deriva el HabitInsightInput (entrada del core de IA) desde lo que la pantalla ya tiene. Ojo:
   // insight.last7 viene del más RECIENTE al más antiguo; el core lo espera del más antiguo al más
@@ -87,6 +100,26 @@ export default function HabitDetailScreen() {
     );
   }
 
+  if (loadFailed && (!habit || !insight)) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: t(language, 'habitDetail') }} />
+        <ScreenHeader subtitle={t(language, 'habitDetailSubtitle')} title={t(language, 'habitDetail')} />
+        <Text style={styles.empty}>{t(language, 'habitLoadFailed')}</Text>
+        <View style={styles.retry}>
+          <Button
+            label={t(language, 'retry')}
+            onPress={() => {
+              setIsLoading(true);
+              void loadHabit();
+            }}
+            variant="secondary"
+          />
+        </View>
+      </Screen>
+    );
+  }
+
   if (!habit || !insight || !id) {
     return (
       <Screen>
@@ -103,15 +136,11 @@ export default function HabitDetailScreen() {
   const consistencyPercent = Math.round(insight.consistency30.ratio * 100);
 
   async function archiveCurrentHabit() {
-    await archiveHabitById(id);
-    router.back();
+    if (await archiveHabitById(id)) router.back();
   }
 
   async function unarchiveCurrentHabit() {
-    await unarchiveHabitById(id);
-    const [nextHabit, nextInsight] = await Promise.all([getHabitById(id), getHabitInsightById(id)]);
-    setHabit(nextHabit);
-    setInsight(nextInsight);
+    if (await unarchiveHabitById(id)) await loadHabit();
   }
 
   function handleArchive() {
@@ -672,6 +701,9 @@ const styles = StyleSheet.create({
     fontFamily: typography.font.bodyRegular,
     paddingVertical: 12,
     textAlign: 'center',
+  },
+  retry: {
+    alignItems: 'center',
   },
   actions: {
     backgroundColor: colors.background.surface,
