@@ -12,11 +12,11 @@ import type { HabitInsightInput } from '@/core/aiContext';
 import { normalizeHabitAttributes, type AttributeId } from '@/core/attributes';
 import { getCompletionXp } from '@/core/xp';
 import type { EventRecord, HabitInsightDay, HabitInsightRecord, HabitRecord } from '@/db/repository';
-import { t } from '@/i18n';
+import { t, type Language } from '@/i18n';
 import { getHabitAttribute } from '@/lib/habitAttributes';
 import { getHabitIconComponent } from '@/lib/habitIcons';
 import { confirmAction } from '@/lib/confirm';
-import { formatWeekdays, weekDays } from '@/lib/weekdays';
+import { formatWeekdays, getWeekdayInitial, type WeekdayId } from '@/lib/weekdays';
 import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
@@ -189,8 +189,8 @@ export default function HabitDetailScreen() {
 
           <View style={styles.metaGrid}>
             <InfoPill label={t(language, 'importance')} value={`◆ ${habit.importancia}`} />
-            <InfoPill label={t(language, 'days')} value={formatWeekdays(habit.diasSemana)} />
-            <AttributePill attributes={attributes} label={t(language, 'attributes')} />
+            <InfoPill label={t(language, 'days')} value={formatWeekdays(habit.diasSemana, language)} />
+            <AttributePill attributes={attributes} label={t(language, 'attributes')} language={language} />
             <InfoPill label={t(language, 'reminder')} value={habit.horaRecordatorio ?? t(language, 'noReminder')} />
           </View>
         </View>
@@ -248,7 +248,7 @@ export default function HabitDetailScreen() {
           <SectionHeader accent={colors.brand.cyanCore} label={t(language, 'last7Days')} />
           <View style={styles.dayStrip}>
             {insight.last7.map((day) => (
-              <DayCell key={day.fecha} day={day} />
+              <DayCell key={day.fecha} day={day} language={language} />
             ))}
           </View>
         </View>
@@ -290,7 +290,7 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AttributePill({ attributes, label }: { attributes: AttributeId[]; label: string }) {
+function AttributePill({ attributes, label, language }: { attributes: AttributeId[]; label: string; language: Language }) {
   return (
     <View style={styles.infoPill}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -299,7 +299,7 @@ function AttributePill({ attributes, label }: { attributes: AttributeId[]; label
           const attribute = getHabitAttribute(attributeId);
           return (
             <Text key={attribute.id} style={[styles.attributeCode, { color: attribute.color }]}>
-              {attribute.code}
+              {t(language, `attr_${attribute.id}_code`)}
             </Text>
           );
         })}
@@ -330,14 +330,13 @@ function MetricPanel({
   );
 }
 
-function DayCell({ day }: { day: HabitInsightDay }) {
+function DayCell({ day, language }: { day: HabitInsightDay; language: Language }) {
   const color = getStatusColor(day.status);
   const Icon = getStatusIcon(day.status);
-  const label = weekDays.find((item) => item.id === day.weekday)?.label ?? '';
 
   return (
     <View style={styles.dayCell}>
-      <Text style={styles.dayLabel}>{label}</Text>
+      <Text style={styles.dayLabel}>{getWeekdayInitial(language, day.weekday as WeekdayId)}</Text>
       <View style={[styles.dayStatus, { borderColor: color, backgroundColor: `${color}14` }]}>
         <Icon color={color} size={14} />
       </View>

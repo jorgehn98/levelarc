@@ -16,17 +16,34 @@ type ButtonProps = {
   busy?: boolean;
   icon?: ComponentType<LucideProps>;
   style?: StyleProp<ViewStyle>;
+  // Para lectores de pantalla: nombre completo cuando el texto visible es una sigla, opción elegida
+  // dentro de un grupo y explicación de por qué el botón no responde.
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  // 'link' cuando el botón saca al usuario de la app (web, correo).
+  accessibilityRole?: 'button' | 'link';
+  selected?: boolean;
 };
 
-export function Button({ label, onPress, variant = 'primary', disabled, busy = false, icon: Icon, style }: ButtonProps) {
+export function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  disabled,
+  busy = false,
+  icon: Icon,
+  style,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole = 'button',
+  selected,
+}: ButtonProps) {
   const [isPressed, setIsPressed] = useState(false);
   const isPrimary = variant === 'primary';
   const isSelected = variant === 'selected';
   const isDanger = variant === 'danger';
   const textColor = disabled
-    ? isPrimary
-      ? colors.brand.bone
-      : colors.brand.boneMuted
+    ? colors.brand.boneMuted
     : isPrimary
       ? colors.brand.bone
       : isSelected
@@ -37,8 +54,10 @@ export function Button({ label, onPress, variant = 'primary', disabled, busy = f
 
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ busy, disabled: Boolean(disabled) || busy }}
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
+      accessibilityState={{ busy, disabled: Boolean(disabled) || busy, selected }}
       disabled={disabled || busy}
       onPress={onPress}
       onPressIn={() => setIsPressed(true)}
@@ -47,6 +66,9 @@ export function Button({ label, onPress, variant = 'primary', disabled, busy = f
         styles.button,
         styles[variant],
         style,
+        // Un primario deshabilitado pierde el relleno cian y el brillo, sin atenuarse: debe verse
+        // inerte pero seguir siendo legible.
+        disabled && isPrimary && styles.disabledPrimary,
         (busy || (disabled && !isPrimary)) && styles.disabled,
         isPressed && !disabled && !busy && styles.pressed,
       ]}
@@ -98,6 +120,12 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
+  },
+  disabledPrimary: {
+    backgroundColor: colors.background.card,
+    borderColor: colors.background.borderBright,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   pressed: {
     opacity: 0.88,

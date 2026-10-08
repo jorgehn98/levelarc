@@ -28,12 +28,11 @@ Incluye:
 - Pantalla Progreso.
 - Pantalla Ajustes.
 - Misión diaria dinámica: completar todos los hábitos programados para hoy.
-- Misión extra de racha perfecta de 7 días.
+- Misión extra de racha perfecta: bonus cada 7 días perfectos consecutivos.
 - Cierre automático de días pasados usando fecha local del dispositivo.
 - Recordatorios locales opcionales con selector de hora.
 - Recordatorio diario configurable de cierre del día con selector de hora.
-- Exportación JSON.
-- Importación/restauración JSON.
+- Backup: exportación e importación de un fichero JSON.
 - Nombre de jugador persistente, definido en onboarding y editable en Ajustes.
 - ES/EN.
 - Modo oscuro.
@@ -59,8 +58,7 @@ Tareas:
 - Validar SQLite en dispositivo.
 - Validar migraciones desde instalación limpia.
 - Validar recordatorios con permisos reales.
-- Validar exportación JSON en Android.
-- Validar importación/restauración JSON en Android.
+- Validar el backup en fichero en Android (exportar, reinstalar, importar).
 - Validar navegación y formularios en pantallas pequeñas.
 - Validar ES/EN.
 - Revisar `expo-doctor` y duplicado `expo-constants`: validado como no bloqueante para el APK preview actual.
@@ -70,7 +68,9 @@ Tareas:
 
 ## v1.1 — Offline serio
 
-Estado: pendiente.
+Estado: implementado en código; pendiente de QA en dispositivo.
+
+Hecho: confirmación antes de restaurar, `player` recalculado desde el ledger, backup como fichero (formato v2), pantalla de error de arranque, acciones que informan de sus fallos y tests del repositorio sobre SQL real. Detalle en [`architecture/datos.md`](./architecture/datos.md).
 
 Objetivo: mejorar confianza de datos y recuperación.
 
@@ -130,13 +130,13 @@ Objetivo: aumentar retención sin meter IA todavía.
 
 Implementado (primer bloque):
 
-- Economía de Esencia: moneda gastable distinta del XP, ganada al completar hábitos, reclamar misión diaria, racha perfecta y subir de nivel; reversión exacta y no farmeable. Lógica pura en `src/core/economy.ts`, migraciones 0006-0007.
+- Economía de Esencia: moneda gastable distinta del XP, ganada al completar hábitos, reclamar misión diaria, racha perfecta y subir de nivel; reversión exacta y no farmeable. Lógica pura en `src/core/economy.ts`.
 - Tienda del Sistema (`/shop`, accesible desde Ajustes y Progreso): se gasta Esencia en cosméticos que no afectan al motor de XP.
-- Títulos de Jugador (5) y auras del emblema (6), con requisitos de nivel/rango y compra atómica. Catálogo y reglas en `src/core/shop.ts`, migración 0008.
+- Títulos de Jugador (5) y auras del emblema (6), con requisitos de nivel/rango y compra atómica. Catálogo y reglas en `src/core/shop.ts`.
 
 Implementado (segundo bloque):
 
-- Logros / medallas: 21 logros en 6 categorías, catálogo puro con condición por logro en `src/core/achievements.ts`, evaluación tras cada acción y al arrancar, Esencia al desbloquear y persistencia idempotente en `achievements_unlocked` (migración 0009). Pantalla `/achievements` accesible desde Progreso y Ajustes.
+- Logros / medallas: 21 logros en 6 categorías, catálogo puro con condición por logro en `src/core/achievements.ts`, evaluación tras cada acción y al arrancar, Esencia al desbloquear y persistencia idempotente en `achievements_unlocked`. Pantalla `/achievements` accesible desde Progreso y Ajustes.
 - Celebraciones de rango (rank-up automático): la cinemática de ascenso se dispara sola al subir de rango jugando, con rango origen/destino.
 - Feedback de recompensa: overlay global de celebración (logro, subida de nivel del jugador y subida de nivel de atributo), micro-feedback al completar un hábito y lectura de progreso por atributos en Progreso (`AttributeRow`).
 
@@ -149,7 +149,7 @@ Pendiente dentro de v2.0:
 
 ## v2.x — IA local "el Sistema"
 
-Estado: chat por reglas (Fase 5A) implementado; LLM on-device (Fase 5B) pendiente de build nativo.
+Estado: chat por reglas (Fase 5A) y LLM on-device (Fase 5B) implementados. El chat con IA local se validó en Android con el build `1.1.6`; el endurecimiento posterior está sin probar en dispositivo.
 
 Objetivo: añadir personalidad del Sistema sin romper privacidad. Referencia completa en `docs/IA-SISTEMA.md`.
 
@@ -157,37 +157,41 @@ Implementado (Fase 5A — chat del Sistema por reglas):
 
 - Chat "el Sistema" (tono Solo Leveling) accesible desde Hoy y Ajustes, pantalla `app/system-chat.tsx`.
 - Funciona offline con motor determinista por plantillas (reglas), no un LLM todavía.
-- Arquitectura enchufable: interface `SystemChatEngine` con adapters `templateEngine` (activo) y `llamaEngine` (STUB).
+- Arquitectura enchufable: interface `SystemChatEngine` con adapters `templateEngine` y `llamaEngine`.
 - Contexto determinista desde SQLite (`src/core/aiContext.ts`) y voz por reglas (`src/core/systemVoice.ts`), puros y testeados.
-- Bilingüe vía `{key, params}` + i18n, tablas `ai_profile` y `ai_messages` (migración 0010).
+- Bilingüe vía `{key, params}` + i18n, tablas `ai_profile` y `ai_messages`.
 - Entregado por OTA (JS puro).
 
-Pendiente (Fase 5B — LLM on-device, build nativo):
+Implementado (Fase 5B — LLM on-device):
 
-- Modelo local descargable: Gemma 3 1B GGUF Q4_K_M (~720 MB). Plan B: Llama 3.2 1B / Qwen 2.5 1.5B.
-- Integración con `llama.rn` (binding de llama.cpp, GGUF). Alternativa: `react-native-executorch`.
-- Sin tool calling. Sin subagentes.
-- Requiere New Architecture + módulo nativo: development build + nuevo EAS Build + bump de `runtimeVersion`. NO es OTA.
-- Descarga del modelo bajo demanda con la NEW File API de `expo-file-system`, toggle de IA obligatorio.
-- Rellenar `src/ai/llamaEngine.ts` (real, con streaming) sobre la misma interface.
+- Gemma 4 E2B GGUF Q4_K_M (~3,1 GB) sobre `llama.rn` 0.12.4, con parche local para React Native bridgeless.
+- Descarga bajo demanda desde una revisión fijada, con comprobación de espacio libre y la pantalla encendida mientras dura.
+- Inferencias en cola con prioridad para el chat; las superficies de fondo se descartan si el motor está ocupado.
+- Mensaje del día, comentarios de hábito y apariciones generados por el modelo cuando está activo, con plantilla como respaldo.
+- Diagnóstico técnico solo en builds internos; historial de chat limitado a 1000 mensajes.
 
-Plan, checklist y riesgos detallados en `docs/IA-SISTEMA.md`.
+Pendiente:
+
+- Inferencia con GPU, reanudación de la descarga y sprites reales de NYX.
+
+Plan, riesgos y detalle en `docs/IA-SISTEMA.md`.
 
 ## Play Store
 
-Estado: paso final, no objetivo inmediato.
+Estado: en preparación. La versión `1.2.0` deja el código listo para un primer build de producción, pero no se ha ejecutado en ningún dispositivo.
 
-La intención de producto es publicar cuando LevelArc esté más completa, no sacar un MVP temprano. Antes de tiendas deben cerrarse las fases de pulido, producto, gamificación avanzada y valorar IA local. Play Store y App Store quedan al final del roadmap.
+Secuencia:
 
-Tareas:
+1. Build `preview` de la `1.2.0` y QA en dispositivo ([`guides/release.md`](./guides/release.md)).
+2. Recursos de la ficha: icono, gráfico de funciones y capturas.
+3. Build `production` (AAB) y prueba interna en Play.
+4. Prueba cerrada si la cuenta lo exige y publicación escalonada.
 
-- Confirmar marca en USPTO si se va en serio con registro.
-- Política de privacidad.
-- Ficha Play Store.
-- Screenshots.
-- Descripción ES/EN.
-- Clasificación de contenido.
-- AAB production.
-- Definir si habrá build iOS/App Store y preparar la configuración nativa cuando toque.
-- Pruebas internas.
-- Revisión de permisos.
+Hecho:
+
+- Ficha en español e inglés, seguridad de los datos y borrador de clasificación ([`references/play-store.md`](./references/play-store.md)).
+- Política de privacidad y términos enlazados desde la app.
+- Revisión de permisos de Android y copia de seguridad sin el modelo de IA.
+- Icono temático, idioma inicial según el dispositivo y pasada de accesibilidad.
+
+Fuera de esta secuencia, por decidir: registro de marca, iOS y App Store.

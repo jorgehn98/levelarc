@@ -55,7 +55,15 @@ Las lecturas no pasan por la cola. Una lectura lanzada mientras corre una mutaci
 
 ## Backup
 
-El backup es un JSON compacto: `{ version, exportedAt, data }`. Lo crea y lo lee `src/lib/backup.ts`.
+El backup es un fichero JSON compacto: `{ version, exportedAt, data }`. Lo crea y lo lee `src/lib/backup.ts`.
+
+Se mueve como fichero, no como texto. Compartir toda la base como una cadena topaba con el límite de ~1 MB de los intents de Android, y pegar un JSON en un campo de texto no escala.
+
+- **Exportar** (`src/lib/backupTransfer.ts`): escribe `levelarc-backup-AAAA-MM-DD.json` en el directorio de caché con la File API de `expo-file-system`, borra antes las exportaciones anteriores (llevan todos los datos del usuario) y comparte la URI con `expo-sharing` y tipo `application/json`. El sistema no informa de si el usuario llegó a guardar el fichero.
+- **Importar**: `expo-document-picker` abre el selector, la app lee el texto y borra la copia que el selector deja en la caché. Un fichero de más de 50 MB se rechaza sin leerlo: no puede ser un backup dentro de los límites de validación. El formato y la versión se comprueban antes de pedir la confirmación; la validación completa y la escritura van después de confirmar.
+- **Web**: `backupTransfer.web.ts` descarga el fichero y usa el selector del navegador, con la misma interfaz.
+- La parte pura (nombre del fichero, reconocimiento de exportaciones, tope de tamaño) está en `src/lib/backupFile.ts` y tiene tests.
+- Los errores de formato son `BackupFormatError` con un motivo (`invalid`, `version`, `tooLarge`). La app lo traduce a una frase en el idioma del usuario en vez de mostrar el mensaje técnico; cualquier otro fallo se explica como error de lectura o escritura.
 
 - **Versión actual: 2.** Añade el instante de cada claim, admite saldo de Esencia negativo y limita el historial de chat. La versión 1 se sigue leyendo; lo que le falta se deriva al importar.
 - `data` lleva las filas de cada tabla. La app nativa exporta en `snake_case` y el fallback web en `camelCase`; la importación acepta ambos.
@@ -71,6 +79,12 @@ El backup es un JSON compacto: `{ version, exportedAt, data }`. Lo crea y lo lee
 
 Al importar no se copia la caché del jugador que trae el fichero. XP, nivel, rango, atributos y racha se recalculan desde el ledger importado. La configuración de IA vuelve a plantilla porque la ruta del modelo no es portable. Los hábitos entran sin id de recordatorio: la importación no programa nada, solo cancela los recordatorios de los hábitos sustituidos una vez confirmada, y `syncReminders` reprograma después.
 
+## Copia de seguridad de Android
+
+Aparte del backup manual, Android copia `files/` y las preferencias a la cuenta de Google del usuario si este tiene activada la copia del sistema. La app la mantiene (`allowBackup`) porque cubre la base SQLite (`files/SQLite/`) sin que el usuario haga nada. El modelo de IA (`files/models/`) queda fuera mediante `plugins/withAndroidBackupRules.js`, que escribe las reglas para API 30 o inferior (`fullBackupContent`) y para API 31 o superior (`dataExtractionRules`).
+
+Una restauración trae la base y AsyncStorage, pero no las alarmas ni el modelo: `syncReminders` reprograma al arrancar y el estado del modelo se reconcilia a no descargado. No se ha probado en un dispositivo.
+
 ## Recordatorios
 
 La base guarda lo que el usuario quiere (`hora_recordatorio`, `dias_semana`) y, en `notification_id`, los ids de lo que el sistema tiene programado. La hora del recordatorio de fin de día y su id viven en preferencias (AsyncStorage). `syncReminders` (`src/lib/reminders.ts`) hace que la agenda del sistema coincida con esos datos:
@@ -79,9 +93,15 @@ La base guarda lo que el usuario quiere (`hora_recordatorio`, `dias_semana`) y, 
 2. Programa los hábitos activos con una hora y días válidos, y el recordatorio de fin de día.
 3. Guarda los ids nuevos con `saveHabitNotificationIds`, una mutación que solo actualiza un hábito si sigue como se leyó; los ids que ya no corresponden se cancelan.
 
-Se ejecuta al arrancar, tras importar o reiniciar y al cambiar de idioma, porque el texto de una notificación queda fijado al programarla. No pide permiso: sin permiso deja la agenda vacía y los ids a `null`, y la siguiente sincronización lo repara. Así se recuperan también un permiso concedido más tarde y una restauración del sistema que no trae las alarmas. Las sincronizaciones se encadenan de una en una.
+Se ejecuta al arrancar, tras importar o reiniciar y al cambiar de idioma, porque el texto de una notificación queda fijado al programarla. También al volver a primer plano, pero solo si el permiso de notificaciones cambió desde la última sincronización (`syncRemindersIfPermissionChanged`): cubre al usuario que lo concede o lo revoca en los ajustes del sistema sin cerrar la app. No pide permiso: sin permiso deja la agenda vacía y los ids a `null`, y la siguiente sincronización lo repara. Así se recupera también una restauración del sistema que no trae las alarmas.
 
-Al crear o editar un hábito sí se pide permiso. Si se deniega, el hábito se guarda con su hora y sin id, y el repositorio devuelve el estado (`scheduled`, `denied`, `none`, `unsupported`) para que la pantalla lo diga.
+El paso 1 vacía la agenda, así que el resto no puede quedarse a medias. Un hábito que el sistema no deja programar queda sin id y no corta a los demás, y los ids guardados y el recordatorio de fin de día se actualizan siempre, aunque algo falle por el camino.
+
+**Cola de recordatorios.** Todo lo que programa o cancela un recordatorio y guarda su id pasa por `enqueueReminderWork` (`src/lib/reminderQueue.ts`), de una en una: la sincronización, crear, editar y desarchivar un hábito, y guardar o quitar el recordatorio de fin de día. Sin ella, una sincronización podía cancelar el recordatorio que un alta acababa de programar antes de que su id llegara a la base, o dejar dos avisos de fin de día. Es una cola distinta de la de mutaciones: aquí sí cabe el diálogo de permisos, y la escritura en la base sigue siendo una mutación corta dentro de la tarea.
+
+Al crear o editar un hábito sí se pide permiso. Si se deniega, o si el sistema falla al programar, el hábito se guarda igualmente con su hora y sin id, y el repositorio devuelve el estado (`scheduled`, `denied`, `failed`, `none`, `unsupported`) para que la pantalla lo diga.
+
+El recordatorio de fin de día guarda la hora aunque después se revoque el permiso. `getEndOfDayReminderState` distingue "hora guardada" de "programado", y Ajustes muestra el aviso de notificaciones desactivadas con el acceso a los ajustes del sistema en vez de un interruptor encendido sin nada detrás.
 
 ## Tests
 

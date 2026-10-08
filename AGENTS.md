@@ -68,7 +68,7 @@ pnpm android
 pnpm check
 pnpm test
 pnpm exec tsc --noEmit
-pnpm doctor
+pnpm run doctor
 pnpm build:android:preview
 pnpm build:android:production
 pnpm update:preview --message "Fix UI copy"
@@ -77,7 +77,7 @@ pnpm update:production --message "Fix UI copy"
 
 `pnpm check` is the main local gate: TypeScript + ESLint + tests.
 
-`pnpm doctor` currently may fail one check because Expo SDK 56 + pnpm resolves duplicate `expo-constants` (`56.0.14` through `expo-linking`, `56.0.15` elsewhere). This is documented in `README.md`. Do not hide this with random dependency hacks; the preview native build has passed with this warning.
+Run expo-doctor with `pnpm run doctor`: plain `pnpm doctor` is a pnpm built-in and does not run the script. It currently fails three checks: duplicate `expo-constants` under pnpm (`56.0.14` through `expo-linking`, `56.0.15` elsewhere), Expo SDK 56 packages behind the latest patch, and a Hermes V1 memory regression fixed only in SDK 57. Do not hide these with random dependency hacks; the `1.1.6` preview build passed with the duplicate. Upgrading Expo changes the native binary and needs device QA.
 
 Keep `babel-preset-expo` as an explicit devDependency. EAS Android release bundling failed without it under pnpm because Metro could not resolve the preset transitively.
 
@@ -104,7 +104,7 @@ EAS workflows are manual by design. Do not trigger full builds on every push to 
 - `app/(tabs)/index.tsx` — Today screen.
 - `app/(tabs)/habits.tsx` — habit list.
 - `app/(tabs)/progress.tsx` — rank/XP/history.
-- `app/(tabs)/settings.tsx` — language, notifications, backup, close day.
+- `app/(tabs)/settings.tsx` — language, notifications, backup, close day, About. The Demo section renders only when `isInternalBuild()`.
 - `app/habit/new.tsx` and `app/habit/[id].tsx` — create/edit habit.
 - `src/core/` — pure gamification logic. Keep UI/db out of here.
 - `src/db/types.ts` — public repository types, shared by the native and web repositories.
@@ -112,6 +112,10 @@ EAS workflows are manual by design. Do not trigger full builds on every push to 
 - `src/db/repository.web.ts` — web AsyncStorage fallback. Keep API compatible with native repository.
 - `src/db/migrate.ts` — single source of the SQLite schema; versioned migrations on `PRAGMA user_version`.
 - `src/lib/backupValidation.ts` — pure backup validation shared by both repositories.
+- `src/lib/backupFile.ts`, `src/lib/backupTransfer.ts` (+ `.web.ts`) — backup as a file: pure naming/size rules, and export through `expo-sharing` / import through `expo-document-picker`.
+- `src/i18n/deviceLanguage.ts` — initial language from the device locale; a stored preference wins.
+- `plugins/withAndroidBackupRules.js` — local config plugin: Android auto backup rules that exclude the AI model directory (`files/models/`). Keep its path in sync with `MODELS_DIR` in `src/ai/modelManager.ts`.
+- `docs/guides/release.md` — release path and device QA checklist. `docs/references/play-store.md` — store listing. `docs/references/historial-builds.md` — old build/update log.
 - `test/` — test-only stand-ins (`expo-sqlite` over `node:sqlite`, notifications, AsyncStorage) wired in `vitest.config.mjs`.
 - `docs/architecture/datos.md` — ledger/cache model, mutation queue, migrations, backup format.
 - `src/stores/appStore.ts` — Zustand state and app actions.
@@ -143,12 +147,19 @@ Important invariants:
 - Close-day is automatic for past days: `closeMissedDays` (`src/stores/appStore.ts`) closes every day from the last active date up to yesterday at boot and when the local day changes while the app is open. It never closes the current day; the manual close-day button in Settings is the only way to do that. `closeDay` is idempotent.
 - Weekly habit frequency uses LevelArc convention: Monday=1 ... Sunday=7.
 - Expo weekly notifications use Sunday=1; the mapping lives in `src/lib/reminderPlan.ts` (`toExpoWeekday`).
-- Reminders: `src/lib/reminderPlan.ts` is the pure part (triggers, sync plan), `src/lib/notifications.ts` talks to `expo-notifications` (one Android channel, text from i18n in the language passed in) and `src/lib/reminders.ts` owns `syncReminders`, which rebuilds the OS schedule from the database and the end-of-day preference. It runs at boot, after import/reset and on language change, and never prompts for permission. A habit is saved even when its reminder cannot be scheduled; the status is returned to the caller.
-- Store actions in `src/stores/appStore.ts` go through `runAction`: they never reject, report failures to the user and return `false`/`null`. Screens check that result before navigating; `isBusy` and `pendingHabitIds` drive the pending state of buttons.
+- Reminders: `src/lib/reminderPlan.ts` is the pure part (triggers, sync plan), `src/lib/notifications.ts` talks to `expo-notifications` (one Android channel, text from i18n in the language passed in) and `src/lib/reminders.ts` owns `syncReminders`, which rebuilds the OS schedule from the database and the end-of-day preference. It runs at boot, after import/reset, on language change and when the app returns to the foreground with a different notification permission (`syncRemindersIfPermissionChanged`), and never prompts for permission. A habit is saved even when its reminder cannot be scheduled, whether the permission is denied or the system fails; the status (`denied`, `failed`) is returned to the caller. Everything that schedules or cancels a reminder and stores its id (the sync, create/update/unarchive of a habit, the end-of-day reminder) runs through `enqueueReminderWork` in `src/lib/reminderQueue.ts`, one at a time. That queue is separate from the repository mutation queue and may do external IO; never wait on it from inside a task that is already in it.
+- Store actions in `src/stores/appStore.ts` go through `runAction` (`src/stores/runAction.ts`, pure and tested): they never reject. The task passed to it is the write and only its failure is reported to the user; refreshing the store and anything in `after` (achievements, celebrations, reminder sync) happen once the write is committed and never turn a success into a failure, because a retry would duplicate the write. A re-entrant call is dropped as `busy`, which is not a failure. Actions return `false`/`null` in both cases; screens check that result before navigating, and pass `isBusy` / `pendingHabitIds` to their buttons so a dropped tap is never silent. A per-habit action releases its card after the refresh, before the `after` work.
 
 ## Tono de NYX / el Sistema
 
 NYX debe ser exigente, sobria y breve, no humillante. Mantener la fantasía de Sistema/RPG sin caer en desprecio: no responder que las dudas o emociones del usuario no importan, no insultar, no repetir "haz misiones" ante cualquier frase casual. Si el usuario pide ideas, dar 2-3 opciones concretas; si pide bajar la dureza, bajar el filo sin perder exigencia. No exigir inmediatez absurda: si el usuario dice que hará algo después de otra tarea o que ahora no puede, aceptar el plan y concretar el siguiente paso realista. Evitar "actúa ahora", "inmediatamente" o "el tiempo no espera" salvo emergencia real. No usar nombre completo del jugador; si hace falta, usar solo primer nombre. Cualquier cambio de IA debe tocar las dos capas cuando aplique: prompt LLM en `src/ai/llamaEngine.ts` y fallback determinista/i18n en `src/core/systemVoice.ts` + `src/i18n/index.ts`.
+
+## Accesibilidad
+
+- Every pressable declares `accessibilityRole`, a label when it has no readable text, and its state (`checked`, `selected`, `disabled`, `expanded`, `busy`) through `accessibilityState`.
+- Minimum touch target is 44pt, through `minHeight` or `hitSlop`.
+- Selection is never conveyed by colour alone: selected options in the habit form also carry a check mark.
+- A disabled primary `Button` has its own flat look; when a form cannot be saved, say what is missing.
 
 ## Diseño
 
@@ -196,7 +207,9 @@ Each migration runs in a transaction together with its `user_version` bump, and 
 
 Use `src/i18n/index.ts`.
 
-Do not hardcode user-facing strings in screens/components unless they are temporary debug strings. Add ES and EN entries together.
+Do not hardcode user-facing strings in screens/components unless they are temporary debug strings. Add ES and EN entries together. Display names that belong to data (weekdays, attributes, habit icons) are looked up by id: `weekday_<n>`, `weekdayShort_<n>`, `attr_<id>`, `attr_<id>_code`, `attr_<id>_desc`, `icon_<id>`. Keep the ids themselves untouched: they are stored in the database.
+
+On first launch the language follows the device (`en*` → English, anything else → Spanish); a stored preference always wins.
 
 The active typed dictionary is `src/i18n/index.ts`. Keep ES and EN entries together there.
 
@@ -239,14 +252,14 @@ Channels:
 Before publishing:
 
 1. `pnpm check`
-2. `pnpm doctor`
+2. `pnpm run doctor`
 3. Decide delivery mode:
    - OTA preview: `pnpm update:preview --message "Short description"` or run `.eas/workflows/update-preview.yml` manually.
    - Full preview build: `pnpm build:android:preview` or run `.eas/workflows/build.yml` manually.
 4. Test on real Android device/emulator.
 5. Validate LevelArc logo/icon/splash/adaptive icon on real Android sizes after full builds.
 
-Latest valid preview APK is documented in `README.md` and `docs/ESTADO-ACTUAL.md`.
+The full path to a production release, the device QA checklist and rollback are in `docs/guides/release.md`. The last build validated on a device is `1.1.6`; `1.2.0` changes native config (modules, backup rules, permissions) and needs a new build. The old build/update log is in `docs/references/historial-builds.md`.
 
 ## Coding style
 
@@ -260,8 +273,8 @@ Latest valid preview APK is documented in `README.md` and `docs/ESTADO-ACTUAL.md
 
 ## Current known gaps
 
-- Android native QA still needed.
-- Brand assets are integrated, but icon/splash/adaptive icon still need real-device validation.
-- Backup export/import exists, but needs Android QA.
-- `expo-doctor` duplicate `expo-constants` warning remains; preview native build has passed with it.
-- UI is MVP-functional, not final Play Store polish.
+- Nothing after build `1.1.6` has run on a device. The checklist in `docs/guides/release.md` is the gate before a production build.
+- Store assets (screenshots, feature graphic) are missing.
+- The merged Android permission list has only been derived from library manifests; confirm it on the built binary.
+- `accessibilityState` is not reflected by `react-native-web`, so screen-reader state can only be verified on Android.
+- `expo-doctor` still reports three known failures (see Comandos).

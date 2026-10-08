@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseBackupPayload, serializeBackupPayload } from './backup';
+import { getImportFailureReasonKey, parseBackupPayload, serializeBackupPayload } from './backup';
 import { normalizeBackupData } from './backupValidation';
 import { toLocalEndOfDay } from './date';
 
@@ -21,6 +21,24 @@ describe('backup payload', () => {
     expect(parseBackupPayload(JSON.stringify({ ...payload, version: 1 })).version).toBe(1);
     expect(() => parseBackupPayload(JSON.stringify({ ...payload, version: 3 }))).toThrow('Unsupported backup version: 3');
     expect(() => parseBackupPayload('{')).toThrow('Invalid backup JSON');
+  });
+
+  it('explains an import failure with a reason the user can act on', () => {
+    const reasonOf = (task: () => unknown) => {
+      try {
+        task();
+      } catch (error) {
+        return getImportFailureReasonKey(error);
+      }
+      return null;
+    };
+    const newer = JSON.stringify({ version: 3, exportedAt: '2026-01-01T00:00:00.000Z', data: {} });
+
+    expect(reasonOf(() => parseBackupPayload(newer))).toBe('importReasonVersion');
+    expect(reasonOf(() => parseBackupPayload('not json'))).toBe('importReasonInvalid');
+    expect(reasonOf(() => parseBackupPayload('{"version":"2"}'))).toBe('importReasonInvalid');
+    expect(reasonOf(() => normalizeBackupData(null))).toBe('importReasonInvalid');
+    expect(getImportFailureReasonKey(new Error('disk full'))).toBe('importReasonUnknown');
   });
 });
 

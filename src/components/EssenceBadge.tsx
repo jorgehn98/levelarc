@@ -6,11 +6,13 @@ import { colors, radii, typography } from '@/theme/colors';
 type EssenceBadgeProps = {
   value: number;
   size?: number;
+  // Sin etiqueta un lector de pantalla solo dice el número.
+  accessibilityLabel?: string;
 };
 
-export function EssenceBadge({ value, size = 14 }: EssenceBadgeProps) {
+export function EssenceBadge({ value, size = 14, accessibilityLabel }: EssenceBadgeProps) {
   return (
-    <View style={styles.badge}>
+    <View accessibilityLabel={accessibilityLabel} accessible={Boolean(accessibilityLabel)} style={styles.badge}>
       <Gem color={colors.brand.cyanCore} size={size} />
       <Text style={[styles.value, { fontSize: size + 1 }]}>{Math.max(0, Math.floor(value))}</Text>
     </View>

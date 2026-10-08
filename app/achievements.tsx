@@ -126,7 +126,7 @@ function AchievementCard({
         <Text style={styles.cardName}>{name}</Text>
         <Text style={styles.cardDesc}>{description}</Text>
         <View style={styles.cardMeta}>
-          <EssenceBadge size={12} value={achievement.essenceReward} />
+          <EssenceBadge accessibilityLabel={t(language, 'essencePlus', { n: achievement.essenceReward })} size={12} value={achievement.essenceReward} />
           {unlocked ? (
             <View style={styles.unlockedTag}>
               <Check color={colors.state.completed} size={13} />

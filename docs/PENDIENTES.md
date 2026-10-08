@@ -2,6 +2,48 @@
 
 Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo es checklist de ejecución, no biblia conceptual.
 
+La primera parte recoge lo que falta de verdad, con su responsable. El resto es el historial de lo ya hecho, por áreas.
+
+## Pendiente: QA en dispositivo
+
+Nada de la versión `1.2.0` se ha ejecutado en un Android real. La lista completa, punto por punto, está en [`guides/release.md`](./guides/release.md#qa-en-dispositivo). En resumen:
+
+- [ ] Actualización desde `1.1.6` con datos (base de `user_version` 0 a 2).
+- [ ] Acciones con toques rápidos y cierre forzado a mitad de una acción.
+- [ ] Cambio de día con la app abierta y cambio de zona horaria sin conexión.
+- [ ] Backup en fichero: exportar, reinstalar e importar; fichero inválido; backup grande.
+- [ ] Notificaciones: permiso, canal, hora y día correctos, icono, aviso con permiso denegado, y agenda tras cambiar idioma, importar y resetear.
+- [ ] TalkBack en Hoy, formulario de hábito, aparición de NYX y Ajustes.
+- [ ] Icono temático, splash e idioma inicial según el dispositivo.
+- [ ] IA local: descarga completa, error por falta de espacio, pantalla encendida durante la descarga, chat, cancelaciones, borrado durante una respuesta, memoria y temperatura.
+- [ ] Copia de seguridad de Android: copia con el modelo descargado y restauración en otro dispositivo.
+- [ ] Canal `production`: sin sección Demo ni diagnóstico de IA.
+- [ ] Permisos del binario final con `aapt2 dump permissions`.
+
+## Pendiente: decisión de producto
+
+- [ ] Recursos de la ficha de Play: icono 512 × 512, gráfico de funciones 1024 × 500 y capturas en español e inglés.
+- [ ] Público objetivo y cuestionario de clasificación de contenido en Play Console (borrador en [`references/play-store.md`](./references/play-store.md)).
+- [ ] Texto de la política de privacidad de la web: debe mencionar la copia de seguridad de Android en la cuenta de Google del usuario. Decidir también si "Sin nubes" del onboarding se mantiene con esa copia activada.
+- [ ] Proveedor para la lista de espera de la web.
+- [ ] Sprites reales de NYX (hoy hay un placeholder en `assets/character/`).
+- [ ] Inferencia con GPU (OpenCL / `n_gpu_layers`); el motor es solo CPU.
+- [ ] Reanudar la descarga del modelo tras un corte; hoy se empieza de nuevo.
+- [ ] iOS y App Store.
+- [ ] Subir a Expo SDK 57 o a los últimos parches de SDK 56 (avisos de `expo-doctor`, incluida la regresión de memoria de Hermes V1). Cambia el binario y exige repetir la QA.
+- [ ] Retirar NativeWind/Tailwind: está configurado pero ninguna pantalla usa `className`.
+- [ ] Quitar la referencia a "Solo Leveling" del prompt interno del LLM (`src/ai/llamaEngine.ts`). No se muestra al usuario, pero el proyecto evita esa marca.
+- [ ] Registro de marca (USPTO) si se va a registrar.
+- [ ] Más misiones no generativas y estadísticas avanzadas.
+
+## Pendiente: release
+
+- [ ] Build `preview` de la `1.2.0` y QA en dispositivo.
+- [ ] Build `production` (AAB) y prueba interna en Play.
+- [ ] Publicación en producción.
+
+# Historial por áreas
+
 ## Prioridad alta
 
 - [x] Probar en Android real o emulador.
@@ -25,14 +67,10 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Confirmar en Android que Hábitos muestra todos los hábitos activos y que las tarjetas/empty states ocupan ancho completo.
 - [x] Probar hábito contable hasta completar meta.
 - [x] Confirmar que un hábito lunes/miércoles/viernes/sábado no aparece en domingo.
-- [ ] Probar cambio de día local en Android: dejar la app abierta hasta medianoche y confirmar que Hoy pasa al día nuevo.
-- [ ] Probar cambio de zona horaria del teléfono sin Internet y confirmar que Hoy usa la fecha local nueva.
 - [x] Probar fallar hábito y confirmar que no baja de nivel.
 - [x] Probar deshacer acción del día.
 - [x] Probar misión diaria y reclamar bonus.
 - [x] Probar cierre manual del día.
-- [ ] Probar exportación JSON vía Android share sheet.
-- [ ] Probar importación/restauración JSON en Android.
 - [x] Probar permisos y scheduling de notificaciones.
 - [x] Probar recordatorio de cierre del día: configurar hora, recibir notificación y desactivar.
 
@@ -43,7 +81,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Añadir confirmación explícita antes de sobrescribir datos locales.
 - [x] Restaurar `player` desde backup.
 - [x] Documentar flujo de backup en Ajustes.
-- [ ] Mejorar importación con selector de archivo si hace falta.
+- [x] Backup como fichero: exportar comparte `levelarc-backup-AAAA-MM-DD.json` e importar usa el selector de documentos (formato v2).
 
 ## Assets y marca
 
@@ -52,11 +90,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Usar logo dentro de la UI inicial.
 - [x] Crear logo vector simplificado.
 - [x] Validar icono app en Android real.
-- [ ] Crear icono app 48px simplificado.
-- [ ] Validar adaptive icon Android en build real.
-- [ ] Validar splash en build real.
-- [ ] Revisar dominio `levelarc.app`.
-- [ ] Confirmar USPTO si se va a registrar marca.
+- [x] Capa monocroma del adaptive icon como silueta real para los iconos temáticos de Android 13.
+- [x] Dominio `levelarc.app` en uso: la app enlaza a la política de privacidad y a los términos.
 
 ## UX / UI
 
@@ -83,6 +118,8 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Revisar textos del Sistema.
 - [x] Revisar contraste de rangos E-S.
 - [x] Revisar pantallas pequeñas.
+- [x] Pasada de accesibilidad: roles, etiquetas, estados y objetivos de 44 pt; marca de selección además del color; botón primario deshabilitado con aspecto propio; el formulario dice qué falta.
+- [x] Ajustes: sección Demo solo en builds internos, fuera los interruptores de Vibración y Sonido, y Acerca de con versión, build, enlaces legales y contacto.
 
 ## Producto / métricas
 
@@ -92,7 +129,7 @@ Referencia base: [`LevelArc-PROYECTO.md`](./LevelArc-PROYECTO.md). Este archivo 
 - [x] Resumen semanal simple de completados/fallados: descartado (el detalle de hábito ya cubre historial/consistencia).
 - [x] Mejorar lectura de progreso por atributos: componente `AttributeRow` debajo del radar en Progreso.
 - [x] Revisar si hacen falta logros simples antes de v2: van dentro de v2.0 (ver Gamificación).
-- [ ] Recoger fricciones que aparezcan usando la app varios días.
+- [x] Recoger fricciones del uso real: se mantiene como práctica, no como tarea.
 
 ## Gamificación (v2.0)
 
@@ -148,30 +185,33 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Corregir franja negra junto a la navegación inferior en Android: safe-area inferior gestionada por el tab bar, no por cada pantalla base.
 - [x] Refinar franja inferior residual y apariciones de NYX: fondo raíz igual a tab bar, más cobertura de inset y sprite más grande/anclado abajo.
 - [x] Convertir apariciones de NYX en overlay modal: fondo oscurecido/bloqueado, bocadillo arriba y sprite grande con base en la línea superior de la tab bar.
-- [ ] QA no bloqueante de superficies secundarias IA: briefing diario, micro-comentarios de hábito, apariciones autónomas, botón de updates y estabilidad prolongada (RAM/batería/calor).
-- [ ] Sprites del personaje real (hoy placeholder en `assets/character/`).
-- [ ] Reactivar GPU / OpenCL / `n_gpu_layers` tras validar (primer build es CPU-only).
+- [x] Endurecer la IA: URL del modelo fijada a una revisión, comprobación de espacio libre, inferencias en cola con prioridad para el chat, diagnóstico solo en builds internos e historial de chat limitado a 1000 mensajes.
+- [x] Mantener la pantalla encendida durante la descarga del modelo (`expo-keep-awake`).
 - [x] Cablear triggers extra de apariciones (`streak_milestone`, `near_level`, `mission_failed`, `level_up`, `streak_broken`).
-- [ ] EAS Build production.
 
 ## Datos / lógica
 
 - [x] Añadir tests para rachas por hábito.
-- [ ] Añadir tests para cierre de día.
+- [x] Añadir tests para cierre de día.
 - [x] Añadir tests para misión diaria.
-- [ ] Añadir tests para recalcular player desde events y misiones reclamadas.
+- [x] Añadir tests para recalcular player desde events y misiones reclamadas.
 - [x] Revisar y ajustar balance de XP/niveles/rangos.
 - [x] Añadir tests para normalización, reparto y nivel de atributos.
 - [x] Revisar balance final de curva de atributos frente a nivel/rango.
 - [x] Igualar multiplicador de racha por hábito en web fallback.
 - [x] Revisar si `racha_misiones` debe resetearse si no se reclama misión.
+- [x] Retirar Drizzle: esquema solo en `src/db/migrate.ts` sobre `PRAGMA user_version` (versión 2).
+- [x] Cola de mutaciones y una transacción por mutación.
+- [x] Bonus de racha perfecta cada 7 días perfectos; los días de descanso no rompen rachas.
+- [x] Esencia negativa admitida en la base y mostrada como cero.
 
 ## i18n
 
-- [ ] Revisar todo el copy ES.
-- [ ] Revisar todo el copy EN.
+- [x] Revisar todo el copy ES.
+- [x] Revisar todo el copy EN.
+- [x] Llevar a i18n los textos que quedaban fuera: días, atributos, iconos, radar y motivos de fallo de importación.
 - [x] Eliminar `src/i18n/es.json` y `src/i18n/en.json` obsoletos.
-- [ ] Confirmar idioma inicial por configuración del dispositivo o dejar español por defecto.
+- [x] Idioma inicial según el dispositivo (`en*` inglés, el resto español); la preferencia guardada gana.
 
 ## Calidad técnica
 
@@ -181,31 +221,22 @@ Referencia: `docs/IA-SISTEMA.md`. La Fase 5A (chat por reglas, OTA) ya está hec
 - [x] Desactivar code signing de EAS Update: Expo lo bloquea sin plan Enterprise y rompía `eas update` en `preview`.
 - [x] Crear nuevo APK preview sin code signing tras reset de cuota EAS Free (`e37eafc1-40a9-49db-a913-5c58201e902d`), aunque queda descartado para IA local porque faltan las `.so` de `llama.rn`.
 - [x] Verificar APK preview inspeccionando que contiene `lib/arm64-v8a/librnllama*.so` antes de entregar URL (`114d891f`).
-- [ ] Añadir tests de repositorio o integración local.
+- [x] Añadir tests de repositorio sobre `node:sqlite`.
+- [x] ESLint con cero avisos y CI en GitHub Actions.
 - [x] Revisar warnings estructurales de React Doctor.
 - [x] Revisar rendimiento de SQLite sync/async: añadidos índices para consultas frecuentes de `events`.
 - [x] Revisar imports y dead code antes de release.
 - [x] Endurecer importación de backup: límites básicos y no restaurar rutas/estado local del modelo IA.
-- [ ] Añadir manejo de errores visible para backup/notificaciones.
+- [x] Manejo de errores visible: pantalla de error de arranque, `ErrorBoundary`, acciones que avisan del fallo, motivo en las importaciones y aviso de notificaciones denegadas.
+- [x] Sincronización de recordatorios al arrancar, tras importar o resetear y al cambiar de idioma.
 
 ## Store / release
 
 - [x] Crear build preview.
 - [x] QA inicial en Android real.
-- [ ] Test interno amplio cuando el producto este mas completo.
-- [ ] Crear build production AAB.
-- [ ] Definir build iOS/App Store cuando el producto este listo para tiendas.
-- [ ] Política de privacidad.
-- [ ] Descripción Play Store ES/EN.
-- [ ] Screenshots.
-- [ ] Clasificación de contenido.
-- [ ] Revisión de permisos Android.
-
-## v2+
-
-- [ ] Logros.
-- [ ] Estadísticas avanzadas.
-- [ ] Misiones no generativas adicionales.
-- [ ] IA local opcional.
-- [ ] Tablas `AI_MESSAGES` y `AI_PROFILE` cuando toque implementar IA.
-- [ ] Chat con el Sistema.
+- [x] Política de privacidad y términos enlazados desde Ajustes.
+- [x] Descripción Play Store ES/EN, seguridad de los datos y borrador de clasificación de contenido (`docs/references/play-store.md`).
+- [x] Revisión de permisos Android: bloqueados `SYSTEM_ALERT_WINDOW` y almacenamiento externo.
+- [x] Copia de seguridad de Android sin el modelo de IA.
+- [x] Guía de publicación y lista de QA en dispositivo (`docs/guides/release.md`).
+- [x] Versión `1.2.0`, versionCode `12`.

@@ -17,22 +17,22 @@ import type { ComponentType } from 'react';
 
 export const defaultHabitIcon = 'target';
 
+// El nombre visible de cada icono sale de i18n: `icon_<id>`.
 export const habitIcons = [
-  { id: 'target', label: 'Base', icon: Target },
-  { id: 'dumbbell', label: 'Entreno', icon: Dumbbell },
-  { id: 'book', label: 'Leer', icon: BookOpen },
-  { id: 'brain', label: 'Estudio', icon: Brain },
-  { id: 'briefcase', label: 'Trabajo', icon: Briefcase },
-  { id: 'heart', label: 'Salud', icon: HeartPulse },
-  { id: 'flame', label: 'Racha', icon: Flame },
-  { id: 'moon', label: 'Sueño', icon: Moon },
-  { id: 'utensils', label: 'Comida', icon: Utensils },
-  { id: 'music', label: 'Música', icon: Music },
-  { id: 'sparkles', label: 'Crear', icon: Sparkles },
-  { id: 'smile', label: 'Ánimo', icon: Smile },
+  { id: 'target', icon: Target },
+  { id: 'dumbbell', icon: Dumbbell },
+  { id: 'book', icon: BookOpen },
+  { id: 'brain', icon: Brain },
+  { id: 'briefcase', icon: Briefcase },
+  { id: 'heart', icon: HeartPulse },
+  { id: 'flame', icon: Flame },
+  { id: 'moon', icon: Moon },
+  { id: 'utensils', icon: Utensils },
+  { id: 'music', icon: Music },
+  { id: 'sparkles', icon: Sparkles },
+  { id: 'smile', icon: Smile },
 ] as const satisfies readonly {
   id: string;
-  label: string;
   icon: ComponentType<LucideProps>;
 }[];
 

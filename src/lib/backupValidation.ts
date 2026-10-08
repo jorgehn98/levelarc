@@ -22,6 +22,19 @@ import { parseClockTime } from '@/lib/time';
 // el JSON ya parseado (formato nativo en snake_case o web en camelCase) y devuelve datos saneados o
 // lanza. No toca la base ni las notificaciones.
 
+// El fichero no es un backup que esta versión pueda importar. Error propio para que la app explique
+// el motivo en el idioma del usuario en vez de enseñar el mensaje técnico, y para distinguirlo de un
+// fallo de la base al escribir.
+export class BackupFormatError extends Error {
+  constructor(
+    message: string,
+    readonly reason: 'invalid' | 'version' | 'tooLarge' = 'invalid',
+  ) {
+    super(message);
+    this.name = 'BackupFormatError';
+  }
+}
+
 export const BACKUP_LIMITS = {
   habits: 500,
   events: 50_000,
@@ -75,7 +88,7 @@ export type NormalizedBackup = {
 type Row = Record<string, unknown>;
 
 export function normalizeBackupData(data: unknown): NormalizedBackup {
-  if (!isRecord(data)) throw new Error('Invalid backup data');
+  if (!isRecord(data)) throw new BackupFormatError('Invalid backup data');
 
   const habits = rows(data.habits, 'habits', BACKUP_LIMITS.habits).map(normalizeHabit);
   assertUnique(habits.map((habit) => habit.id), 'habit id');
@@ -121,7 +134,7 @@ export function normalizeBackupData(data: unknown): NormalizedBackup {
 }
 
 function normalizeHabit(row: unknown): HabitRecord {
-  if (!isRecord(row)) throw new Error('Invalid habit row');
+  if (!isRecord(row)) throw new BackupFormatError('Invalid habit row');
   const tipo = row.tipo === 'contable' ? 'contable' : 'binario';
   return {
     id: asId(row.id),
@@ -140,7 +153,7 @@ function normalizeHabit(row: unknown): HabitRecord {
 }
 
 function normalizeProgress(row: unknown): DailyProgressRecord {
-  if (!isRecord(row)) throw new Error('Invalid progress row');
+  if (!isRecord(row)) throw new BackupFormatError('Invalid progress row');
   return {
     id: asId(row.id),
     habitId: asId(pick(row, 'habit_id', 'habitId')),
@@ -152,12 +165,12 @@ function normalizeProgress(row: unknown): DailyProgressRecord {
 }
 
 function normalizeEvent(row: unknown): EventRecord {
-  if (!isRecord(row)) throw new Error('Invalid event row');
+  if (!isRecord(row)) throw new BackupFormatError('Invalid event row');
   const tipoEvento = pick(row, 'tipo_evento', 'tipoEvento') === 'fallado' ? 'fallado' : 'completado';
   // El ledger se rechaza, no se recorta: un delta fuera de rango o con el signo cambiado no es un
   // dato que la app haya podido escribir.
   const xpDelta = intInRange(pick(row, 'xp_delta', 'xpDelta'), -BOUNDS.eventXp, BOUNDS.eventXp, 'xp_delta');
-  if (tipoEvento === 'completado' ? xpDelta < 0 : xpDelta > 0) throw new Error('Invalid backup number: xp_delta');
+  if (tipoEvento === 'completado' ? xpDelta < 0 : xpDelta > 0) throw new BackupFormatError('Invalid backup number: xp_delta');
   const habitName = row.nombre ?? row.habitName;
   return {
     id: asId(row.id),
@@ -173,7 +186,7 @@ function normalizeEvent(row: unknown): EventRecord {
 }
 
 function normalizeMission(row: unknown): DailyMissionRecord {
-  if (!isRecord(row)) throw new Error('Invalid mission row');
+  if (!isRecord(row)) throw new BackupFormatError('Invalid mission row');
   const fecha = asDateKey(row.fecha);
   // 0 es un valor válido: día de descanso, sin hábitos programados.
   const objetivo = clampInt(row.objetivo ?? 0, 0, BACKUP_LIMITS.habits, 'objetivo');
@@ -221,7 +234,7 @@ function normalizePlayer(row: unknown, ownedRewards: RewardRecord[]): BackupPlay
 
 // Recompensas y logros fuera de catálogo se descartan: no hay nada que mostrar ni que equipar.
 function normalizeReward(row: unknown): RewardRecord[] {
-  if (!isRecord(row)) throw new Error('Invalid reward row');
+  if (!isRecord(row)) throw new BackupFormatError('Invalid reward row');
   const rewardId = pick(row, 'reward_id', 'rewardId');
   const item = typeof rewardId === 'string' ? getShopItem(rewardId) : undefined;
   if (!item || item.id === DEFAULT_AURA_ID) return [];
@@ -229,7 +242,7 @@ function normalizeReward(row: unknown): RewardRecord[] {
 }
 
 function normalizeAchievement(row: unknown): AchievementUnlockedRecord[] {
-  if (!isRecord(row)) throw new Error('Invalid achievement row');
+  if (!isRecord(row)) throw new BackupFormatError('Invalid achievement row');
   const achievementId = pick(row, 'achievement_id', 'achievementId');
   if (typeof achievementId !== 'string' || !getAchievement(achievementId)) return [];
   return [{ id: asId(row.id), achievementId, desbloqueadoEn: asTimestamp(pick(row, 'desbloqueado_en', 'desbloqueadoEn')) }];
@@ -282,12 +295,12 @@ function boundedAttributeXp(value: unknown): AttributeXp {
 
 function rows(value: unknown, label: string, maxItems: number): unknown[] {
   if (!Array.isArray(value)) return [];
-  if (value.length > maxItems) throw new Error(`Backup ${label} limit exceeded`);
+  if (value.length > maxItems) throw new BackupFormatError(`Backup ${label} limit exceeded`);
   return value;
 }
 
 function assertUnique(keys: string[], label: string) {
-  if (new Set(keys).size !== keys.length) throw new Error(`Duplicate backup ${label}`);
+  if (new Set(keys).size !== keys.length) throw new BackupFormatError(`Duplicate backup ${label}`);
 }
 
 function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
@@ -304,14 +317,14 @@ function pick(row: Row, snakeKey: string, camelKey: string): unknown {
 }
 
 function asString(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim()) throw new Error('Invalid backup field');
-  if (value.length > BACKUP_LIMITS.stringLength) throw new Error('Backup field too large');
+  if (typeof value !== 'string' || !value.trim()) throw new BackupFormatError('Invalid backup field');
+  if (value.length > BACKUP_LIMITS.stringLength) throw new BackupFormatError('Backup field too large');
   return value;
 }
 
 function asId(value: unknown): string {
   const id = asString(value);
-  if (id.length > BOUNDS.idLength) throw new Error('Backup field too large');
+  if (id.length > BOUNDS.idLength) throw new BackupFormatError('Backup field too large');
   return id;
 }
 
@@ -320,7 +333,7 @@ function isDateKey(value: string): boolean {
 }
 
 function asDateKey(value: unknown): string {
-  if (typeof value !== 'string' || !isDateKey(value)) throw new Error('Invalid backup date');
+  if (typeof value !== 'string' || !isDateKey(value)) throw new BackupFormatError('Invalid backup date');
   return value;
 }
 
@@ -329,7 +342,7 @@ function asDateKey(value: unknown): string {
 function asTimestamp(value: unknown): string {
   if (value === undefined || value === null || value === '') return toIsoTimestamp();
   const time = typeof value === 'string' ? Date.parse(value) : Number.NaN;
-  if (Number.isNaN(time)) throw new Error('Invalid backup timestamp');
+  if (Number.isNaN(time)) throw new BackupFormatError('Invalid backup timestamp');
   return new Date(time).toISOString();
 }
 
@@ -340,7 +353,7 @@ function asClaimTimestamp(value: unknown, fecha: string): string {
 // CSV de días 1..7 (lunes = 1) sin repetir. Ausente = todos los días, como en backups antiguos.
 function asWeekdays(value: unknown): string {
   if (value === undefined || value === null || value === '') return '1,2,3,4,5,6,7';
-  if (typeof value !== 'string' || !/^[1-7](,[1-7])*$/.test(value)) throw new Error('Invalid backup weekdays');
+  if (typeof value !== 'string' || !/^[1-7](,[1-7])*$/.test(value)) throw new BackupFormatError('Invalid backup weekdays');
   assertUnique(value.split(','), 'weekday');
   return value;
 }
@@ -351,13 +364,13 @@ function asClockTime(value: unknown): string | null {
 
 function toFiniteNumber(value: unknown, label: string): number {
   const number = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
-  if (!Number.isFinite(number)) throw new Error(`Invalid backup number: ${label}`);
+  if (!Number.isFinite(number)) throw new BackupFormatError(`Invalid backup number: ${label}`);
   return number;
 }
 
 function intInRange(value: unknown, min: number, max: number, label: string): number {
   const number = toFiniteNumber(value, label);
-  if (!Number.isInteger(number) || number < min || number > max) throw new Error(`Invalid backup number: ${label}`);
+  if (!Number.isInteger(number) || number < min || number > max) throw new BackupFormatError(`Invalid backup number: ${label}`);
   return number;
 }
 

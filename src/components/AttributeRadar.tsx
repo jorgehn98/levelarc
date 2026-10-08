@@ -2,11 +2,13 @@ import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { attributeIds, getAttributeLevelProgress, normalizeAttributeXp, type AttributeXp } from '@/core/attributes';
+import { t, type Language } from '@/i18n';
 import { getHabitAttribute } from '@/lib/habitAttributes';
 import { colors, radii, typography } from '@/theme/colors';
 
 type AttributeRadarProps = {
   attributeXp: AttributeXp | null | undefined;
+  language: Language;
 };
 
 const size = 230;
@@ -15,7 +17,7 @@ const radius = 72;
 const rings = [0.33, 0.66, 1];
 const radarLevelScale = 20;
 
-export function AttributeRadar({ attributeXp }: AttributeRadarProps) {
+export function AttributeRadar({ attributeXp, language }: AttributeRadarProps) {
   const xp = normalizeAttributeXp(attributeXp);
   const items = attributeIds.map((id, index) => {
     const attribute = getHabitAttribute(id);
@@ -35,8 +37,8 @@ export function AttributeRadar({ attributeXp }: AttributeRadarProps) {
   return (
     <View style={styles.panel}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>STATUS MATRIX</Text>
-        <Text style={styles.title}>Perfil de atributos</Text>
+        <Text style={styles.kicker}>{t(language, 'statusMatrix')}</Text>
+        <Text style={styles.title}>{t(language, 'attributeProfile')}</Text>
       </View>
 
       <View style={styles.radarWrap}>
@@ -65,7 +67,7 @@ export function AttributeRadar({ attributeXp }: AttributeRadarProps) {
               x={item.labelPoint.x}
               y={item.labelPoint.y}
             >
-              {item.code}
+              {t(language, `attr_${item.id}_code`)}
             </SvgText>
           ))}
         </Svg>

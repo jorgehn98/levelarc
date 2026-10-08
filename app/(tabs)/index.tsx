@@ -61,9 +61,9 @@ export default function TodayScreen() {
         title={t(language, 'today')}
         action={(
           <View style={styles.headerActions}>
-            <EssenceBadge value={player?.esencia ?? 0} />
+            <EssenceBadge accessibilityLabel={t(language, 'essenceBalance', { value: Math.max(0, player?.esencia ?? 0) })} value={player?.esencia ?? 0} />
             <Link href="/habit/new" asChild>
-              <Pressable style={styles.addButton}>
+              <Pressable accessibilityLabel={t(language, 'newHabit')} accessibilityRole="button" style={styles.addButton}>
                 <Plus color={colors.background.void} size={22} />
               </Pressable>
             </Link>
@@ -145,7 +145,7 @@ export default function TodayScreen() {
             <Text style={styles.emptyKicker}>◆ {t(language, 'systemOnlineShort')}</Text>
             <Text style={styles.emptyTitle}>{t(language, 'noHabitsToday')}</Text>
             <Text style={styles.emptyText}>{t(language, 'createFirstHabit')}</Text>
-            <Pressable onPress={() => router.push('/habit/new')} style={styles.emptyAction}>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/habit/new')} style={styles.emptyAction}>
               <Plus color={colors.background.void} size={18} />
               <Text style={styles.emptyActionText}>{t(language, 'createHabit')}</Text>
             </Pressable>

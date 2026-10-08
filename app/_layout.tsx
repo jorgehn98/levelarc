@@ -15,9 +15,14 @@ import { colors } from '@/theme/colors';
 import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
+import { notify } from '@/lib/confirm';
 import { toDateKey } from '@/lib/date';
 
 void SystemUI.setBackgroundColorAsync(colors.background.surface);
+
+// Fallos seguidos al pasar de día a partir de los cuales se avisa y se deja de reintentar cada
+// minuto. La siguiente vuelta a primer plano lo intenta de nuevo.
+const DAY_CHANGE_MAX_FAILURES = 3;
 
 // Convención de Expo Router: si el layout raíz (o una pantalla sin límite propio) lanza al
 // renderizar, se muestra esto en lugar de una pantalla en blanco. `retry` vuelve a montar la ruta.
@@ -49,6 +54,7 @@ export default function RootLayout() {
   const interjectionVisible = useAiStore((state) => Boolean(state.interjection));
   const closeMissedDays = useAppStore((state) => state.closeMissedDays);
   const refresh = useAppStore((state) => state.refresh);
+  const syncRemindersOnForeground = useAppStore((state) => state.syncRemindersOnForeground);
   const isReady = useAppStore((state) => state.isReady);
   const language = useAppStore((state) => state.language);
   const player = useAppStore((state) => state.player);
@@ -59,6 +65,7 @@ export default function RootLayout() {
   const [entryShown, setEntryShown] = useState(false);
   const [startupUpdateChecked, setStartupUpdateChecked] = useState(false);
   const activeDateKeyRef = useRef(toDateKey());
+  const dayChangeFailuresRef = useRef(0);
 
   useEffect(() => {
     if (fontsLoaded && !isReady) {
@@ -97,6 +104,8 @@ export default function RootLayout() {
     function refreshIfLocalDayChanged() {
       const currentDateKey = toDateKey();
       if (currentDateKey === activeDateKeyRef.current) return;
+      // Tras varios fallos seguidos ya se avisó: no se insiste hasta la siguiente vuelta a primer plano.
+      if (dayChangeFailuresRef.current >= DAY_CHANGE_MAX_FAILURES) return;
 
       // La marca se pone antes de esperar: el intervalo y la vuelta a primer plano no lanzan un
       // segundo cierre para el mismo día. Si falla, se retira para reintentar en el siguiente aviso.
@@ -104,15 +113,28 @@ export default function RootLayout() {
       activeDateKeyRef.current = currentDateKey;
       closeMissedDays()
         .then(refresh)
+        .then(() => {
+          dayChangeFailuresRef.current = 0;
+        })
         .catch(() => {
           activeDateKeyRef.current = previousDateKey;
+          dayChangeFailuresRef.current += 1;
+          // Sin aviso, Hoy se quedaba en el día anterior sin ninguna señal.
+          if (dayChangeFailuresRef.current === DAY_CHANGE_MAX_FAILURES) {
+            const { language: currentLanguage } = useAppStore.getState();
+            notify(t(currentLanguage, 'dayChangeFailed'), t(currentLanguage, 'dayChangeFailedCopy'));
+          }
         });
     }
 
     refreshIfLocalDayChanged();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        dayChangeFailuresRef.current = 0;
         refreshIfLocalDayChanged();
+        // El permiso de notificaciones pudo cambiar en los ajustes del sistema mientras la app
+        // estaba en segundo plano: solo entonces se reprograma.
+        syncRemindersOnForeground();
       }
     });
     const interval = setInterval(refreshIfLocalDayChanged, 60_000);
@@ -121,7 +143,7 @@ export default function RootLayout() {
       subscription.remove();
       clearInterval(interval);
     };
-  }, [closeMissedDays, fontsLoaded, isReady, refresh]);
+  }, [closeMissedDays, fontsLoaded, isReady, refresh, syncRemindersOnForeground]);
 
   useEffect(() => {
     if (!fontsLoaded || !isReady) return;

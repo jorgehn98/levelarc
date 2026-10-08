@@ -19,7 +19,7 @@ Funciona **OFFLINE con un motor determinista por plantillas (reglas)** y con LLM
 - **Contexto determinista desde SQLite**: `src/core/aiContext.ts` arma el `SystemContext` y su serialización a partir del estado local (pendientes, racha, nivel, etc.).
 - **Voz por reglas**: `src/core/systemVoice.ts` genera el saludo proactivo según estado (pendientes / día perfecto / fallo / cerca de nivel / racha) y las respuestas por intención detectada por palabras (saludo, estado, ayuda, ideas, ajuste de tono, día completado, gracias, motivación). Todo puro y testeado.
 - **Bilingüe sin acoplar el motor al idioma**: el motor devuelve `{key, params}` (clave i18n abstracta); el store `src/stores/aiStore.ts` traduce con i18n y guarda el **texto ya resuelto**. Banco de frases `sys_*` en ES/EN.
-- **Persistencia**: tablas `ai_profile` (singleton: `enabled`, `engine` `'template'|'llama'`, `modelStatus`, `modelPath`) y `ai_messages` (historial). Migración 0010. Export/import y reset cubren ambas tablas.
+- **Persistencia**: tablas `ai_profile` (singleton: `enabled`, `engine` `'template'|'llama'`, `modelStatus`, `modelPath`) y `ai_messages` (historial), definidas en `src/db/migrate.ts`. Export/import y reset cubren ambas tablas.
 - **Entrega**: por OTA (EAS Update). Es JS puro, no requiere build nativo. Commit `f617d89`.
 
 ### Archivos que lo componen
@@ -32,7 +32,7 @@ Funciona **OFFLINE con un motor determinista por plantillas (reglas)** y con LLM
 - `src/core/aiContext.ts` — `SystemContext` + serialización desde SQLite.
 - `src/core/systemVoice.ts` — voz por reglas (greeting proactivo + respuestas por intención).
 - `src/stores/aiStore.ts` — store, traducción i18n y persistencia del texto resuelto.
-- Tablas `ai_profile` y `ai_messages` (migración 0010), banco de frases `sys_*` en `src/i18n/index.ts`.
+- Tablas `ai_profile` y `ai_messages`, banco de frases `sys_*` en `src/i18n/index.ts`.
 
 ## Fase 5B — LLM local real (implementada en código, commit `3d5d509`; build nativo conseguido)
 
@@ -79,7 +79,7 @@ El LLM on-device ya está implementado sobre la misma interface `SystemChatEngin
 - Solo native; en web no aplica.
 - **Comprobación previa de espacio**: antes de empezar se lee `Paths.availableDiskSpace` y se exige el tamaño del modelo más 500 MB de margen (~3,6 GB). Si no cabe, no se descarga nada y la pantalla muestra un error específico (`aiDownloadNoSpace`) en vez del genérico. Una lectura no fiable del sistema no bloquea la descarga.
 - **Sin reanudación**: si la red cae o la app se cierra a mitad, el parcial se borra y hay que empezar de nuevo. `DownloadTask` expone `pause`/`resumeAsync`/`savable`, pero reanudar tras matar el proceso exige persistir ese estado y validar el parcial; queda pendiente.
-- **La pantalla puede apagarse durante la descarga**: `expo-keep-awake` solo llega como dependencia transitiva de `expo` y con pnpm no es resoluble desde la app; añadirlo requiere tocar `package.json`.
+- **La pantalla se mantiene encendida durante la descarga**: `aiStore.downloadModel` activa `expo-keep-awake` con una etiqueta propia al empezar y lo desactiva siempre en el `finally`, también si la descarga falla o se cancela. Si no se puede activar, la descarga sigue. Falta validarlo en dispositivo.
 
 ### Pantalla de gestión
 
@@ -94,7 +94,7 @@ El toggle "activar IA avanzada" es **OBLIGATORIO**: la generación consume RAM y
 - `downloadModel` / `deleteModel` / `cancelDownload`.
 - Reconciliación del estado del modelo en `loadAi` (reglas puras en `src/ai/modelReconcile.ts`): limpia descargas huérfanas, degrada estados `ready` sin fichero en disco y **adopta como `ready` un modelo completo que siga en disco con el perfil en `none`**. Esto último ocurre tras "Resetear todo" o importar un backup, que reescriben `ai_profile` sin tocar el fichero: antes la pantalla ofrecía "Descargar" con 3,1 GB huérfanos imposibles de borrar. Al adoptar no se activa el motor; lo decide el usuario.
 - `resetAiSession()` (export de `aiStore`): vacía chat, mensaje del día, comentarios de hábito, aparición y avisos en memoria/cache y relee el perfil. Hay que llamarla después de resetear o importar datos.
-- El chat carga en memoria como mucho los 200 mensajes más recientes. El historial en BD no se poda todavía.
+- El chat carga en memoria como mucho los 200 mensajes más recientes. La tabla `ai_messages` se poda a los 1000 más recientes en cada inserción.
 - Selección de motor vía `resolveEngine`: usa `llama` solo si `engine='llama'` + `modelStatus='ready'` + `modelPath` + native; en cualquier otro caso cae a plantillas.
 - Observabilidad runtime: los fallos del LLM en chat, briefing diario, micro-comentarios de hábito y apariciones autónomas se guardan en Ajustes IA con source/perfil/modelo para no confundir una plantilla de fallback con una respuesta LLM real. La misma pantalla tiene una prueba manual de superficies IA que genera briefing, micro-comentario y aparición con Gemma.
 
@@ -142,6 +142,10 @@ El build `5cf2587d` ya no se considera suficiente para validar IA local. El buil
 5. QA secundaria: revisar briefing diario, micro-comentarios de hábito y apariciones en flujo real, más estabilidad RAM/batería/calor.
 6. Si estable, reactivar OpenCL / `n_gpu_layers` y relanzar build.
 7. EAS Build `production`.
+
+## Copia de seguridad de Android y el modelo
+
+El GGUF vive en `files/models/` (`Paths.document` de `expo-file-system` es `context.filesDir`). `plugins/withAndroidBackupRules.js` excluye ese directorio de la copia automática de Android y de la transferencia entre dispositivos: con 3,1 GB dentro, la copia superaba el tope de 25 MB y la base de datos se quedaba sin respaldo. Tras restaurar en otro teléfono, `ai_profile` puede decir `ready` sin fichero en disco; `planModelReconcile` lo degrada a `none` con motor de plantillas al cargar, y el usuario vuelve a descargar el modelo si lo quiere.
 
 ## Riesgos
 

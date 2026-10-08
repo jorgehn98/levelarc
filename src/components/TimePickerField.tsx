@@ -57,12 +57,12 @@ export function TimePickerField({
   return (
     <>
       <View style={styles.controlRow}>
-        <Pressable onPress={openPicker} style={styles.valueButton}>
+        <Pressable accessibilityLabel={`${title}: ${displayValue}`} accessibilityRole="button" onPress={openPicker} style={styles.valueButton}>
           <Clock3 color={colors.brand.cyanCore} size={18} />
           <Text style={[styles.valueText, !parsedValue && styles.placeholderText]}>{displayValue}</Text>
         </Pressable>
         {parsedValue ? (
-          <Pressable accessibilityLabel={clearLabel} onPress={() => onChange(null)} style={styles.clearButton}>
+          <Pressable accessibilityLabel={clearLabel} accessibilityRole="button" onPress={() => onChange(null)} style={styles.clearButton}>
             <X color={colors.state.pending} size={18} />
           </Pressable>
         ) : null}
@@ -130,7 +130,12 @@ const TimeOption = memo(function TimeOption({
   const handlePress = useCallback(() => onSelect(value), [onSelect, value]);
 
   return (
-    <Pressable onPress={handlePress} style={[styles.timeOption, isSelected && styles.selectedTimeOption]}>
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: isSelected }}
+      onPress={handlePress}
+      style={[styles.timeOption, isSelected && styles.selectedTimeOption]}
+    >
       <Text style={[styles.timeOptionText, isSelected && styles.selectedTimeOptionText]}>{String(value).padStart(2, '0')}</Text>
     </Pressable>
   );
@@ -234,7 +239,7 @@ const styles = StyleSheet.create({
     borderColor: colors.background.border,
     borderRadius: radii.sm,
     borderWidth: 1,
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: 'center',
   },
   selectedTimeOption: {

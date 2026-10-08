@@ -16,13 +16,14 @@ import { attributeIds, getAttributeLevelProgress, normalizeAttributeXp } from '@
 import { getLevelProgress } from '@/core/ranks';
 import type { EventRecord, HabitRecord } from '@/db/repository';
 import { t, type Language } from '@/i18n';
+import { getTodayWeekday } from '@/lib/date';
 import { getEquippedTitle } from '@/lib/equippedTitle';
+import { getWeekdayInitial, type WeekdayId } from '@/lib/weekdays';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, shadows, typography, type Rank } from '@/theme/colors';
 import { getRankAccent } from '@/theme/rankAccent';
 
 const ranks: Rank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
-const weekLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const heatLevels = [colors.background.card, '#5F5224', '#8D7429', '#C79B31', colors.rank.S];
 
 export default function ProgressScreen() {
@@ -67,7 +68,7 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        <AttributeRadar attributeXp={player?.atributosXp} />
+        <AttributeRadar attributeXp={player?.atributosXp} language={language} />
 
         <View style={styles.panel}>
           <SectionHeader label={t(language, 'attributes')} />
@@ -93,7 +94,7 @@ export default function ProgressScreen() {
                 <View style={styles.weekBarTrack}>
                   <View style={[styles.weekBarFill, { height: `${day.ratio * 100}%`, minHeight: day.completed > 0 ? 8 : 0 }]} />
                 </View>
-                <Text style={[styles.weekBarLabel, day.isToday && styles.weekBarLabelActive]}>{day.label}</Text>
+                <Text style={[styles.weekBarLabel, day.isToday && styles.weekBarLabelActive]}>{getWeekdayInitial(language, day.weekday)}</Text>
               </View>
             ))}
           </View>
@@ -145,7 +146,7 @@ export default function ProgressScreen() {
                   >
                     <Text style={[styles.rankNodeText, { color: isCurrent ? colors.background.void : passed ? rankColor : colors.state.pending }]}>{rank}</Text>
                   </View>
-                  {isCurrent ? <Text style={[styles.currentRank, { color: rankColor }]}>ACTUAL</Text> : null}
+                  {isCurrent ? <Text style={[styles.currentRank, { color: rankColor }]}>{t(language, 'currentShort')}</Text> : null}
                 </View>
               );
             })}
@@ -162,7 +163,13 @@ export default function ProgressScreen() {
             <StatTile color={colors.rank.S} icon={Sparkles} label={t(language, 'totalXp')} unit="XP" value={player?.xpTotal ?? 0} />
           </View>
           <View style={styles.statsRow}>
-            <Pressable onPress={() => router.push('/shop')} style={styles.essenceTile}>
+            <Pressable
+              accessibilityHint={t(language, 'openShop')}
+              accessibilityLabel={t(language, 'essenceBalance', { value: player?.esencia ?? 0 })}
+              accessibilityRole="button"
+              onPress={() => router.push('/shop')}
+              style={styles.essenceTile}
+            >
               <StatTile color={colors.brand.cyanCore} icon={Gem} label={t(language, 'essence')} unit="ES" value={player?.esencia ?? 0} />
             </Pressable>
             <View style={styles.shopAction}>
@@ -191,7 +198,7 @@ export default function ProgressScreen() {
 
 type WeekActivityDay = {
   dateKey: string;
-  label: string;
+  weekday: WeekdayId;
   completed: number;
   target: number;
   ratio: number;
@@ -210,7 +217,7 @@ function getWeekActivity(events: EventRecord[], habits: HabitRecord[]) {
     const completed = completedByDate.get(dateKey) ?? 0;
     return {
       dateKey,
-      label: weekLabels[getLevelArcWeekday(date) - 1],
+      weekday: getLevelArcWeekday(date),
       completed,
       target,
       ratio: target > 0 ? Math.min(1, completed / target) : 0,
@@ -261,9 +268,8 @@ function isHabitScheduledOn(habit: HabitRecord, date: Date) {
   return habit.diasSemana.split(',').map(Number).includes(getLevelArcWeekday(date));
 }
 
-function getLevelArcWeekday(date: Date) {
-  const day = date.getDay();
-  return day === 0 ? 7 : day;
+function getLevelArcWeekday(date: Date): WeekdayId {
+  return getTodayWeekday(date) as WeekdayId;
 }
 
 function startOfLocalDay(date: Date) {

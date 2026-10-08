@@ -9,8 +9,9 @@ export type ReminderTrigger =
   | { kind: 'daily'; hour: number; minute: number };
 
 // Resultado de intentar programar. `none`: no había nada que programar. `denied`: el sistema no
-// permite notificaciones. `unsupported`: la plataforma no programa recordatorios (web).
-export type ReminderStatus = 'none' | 'scheduled' | 'denied' | 'unsupported';
+// permite notificaciones. `unsupported`: la plataforma no programa recordatorios (web). `failed`:
+// había permiso, pero el sistema falló al programar; la siguiente sincronización lo reintenta.
+export type ReminderStatus = 'none' | 'scheduled' | 'denied' | 'unsupported' | 'failed';
 
 export type ReminderResult = { status: ReminderStatus; notificationId: string | null };
 

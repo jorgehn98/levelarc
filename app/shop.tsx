@@ -202,7 +202,7 @@ function ShopItemCard({ busy, esencia, isEquipped, isOwned, item, language, nive
         ) : null}
         <View style={styles.cardCopy}>
           <Text style={styles.cardName}>{name}</Text>
-          {isOwned ? null : <EssenceBadge size={13} value={item.cost} />}
+          {isOwned ? null : <EssenceBadge accessibilityLabel={`${item.cost} ${t(language, 'essence')}`} size={13} value={item.cost} />}
           {locked ? (
             <View style={styles.requirementRow}>
               <Lock color={colors.state.pending} size={12} />

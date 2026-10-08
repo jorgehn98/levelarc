@@ -39,6 +39,7 @@ import { createId } from '@/lib/id';
 import type { Language } from '@/i18n';
 import { cancelHabitReminder, scheduleHabitReminder } from '@/lib/notifications';
 import type { ReminderResult, ReminderStatus } from '@/lib/reminderPlan';
+import { enqueueReminderWork } from '@/lib/reminderQueue';
 import type { Rank } from '@/theme/colors';
 
 import type {
@@ -268,13 +269,37 @@ export async function getHabitInsight(id: string, dateKey = toDateKey()): Promis
   };
 }
 
-// Los recordatorios se programan y cancelan FUERA de la cola: programar puede abrir el diálogo de
-// permisos y no debe retener una transacción. Si la escritura falla, se cancela lo recién creado.
-// El hábito se guarda aunque el recordatorio no se pueda programar; el estado devuelto lo cuenta.
-export async function createHabit(input: HabitInput, language: Language): Promise<{ id: string; reminder: ReminderStatus }> {
+// Los recordatorios se programan y cancelan FUERA de la cola de mutaciones: programar puede abrir
+// el diálogo de permisos y no debe retener una transacción. Si la escritura falla, se cancela lo
+// recién creado. El hábito se guarda aunque el recordatorio no se pueda programar; el estado
+// devuelto lo cuenta.
+//
+// Programar y guardar el id van juntos por la cola de recordatorios (enqueueReminderWork), la misma
+// que usa syncReminders: así una sincronización no cancela un recordatorio recién programado cuyo
+// id todavía no está en la base.
+async function scheduleForHabit(
+  nombre: string,
+  horaRecordatorio: string | null,
+  diasSemana: string,
+  language: Language,
+): Promise<ReminderResult> {
+  try {
+    return await scheduleHabitReminder(nombre, horaRecordatorio, diasSemana, language);
+  } catch {
+    // Un fallo del sistema al programar no es motivo para perder el hábito: se guarda sin id y la
+    // siguiente sincronización lo reintenta.
+    return { status: 'failed', notificationId: null };
+  }
+}
+
+export function createHabit(input: HabitInput, language: Language): Promise<{ id: string; reminder: ReminderStatus }> {
+  return enqueueReminderWork(() => createHabitWithReminder(input, language));
+}
+
+async function createHabitWithReminder(input: HabitInput, language: Language): Promise<{ id: string; reminder: ReminderStatus }> {
   const id = createId();
   const nombre = input.nombre.trim();
-  const reminder = await scheduleHabitReminder(nombre, input.horaRecordatorio, input.diasSemana, language);
+  const reminder = await scheduleForHabit(nombre, input.horaRecordatorio, input.diasSemana, language);
   try {
     await mutate(() =>
       sqlite.runAsync(
@@ -304,14 +329,18 @@ export async function createHabit(input: HabitInput, language: Language): Promis
   return { id, reminder: reminder.status };
 }
 
-export async function updateHabit(id: string, input: HabitInput, language: Language): Promise<ReminderStatus> {
+export function updateHabit(id: string, input: HabitInput, language: Language): Promise<ReminderStatus> {
+  return enqueueReminderWork(() => updateHabitWithReminder(id, input, language));
+}
+
+async function updateHabitWithReminder(id: string, input: HabitInput, language: Language): Promise<ReminderStatus> {
   const nombre = input.nombre.trim();
   // Un hábito archivado guarda su hora, pero no tiene recordatorio hasta que se desarchiva.
   const current = await getHabit(id);
   if (!current) return 'none';
   const reminder: ReminderResult = current.archivado
     ? { status: 'none', notificationId: null }
-    : await scheduleHabitReminder(nombre, input.horaRecordatorio, input.diasSemana, language);
+    : await scheduleForHabit(nombre, input.horaRecordatorio, input.diasSemana, language);
   let previous: HabitRecord | null;
   try {
     previous = await mutate(async () => {
@@ -361,12 +390,16 @@ export async function archiveHabit(id: string) {
   await cancelHabitReminder(notificationId);
 }
 
-export async function unarchiveHabit(id: string, language: Language): Promise<ReminderStatus> {
+export function unarchiveHabit(id: string, language: Language): Promise<ReminderStatus> {
+  return enqueueReminderWork(() => unarchiveHabitWithReminder(id, language));
+}
+
+async function unarchiveHabitWithReminder(id: string, language: Language): Promise<ReminderStatus> {
   const habit = await getHabit(id);
   if (!habit?.archivado) return 'none';
   // Un archivado no debería guardar ids; si quedó alguno, se cancela para no duplicar el aviso.
   await cancelHabitReminder(habit.notificationId);
-  const reminder = await scheduleHabitReminder(habit.nombre, habit.horaRecordatorio, habit.diasSemana, language);
+  const reminder = await scheduleForHabit(habit.nombre, habit.horaRecordatorio, habit.diasSemana, language);
   let restored: boolean;
   try {
     restored = await mutate(async () => {
