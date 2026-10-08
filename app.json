@@ -2,7 +2,7 @@
   "expo": {
     "name": "LevelArc",
     "slug": "levelarc",
-    "version": "1.1.6",
+    "version": "1.2.0",
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,12 @@
     },
     "android": {
       "package": "app.levelarc",
-      "versionCode": 11,
+      "versionCode": 12,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -66,7 +71,8 @@
             "deploymentTarget": "16.4"
           }
         }
-      ]
+      ],
+      "./plugins/withAndroidBackupRules"
     ],
     "extra": {
       "router": {},
