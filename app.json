@@ -3,7 +3,6 @@
     "name": "LevelArc",
     "slug": "levelarc",
     "version": "1.2.0",
-    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "levelarc",
