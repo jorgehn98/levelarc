@@ -12,6 +12,10 @@
 //    termina como descartada, aunque el nativo devuelva texto parcial.
 //  - `cancel(prioridad)` solo afecta a trabajos de esa prioridad: detiene el que corre y descarta los
 //    que esperan sin llegar a ejecutarlos.
+//  - `drain()` descarta TODO y espera a que el contexto quede libre: es el paso previo obligado a
+//    soltar el modelo (liberarlo con una inferencia en vuelo la rompe por debajo).
+//  - El trabajo existe en la cola desde que se pide, también mientras su tarea carga el modelo: por
+//    eso la tarea recibe `isDropped`, para no arrancar la inferencia si la descartaron entretanto.
 
 export type InferencePriority = 'chat' | 'background';
 
@@ -35,11 +39,31 @@ type Job = {
   dropped: boolean;
 };
 
+// La tarea recibe `isDropped` para consultarlo tras sus pasos largos previos a la inferencia.
+type InferenceTask<T> = (isDropped: () => boolean) => Promise<T>;
+
 type InferenceQueue = {
   // `stop` debe cortar la operación nativa de ESTE trabajo; solo se llama si ya está corriendo.
-  run<T>(priority: InferencePriority, task: () => Promise<T>, stop?: () => void): Promise<T>;
+  run<T>(priority: InferencePriority, task: InferenceTask<T>, stop?: () => void): Promise<T>;
   cancel(priority: InferencePriority): void;
+  // Descarta todos los trabajos y resuelve cuando el que corría ha soltado el contexto.
+  drain(): Promise<void>;
+  isBusy(): boolean;
 };
+
+// Espera a que `promise` termine (bien o mal), como mucho `ms`. Tras un timeout de inferencia el
+// nativo puede seguir ocupado un instante después de pedirle parar: se le da este margen antes de
+// ceder el turno, sin quedar colgados si nunca responde.
+export function settleWithin(promise: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    const done = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    promise.then(done, done);
+  });
+}
 
 export function createInferenceQueue(): InferenceQueue {
   // `tail` nunca rechaza: un trabajo fallido no debe bloquear a los siguientes.
@@ -53,7 +77,7 @@ export function createInferenceQueue(): InferenceQueue {
   }
 
   return {
-    run<T>(priority: InferencePriority, task: () => Promise<T>, stop: () => void = () => undefined): Promise<T> {
+    run<T>(priority: InferencePriority, task: InferenceTask<T>, stop: () => void = () => undefined): Promise<T> {
       if (priority === 'background' && jobs.length > 0) {
         return Promise.reject(new InferenceSkippedError());
       }
@@ -69,7 +93,7 @@ export function createInferenceQueue(): InferenceQueue {
         try {
           if (job.dropped) throw new InferenceSkippedError();
           job.started = true;
-          const value = await task();
+          const value = await task(() => job.dropped);
           if (job.dropped) throw new InferenceSkippedError();
           return value;
         } catch (error) {
@@ -90,5 +114,10 @@ export function createInferenceQueue(): InferenceQueue {
         if (job.priority === priority) drop(job);
       }
     },
+    drain(): Promise<void> {
+      for (const job of jobs) drop(job);
+      return tail;
+    },
+    isBusy: () => jobs.length > 0,
   };
 }

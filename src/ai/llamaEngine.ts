@@ -14,7 +14,7 @@ import type { HabitContext, SystemContext } from '@/core/aiContext';
 import type { InterjectionTrigger, SystemReply } from '@/core/systemVoice';
 
 import type { ChatContextNote, SystemChatEngine } from './engine';
-import { createInferenceQueue, type InferencePriority } from './inferenceQueue';
+import { createInferenceQueue, settleWithin, type InferencePriority } from './inferenceQueue';
 
 // Solo tipos: se borran al compilar, no generan require('llama.rn') en el bundle.
 import type { LlamaContext } from 'llama.rn';
@@ -47,6 +47,8 @@ const STOP = [TURN_END, TURN_START];
 // la generación nativa (stopCompletion) y rechazamos para que el store degrade a plantilla/error.
 const COMPLETION_TIMEOUT_MS = 45_000;
 const LOAD_TIMEOUT_MS = 180_000;
+// Margen para que el nativo suelte el contexto tras pedirle parar por timeout, antes de ceder el turno.
+const STOP_SETTLE_MS = 5_000;
 const JSI_INSTALL_RETRIES = 5;
 const JSI_INSTALL_RETRY_DELAY_MS = 100;
 
@@ -239,32 +241,32 @@ function buildInstructionBlock(ctx: SystemContext, language: Language): string {
 // Contexto del modelo cacheado entre llamadas. null = aún no cargado. La carga concurrente se
 // serializa con `loading` para no llamar initLlama dos veces si llegan greeting/reply a la vez.
 let context: LlamaContext | null = null;
-let loading: Promise<LlamaContext> | null = null;
 let loadedModelPath: string | null = null;
 
-// Flag de aborto de la carga en vuelo. Si releaseLlama llega mientras un initLlama está cargando
-// (varios segundos), no podemos cancelar initLlama, pero marcamos `loadAborted = true` para que, al
-// resolver, ensureContext libere ESE contexto recién creado en vez de cachearlo (evita LlamaContext
-// huérfano sin liberar — crítico con 3 GB de RAM). Cada carga se ata a su propio objeto-token para
-// que un release no afecte a una carga posterior que ya arrancó.
-let loadAborted = false;
+// Carga en vuelo con SU PROPIO token de aborto. initLlama no se puede cancelar, así que quien quiera
+// invalidar una carga marca `token.aborted`: al resolver, la carga libera ese contexto recién creado
+// en vez de cachearlo (evita un LlamaContext huérfano — crítico con 3 GB de RAM). El token es por
+// carga, no global: un flag compartido lo reseteaba la carga siguiente y, tras un timeout, la carga
+// vieja ya no era alcanzable y acababa cacheando un contexto de un fichero quizá ya borrado.
+type ContextLoad = { promise: Promise<LlamaContext>; token: { aborted: boolean } };
+let loading: ContextLoad | null = null;
 
 // Carga (o reutiliza) el contexto del modelo. Lanza si initLlama falla (modelo ausente/corrupto/OOM)
 // o si la carga supera LOAD_TIMEOUT_MS; el llamador (store) ya muestra systemChatError ante el throw.
 async function ensureContext(modelPath: string): Promise<LlamaContext> {
   if (context && loadedModelPath === modelPath) return context;
   // Cambió el modelo: libera el anterior (y cualquier carga en vuelo) antes de cargar el nuevo. Tras
-  // esto context queda null y no hay carga huérfana pendiente.
+  // esto context queda null y no hay carga huérfana pendiente. releaseContext y no releaseLlama: esto
+  // corre DENTRO de un trabajo de la cola y vaciarla aquí se esperaría a sí mismo.
   if ((context || loading) && loadedModelPath !== modelPath) {
-    await releaseLlama();
+    await releaseContext();
   }
   // Si justo terminó una carga del mismo modelo durante el await anterior, reutilízala.
   if (context && loadedModelPath === modelPath) return context;
-  if (loading) return loading;
+  if (loading) return loading.promise;
 
-  // Nueva carga: arranca "no abortada". releaseLlama pondrá loadAborted=true si llega en vuelo.
-  loadAborted = false;
-  const load = (async () => {
+  const token = { aborted: false };
+  const promise = (async () => {
     const { initLlama, installJsi, releaseAllLlama } = await import('llama.rn');
     await installJsiWithRetry(installJsi);
     const ctx = await initLlama({
@@ -275,27 +277,29 @@ async function ensureContext(modelPath: string): Promise<LlamaContext> {
       use_mmap: true,
       no_extra_bufts: true,
     });
-    // Si nos abortaron mientras cargábamos (un releaseLlama concurrente), este ctx es huérfano:
-    // libéralo en el acto y propaga el aborto como fallo en vez de cachear un contexto que el usuario
-    // pidió liberar.
-    if (loadAborted) {
+    // Carga invalidada mientras corría (release concurrente o timeout ya vencido): este ctx es
+    // huérfano. Se libera en el acto y se propaga como fallo en vez de cachearlo.
+    if (token.aborted) {
       try {
         await ctx.release();
       } catch {
-        // Si el release del contexto individual falla, releaseAllLlama de releaseLlama lo cubre.
         await releaseAllLlama().catch(() => undefined);
       }
-      throw new Error('Llama context load aborted by release');
+      throw new Error('Llama context load aborted');
     }
     context = ctx;
     loadedModelPath = modelPath;
     return ctx;
   })();
+  const load: ContextLoad = { promise, token };
   loading = load;
 
   try {
     // Timeout de carga: si initLlama no resuelve, no dejamos el motor colgado para siempre.
-    return await withTimeout(load, LOAD_TIMEOUT_MS, 'initLlama');
+    return await withTimeout(promise, LOAD_TIMEOUT_MS, 'initLlama', () => {
+      // initLlama sigue corriendo aunque dejemos de esperarlo: si acaba más tarde, que se libere solo.
+      token.aborted = true;
+    });
   } catch (error) {
     // Falló/venció/abortó la carga: deja el motor en estado no-listo para reintentar en la próxima
     // llamada. Solo limpiamos si seguimos siendo la carga vigente (otra carga pudo reemplazarnos).
@@ -531,8 +535,10 @@ export async function runLlamaSurfaceDiagnostics(
     });
   } finally {
     // Es una prueba manual desde Ajustes, no una conversación en curso: al terminar liberamos el
-    // contexto para no dejar el GGUF cargado en RAM si el usuario solo estaba diagnosticando.
-    await releaseLlama().catch(() => undefined);
+    // contexto para no dejar el GGUF cargado en RAM si el usuario solo estaba diagnosticando. Salvo
+    // que el motor esté ocupado (los pasos se saltaron porque el chat está generando): entonces el
+    // contexto es del chat y soltarlo le rompería la respuesta.
+    if (!inferenceQueue.isBusy()) await releaseLlama().catch(() => undefined);
   }
 
   return steps;
@@ -542,38 +548,47 @@ export async function runLlamaSurfaceDiagnostics(
 // `stopCompletion` corta lo que esté corriendo, sea de quien sea. Ver inferenceQueue.ts.
 const inferenceQueue = createInferenceQueue();
 
-// Ejecuta UNA inferencia sobre el contexto cargado, pasando por la cola. `priority` decide si espera
-// turno ('chat') o se descarta cuando el motor está ocupado ('background').
+// Ejecuta UNA inferencia pasando por la cola. `priority` decide si espera turno ('chat') o se
+// descarta cuando el motor está ocupado ('background').
+// La carga del modelo va DENTRO del trabajo: así existe en la cola desde el primer momento y cancelar
+// durante una carga en frío (varios segundos) lo descarta de verdad; fuera de la cola no había nada
+// que cancelar y la inferencia arrancaba igual al terminar la carga.
 // Prompt a mano en formato gemma-4 + `prompt` directo (no `messages`): esta ruta de completion NO
 // pasa por minja, así que ninguna rareza de la plantilla embebida puede romper la inferencia.
-// Timeout: si se atasca, al vencer abortamos con stopCompletion (corta de verdad, libera CPU). El
-// timeout cuenta desde que la inferencia arranca, no desde que entra en la cola.
+// Timeout: cuenta desde que la inferencia arranca, no desde que entra en la cola. Al vencer pedimos
+// parar y esperamos (acotado) a que el nativo suelte el contexto antes de ceder el turno: si no, el
+// siguiente trabajo se encontraba el contexto ocupado.
 async function complete(modelPath: string, prompt: string, priority: InferencePriority): Promise<string> {
-  // La carga del modelo queda FUERA de la cola: ya se deduplica sola (`loading`) y así la cola solo
-  // serializa lo que de verdad compite por el contexto.
-  const llama = await ensureContext(modelPath);
+  let llama: LlamaContext | null = null;
+  // Si aún no hay contexto (cargando), no hay nada nativo que cortar: basta con `isDropped`.
   const stop = () => {
-    void llama.stopCompletion().catch(() => undefined);
+    void llama?.stopCompletion().catch(() => undefined);
   };
   const result = await inferenceQueue.run(
     priority,
-    () =>
-      withTimeout(
-        llama.completion({
-          prompt,
-          n_predict: N_PREDICT,
-          temperature: TEMPERATURE,
-          top_p: TOP_P,
-          top_k: TOP_K,
-          penalty_repeat: PENALTY_REPEAT,
-          stop: STOP,
-        }),
-        COMPLETION_TIMEOUT_MS,
-        'completion',
-        stop,
-      ),
+    async (isDropped) => {
+      llama = await ensureContext(modelPath);
+      // Descartada durante la carga: la cola lo convierte en InferenceSkippedError.
+      if (isDropped()) return null;
+      const pending = llama.completion({
+        prompt,
+        n_predict: N_PREDICT,
+        temperature: TEMPERATURE,
+        top_p: TOP_P,
+        top_k: TOP_K,
+        penalty_repeat: PENALTY_REPEAT,
+        stop: STOP,
+      });
+      try {
+        return await withTimeout(pending, COMPLETION_TIMEOUT_MS, 'completion', stop);
+      } catch (error) {
+        if (error instanceof LlamaTimeoutError) await settleWithin(pending, STOP_SETTLE_MS);
+        throw error;
+      }
+    },
     stop,
   );
+  if (!result) throw new Error('Llama completion returned no result');
   return getCompletionText(result);
 }
 
@@ -645,27 +660,31 @@ export function abortGeneration(): void {
   inferenceQueue.cancel('chat');
 }
 
-// Libera toda la memoria del LLM (todos los contextos) y resetea el estado cacheado. La pantalla de
-// gestión del modelo (otra tarea) puede llamarla al borrar el modelo o liberar RAM.
-//
-// Race con una carga en vuelo (A3/A4): si hay un ensureContext cargando (initLlama de varios segundos),
-// no podemos cancelar initLlama, pero marcamos `loadAborted = true` y ESPERAMOS a que esa carga termine.
-// Al resolver, ensureContext ve el flag y libera su propio contexto recién creado, así que ningún
-// LlamaContext queda huérfano. Tras esperar, releaseAllLlama barre cualquier contexto residual.
-export async function releaseLlama(): Promise<void> {
-  // Marca la carga en vuelo (si la hay) como abortada y espera a que resuelva, para que ensureContext
-  // libere su contexto en lugar de cachearlo. Ignoramos su resultado/rechazo: solo queremos que acabe.
+// Suelta el contexto cacheado y toda la memoria del LLM, SIN mirar la cola. Uso interno: quien la
+// llame debe garantizar que no hay inferencias en vuelo (ver releaseLlama).
+// Si hay una carga en vuelo no se puede cancelar initLlama: se marca su token y se ESPERA a que
+// termine; al resolver, ella misma libera su contexto recién creado. Después releaseAllLlama barre
+// cualquier residuo.
+async function releaseContext(): Promise<void> {
   const pending = loading;
   if (pending) {
-    loadAborted = true;
-    await pending.catch(() => undefined);
+    pending.token.aborted = true;
+    await pending.promise.catch(() => undefined);
   }
   context = null;
   loadedModelPath = null;
-  loading = null;
-  loadAborted = false;
+  if (loading === pending) loading = null;
   const { releaseAllLlama } = await import('llama.rn');
   await releaseAllLlama();
+}
+
+// Libera el modelo de forma segura: primero descarta TODAS las inferencias (chat y de fondo) y espera
+// a que la que corría suelte el contexto; solo entonces lo libera. Soltarlo con una inferencia en
+// vuelo la rompe por debajo y su error se registraba como fallo del motor. La usan el borrado del
+// modelo, "reintentar" y el diagnóstico de superficies.
+export async function releaseLlama(): Promise<void> {
+  await inferenceQueue.drain();
+  await releaseContext();
 }
 
 // Factory del motor LLM atado a un modelPath concreto. isReady() refleja si el contexto de ESE

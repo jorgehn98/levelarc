@@ -140,6 +140,9 @@ let downloadController: AbortController | null = null;
 // vez de persistirse. Vive fuera del estado: es un handle de cancelación, no UI.
 let chatGenerationToken = 0;
 
+// Apertura del chat en curso (ver openChat): evita dos saludos por aperturas solapadas.
+let openChatInFlight: Promise<void> | null = null;
+
 // Tope de mensajes del chat que se cargan en memoria/pantalla. El historial en BD no se toca aquí;
 // esto solo evita que cada envío relea y repinte una conversación entera que crece sin límite.
 const CHAT_HISTORY_LIMIT = 200;
@@ -282,7 +285,9 @@ async function clearLlmRuntimeError(): Promise<void> {
 // "Reintentar" del aviso de fallo del motor local: suelta el contexto cargado (si se quedó en mal
 // estado, la siguiente inferencia lo recarga limpio) y borra el aviso. No toca modelo ni preferencias.
 export async function retryLlmEngine(): Promise<void> {
-  // Con una respuesta generándose no soltamos el contexto por debajo: solo se limpia el aviso.
+  // Con una respuesta del chat generándose no se suelta el contexto (el motor está funcionando y se
+  // perdería la respuesta): solo se limpia el aviso. releaseLlama descarta antes las inferencias de
+  // fondo que hubiera y espera a que suelten el contexto.
   if (Platform.OS !== 'web' && !useAiStore.getState().isGenerating) {
     try {
       const { releaseLlama } = await import('@/ai/llamaEngine');
@@ -471,39 +476,61 @@ export const useAiStore = create<AiState>((set, get) => ({
     const finalProfile = reconciled ? await getAiProfile() : profile;
     set({ profile: toProfileState(finalProfile), messages, interjectionsEnabled, isReady: true });
   },
-  openChat: async () => {
-    // Evita duplicar saludos: si ya hay historial, no genera otro de apertura. Solo arranca el chat
-    // con un saludo proactivo cuando está vacío.
-    const existing = await listAiMessages(CHAT_HISTORY_LIMIT);
-    if (existing.length > 0) {
-      set({ messages: existing, isReady: true });
-      return;
-    }
-    // El saludo del LLM puede tardar (carga del modelo + inferencia): marcamos isGenerating para que
-    // la UI muestre el indicador de escritura. El try/catch evita romper la apertura si el LLM peta.
-    set({ isGenerating: true });
-    const language = useAppStore.getState().language;
-    const ctx = await loadSystemContext();
-    try {
-      const profileBeforeEngine = get().profile;
-      const engine = await resolveEngine(get().profile);
-      if (profileBeforeEngine.engine === 'llama' && engine.id !== 'llama') {
-        await saveLlamaResolvedAsTemplate('openChat', profileBeforeEngine);
+  // Abre el chat: si está vacío, lo arranca con un saludo proactivo. Una sola apertura a la vez: el
+  // saludo del LLM tarda (carga en frío + inferencia) y entrar, salir y volver a entrar lanzaba dos y
+  // guardaba dos saludos. Las llamadas solapadas comparten la que ya está en curso.
+  openChat: () => {
+    openChatInFlight ??= (async () => {
+      // Token como en sendMessage: si el usuario cancela (y quizá escribe) mientras generamos, este
+      // saludo ya no pinta nada y no debe guardarse detrás de su mensaje.
+      let token: number | null = null;
+      try {
+        // Evita duplicar saludos: si ya hay historial, no genera otro de apertura.
+        const existing = await listAiMessages(CHAT_HISTORY_LIMIT);
+        if (existing.length > 0) {
+          set({ messages: existing, isReady: true });
+          return;
+        }
+        // Marcamos isGenerating para que la UI muestre el indicador de escritura. Todo lo que puede
+        // fallar va dentro del try: el finally garantiza que la marca no se queda puesta.
+        token = ++chatGenerationToken;
+        set({ isGenerating: true });
+        const language = useAppStore.getState().language;
+        const ctx = await loadSystemContext();
+        let text: string;
+        try {
+          const profileBeforeEngine = get().profile;
+          const engine = await resolveEngine(profileBeforeEngine);
+          if (profileBeforeEngine.engine === 'llama' && engine.id !== 'llama') {
+            await saveLlamaResolvedAsTemplate('openChat', profileBeforeEngine);
+          }
+          text = resolveReply(await engine.greeting(ctx, language));
+        } catch (err) {
+          if (__DEV__) console.warn('[ai] openChat: fallo en el saludo del Sistema', err);
+          if (token !== chatGenerationToken) return;
+          // Inferencia descartada sin cancelar el chat (se soltó el modelo): no es un fallo del
+          // motor, solo cae a plantilla y no se toca el perfil.
+          if (!isInferenceSkipped(err)) {
+            set({ profile: await handleLlmRuntimeFailure(get().profile, err, 'openChat') });
+          }
+          text = resolveReply(await templateEngine.greeting(ctx, language));
+        }
+        if (token !== chatGenerationToken) return;
+        await addAiMessage('assistant', text);
+      } catch (err) {
+        // Fallo de BD/contexto: el chat queda sin saludo, pero ni se cuelga ni rechaza sin dueño.
+        if (__DEV__) console.warn('[ai] openChat: no se pudo abrir el chat', err);
+      } finally {
+        openChatInFlight = null;
+        if (token !== null) {
+          const messages = await listAiMessages(CHAT_HISTORY_LIMIT).catch(() => get().messages);
+          // Solo soltamos isGenerating si seguimos siendo la generación vigente: tras cancelar, puede
+          // haber ya un envío del usuario generando.
+          set(token === chatGenerationToken ? { messages, isReady: true, isGenerating: false } : { messages, isReady: true });
+        }
       }
-      const text = resolveReply(await engine.greeting(ctx, language));
-      await addAiMessage('assistant', text);
-    } catch (err) {
-      if (__DEV__) console.warn('[ai] openChat: fallo en el saludo del Sistema', err);
-      // Saludo cancelado por el usuario: no es un fallo del motor, solo cae a plantilla.
-      const profile = isInferenceSkipped(err)
-        ? get().profile
-        : await handleLlmRuntimeFailure(get().profile, err, 'openChat');
-      const fallback = resolveReply(await templateEngine.greeting(ctx, language));
-      await addAiMessage('assistant', fallback);
-      set({ profile });
-    } finally {
-      set({ messages: await listAiMessages(CHAT_HISTORY_LIMIT), isReady: true, isGenerating: false });
-    }
+    })();
+    return openChatInFlight;
   },
   sendMessage: async (text) => {
     const trimmed = text.trim();
@@ -547,11 +574,16 @@ export const useAiStore = create<AiState>((set, get) => ({
       if (token !== chatGenerationToken) return;
       const language = useAppStore.getState().language;
       const ctx = await loadSystemContext();
-      const profile = await handleLlmRuntimeFailure(get().profile, err, 'sendMessage');
+      // Inferencia descartada sin cancelar el chat (se soltó el modelo por debajo, p. ej. al borrarlo):
+      // no es un fallo del motor. Responde la plantilla y no se toca el perfil; registrar el fallo
+      // aquí dejaba un borrado deliberado en estado 'error'.
+      if (!isInferenceSkipped(err)) {
+        set({ profile: await handleLlmRuntimeFailure(get().profile, err, 'sendMessage') });
+      }
       const fallback = resolveReply(await templateEngine.reply(ctx, trimmed, language, contextNote ?? undefined));
       await addAiMessage('assistant', fallback);
       // Limpiamos el contextNote igualmente: el intento ya consumió el contexto inicial.
-      set({ messages: await listAiMessages(CHAT_HISTORY_LIMIT), chatContextNote: null, profile });
+      set({ messages: await listAiMessages(CHAT_HISTORY_LIMIT), chatContextNote: null });
     } finally {
       // isGenerating SIEMPRE se resetea, también ante timeout/error, para no dejar el chat colgado.
       // Solo si seguimos siendo la generación vigente: una cancelación posterior ya lo reseteó.
@@ -906,6 +938,9 @@ export const useAiStore = create<AiState>((set, get) => ({
   // Borra el modelo: libera el LLM cargado (RAM), borra el fichero, deja el perfil en 'none' sin ruta
   // y engine 'template'. Recarga el profile para que la UI y resolveEngine vuelvan al motor por
   // plantillas. La liberación del LLM solo aplica en nativo (import dinámico de llama.rn).
+  // releaseLlama descarta primero cualquier inferencia en vuelo y espera a que suelte el contexto: una
+  // respuesta del chat a medias termina como "descartada" y sendMessage la resuelve con plantilla sin
+  // registrar fallo, así que el borrado acaba siempre en 'none' y no en 'error'.
   deleteModel: async () => {
     if (Platform.OS !== 'web') {
       try {

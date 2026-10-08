@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { InferenceSkippedError, createInferenceQueue } from './inferenceQueue';
+import { InferenceSkippedError, createInferenceQueue, settleWithin } from './inferenceQueue';
 
 // Tarea controlable a mano: permite decidir cuándo "termina" una inferencia.
 function deferred<T>() {
@@ -169,5 +169,74 @@ describe('inferenceQueue', () => {
     ).rejects.toThrow('native crash');
 
     await expect(queue.run('background', async () => 'ok')).resolves.toBe('ok');
+  });
+
+  it('tells a running task it was cancelled, so it can stop before starting the completion', async () => {
+    const queue = createInferenceQueue();
+    const modelLoad = deferred<void>();
+    let completionStarted = false;
+
+    // La tarea carga el modelo y solo después infiere: cancelar durante la carga debe evitarlo.
+    const chatResult = queue.run('chat', async (isDropped) => {
+      await modelLoad.promise;
+      if (isDropped()) return 'unused';
+      completionStarted = true;
+      return 'reply';
+    });
+    await flush();
+
+    queue.cancel('chat');
+    modelLoad.resolve();
+
+    await expect(chatResult).rejects.toBeInstanceOf(InferenceSkippedError);
+    expect(completionStarted).toBe(false);
+  });
+
+  it('drains every job and resolves only once the running one has let go', async () => {
+    const queue = createInferenceQueue();
+    const background = deferred<string>();
+    let stopCalls = 0;
+    let drained = false;
+
+    const backgroundResult = queue.run(
+      'background',
+      () => background.promise,
+      () => {
+        stopCalls += 1;
+      },
+    );
+    await flush();
+    expect(queue.isBusy()).toBe(true);
+
+    const draining = queue.drain().then(() => {
+      drained = true;
+    });
+    expect(stopCalls).toBe(1);
+    await flush();
+    expect(drained).toBe(false);
+
+    background.resolve('partial');
+    await expect(backgroundResult).rejects.toBeInstanceOf(InferenceSkippedError);
+    await draining;
+    expect(queue.isBusy()).toBe(false);
+  });
+
+  it('drains immediately when nothing is running', async () => {
+    const queue = createInferenceQueue();
+    await expect(queue.drain()).resolves.toBeUndefined();
+  });
+});
+
+describe('settleWithin', () => {
+  it('resolves as soon as the promise settles, even if it rejects', async () => {
+    const started = Date.now();
+    await settleWithin(Promise.reject(new Error('stopped')), 5_000);
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  it('gives up after the bound when the promise never settles', async () => {
+    const started = Date.now();
+    await settleWithin(new Promise(() => undefined), 30);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(25);
   });
 });
