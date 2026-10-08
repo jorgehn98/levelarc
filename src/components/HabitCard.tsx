@@ -21,13 +21,15 @@ import { colors, radii, typography } from '@/theme/colors';
 type HabitCardProps = {
   habit: TodayHabit;
   language: Language;
+  // Hay una acción de este hábito en curso: sus botones no admiten otro toque hasta que termine.
+  busy?: boolean;
   onIncrement: () => void;
   onFail: () => void;
   onUndo: () => void;
   onOpenDetail?: () => void;
 };
 
-export function HabitCard({ habit, language, onIncrement, onFail, onOpenDetail, onUndo }: HabitCardProps) {
+export function HabitCard({ habit, language, busy = false, onIncrement, onFail, onOpenDetail, onUndo }: HabitCardProps) {
   const isDone = habit.estado === 'completado';
   const isFailed = habit.estado === 'fallado';
   const isPending = !isDone && !isFailed;
@@ -106,16 +108,23 @@ export function HabitCard({ habit, language, onIncrement, onFail, onOpenDetail, 
 
       {isPending ? (
         <View style={styles.pendingActions}>
-          <Pressable accessibilityRole="button" onPress={onIncrement} style={styles.completeButton}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ busy, disabled: busy }}
+            disabled={busy}
+            onPress={onIncrement}
+            style={[styles.completeButton, busy && styles.busyAction]}
+          >
             <ActionIcon color={colors.background.void} size={18} />
             <Text style={styles.completeButtonText}>{habit.tipo === 'binario' ? t(language, 'complete') : '+1'}</Text>
           </Pressable>
 
           <Pressable
             accessibilityRole="button"
-            disabled={habit.cantidad > 0}
+            accessibilityState={{ busy, disabled: busy || habit.cantidad > 0 }}
+            disabled={busy || habit.cantidad > 0}
             onPress={onFail}
-            style={[styles.failButton, habit.cantidad > 0 && styles.disabledFailButton]}
+            style={[styles.failButton, habit.cantidad > 0 && styles.disabledFailButton, busy && styles.busyAction]}
           >
             <X color={habit.cantidad > 0 ? colors.state.pending : colors.state.failed} size={22} />
           </Pressable>
@@ -123,7 +132,13 @@ export function HabitCard({ habit, language, onIncrement, onFail, onOpenDetail, 
       ) : null}
 
       {(isDone || isFailed || habit.cantidad > 0) ? (
-        <Pressable accessibilityRole="button" onPress={onUndo} style={styles.undoButton}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ busy, disabled: busy }}
+          disabled={busy}
+          onPress={onUndo}
+          style={[styles.undoButton, busy && styles.busyAction]}
+        >
           <RotateCcw color={colors.brand.boneMuted} size={13} />
           <Text style={styles.undoText}>{t(language, 'undo')}</Text>
         </Pressable>
@@ -276,6 +291,9 @@ const styles = StyleSheet.create({
   },
   disabledFailButton: {
     borderColor: colors.background.borderBright,
+    opacity: 0.45,
+  },
+  busyAction: {
     opacity: 0.45,
   },
   undoButton: {

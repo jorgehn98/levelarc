@@ -18,6 +18,8 @@ type HabitFormProps = {
   habit?: HabitRecord | null;
   language: Language;
   onSave: (input: HabitInput) => void;
+  // Guardado en curso: el botón no admite otro toque hasta que termine.
+  isSaving?: boolean;
   onArchive?: () => void;
   onCancel?: () => void;
 };
@@ -118,7 +120,7 @@ function habitFormReducer(state: HabitFormState, action: HabitFormAction): Habit
   }
 }
 
-export function HabitForm({ habit, language, onSave, onArchive, onCancel }: HabitFormProps) {
+export function HabitForm({ habit, language, onSave, isSaving = false, onArchive, onCancel }: HabitFormProps) {
   const [state, dispatch] = useReducer(habitFormReducer, habit, createHabitFormState);
   const {
     attributes,
@@ -179,9 +181,10 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       <View style={styles.actionRow}>
         {onCancel ? <Button icon={X} label={t(language, 'cancel')} onPress={onCancel} style={styles.cancelAction} variant="secondary" /> : null}
         <Button
+          busy={isSaving}
           disabled={!canSave}
           icon={habit ? Check : Plus}
-          label={habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
+          label={isSaving ? t(language, 'saving') : habit ? t(language, 'saveChanges') : t(language, 'createHabit')}
           onPress={handleSave}
           style={styles.primaryAction}
         />
@@ -189,6 +192,7 @@ export function HabitForm({ habit, language, onSave, onArchive, onCancel }: Habi
       {onArchive ? (
         <Button
           icon={Archive}
+          busy={isSaving}
           label={habit?.archivado ? t(language, 'unarchiveHabit') : t(language, 'archiveHabit')}
           onPress={onArchive}
           style={styles.archiveAction}

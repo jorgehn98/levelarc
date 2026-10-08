@@ -29,7 +29,13 @@
       "expo-router",
       "expo-sqlite",
       "expo-font",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#3FCAE6"
+        }
+      ],
       [
         "expo-splash-screen",
         {

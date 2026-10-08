@@ -11,10 +11,11 @@ import { useAppStore } from '@/stores/appStore';
 export default function NewHabitScreen() {
   const saveHabit = useAppStore((state) => state.saveHabit);
   const language = useAppStore((state) => state.language);
+  const isBusy = useAppStore((state) => state.isBusy);
 
   async function handleSave(input: HabitInput) {
-    await saveHabit(input);
-    router.back();
+    // Si falla, el store ya avisó: el formulario sigue abierto con lo escrito.
+    if (await saveHabit(input)) router.back();
   }
 
   return (
@@ -22,7 +23,7 @@ export default function NewHabitScreen() {
       <Stack.Screen options={{ title: t(language, 'newHabit') }} />
       <ScreenHeader subtitle={t(language, 'habitRegisterSubtitle')} title={t(language, 'newHabit')} />
       <ScrollView contentContainerStyle={styles.scroll}>
-        <HabitForm language={language} onCancel={() => router.back()} onSave={(input) => void handleSave(input)} />
+        <HabitForm isSaving={isBusy} language={language} onCancel={() => router.back()} onSave={(input) => void handleSave(input)} />
       </ScrollView>
     </Screen>
   );

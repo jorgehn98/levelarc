@@ -12,11 +12,13 @@ type ButtonProps = {
   onPress: () => void;
   variant?: ButtonVariant;
   disabled?: boolean;
+  // Acción en curso: no admite toques y se atenúa en cualquier variante hasta que termine.
+  busy?: boolean;
   icon?: ComponentType<LucideProps>;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Button({ label, onPress, variant = 'primary', disabled, icon: Icon, style }: ButtonProps) {
+export function Button({ label, onPress, variant = 'primary', disabled, busy = false, icon: Icon, style }: ButtonProps) {
   const [isPressed, setIsPressed] = useState(false);
   const isPrimary = variant === 'primary';
   const isSelected = variant === 'selected';
@@ -35,7 +37,9 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
 
   return (
     <Pressable
-      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ busy, disabled: Boolean(disabled) || busy }}
+      disabled={disabled || busy}
       onPress={onPress}
       onPressIn={() => setIsPressed(true)}
       onPressOut={() => setIsPressed(false)}
@@ -43,8 +47,8 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
         styles.button,
         styles[variant],
         style,
-        disabled && !isPrimary && styles.disabled,
-        isPressed && !disabled && styles.pressed,
+        (busy || (disabled && !isPrimary)) && styles.disabled,
+        isPressed && !disabled && !busy && styles.pressed,
       ]}
     >
       {Icon ? (

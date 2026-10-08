@@ -2,30 +2,51 @@ import '../global.css';
 
 import * as SystemUI from 'expo-system-ui';
 import * as Updates from 'expo-updates';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, View } from 'react-native';
 
 import { CelebrationOverlay } from '@/components/CelebrationOverlay';
+import { SystemErrorScreen } from '@/components/SystemErrorScreen';
 import { SystemInterjectionOverlay } from '@/components/SystemInterjectionOverlay';
 import { colors } from '@/theme/colors';
+import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { t } from '@/i18n';
 import { toDateKey } from '@/lib/date';
 
 void SystemUI.setBackgroundColorAsync(colors.background.surface);
 
+// Convención de Expo Router: si el layout raíz (o una pantalla sin límite propio) lanza al
+// renderizar, se muestra esto en lugar de una pantalla en blanco. `retry` vuelve a montar la ruta.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const language = useAppStore((state) => state.language);
+  return (
+    <SystemErrorScreen
+      detail={error.message}
+      language={language}
+      message={t(language, 'renderErrorCopy')}
+      onRetry={() => void retry()}
+      title={t(language, 'renderErrorTitle')}
+    />
+  );
+}
+
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoadedOk, fontError] = useFonts({
     Inter_400Regular: require('../assets/fonts/Inter-VariableFont.ttf'),
     Inter_500Medium: require('../assets/fonts/Inter-VariableFont.ttf'),
     Inter_600SemiBold: require('../assets/fonts/Inter-VariableFont.ttf'),
     Orbitron_500Medium: require('../assets/fonts/Orbitron-VariableFont.ttf'),
     Orbitron_700Bold: require('../assets/fonts/Orbitron-VariableFont.ttf'),
   });
+  // Si las fuentes no cargan, la app sigue con la fuente del sistema en vez de quedarse en el spinner.
+  const fontsLoaded = fontsLoadedOk || Boolean(fontError);
   const boot = useAppStore((state) => state.boot);
+  const bootError = useAppStore((state) => state.bootError);
+  const interjectionVisible = useAiStore((state) => Boolean(state.interjection));
   const closeMissedDays = useAppStore((state) => state.closeMissedDays);
   const refresh = useAppStore((state) => state.refresh);
   const isReady = useAppStore((state) => state.isReady);
@@ -77,11 +98,15 @@ export default function RootLayout() {
       const currentDateKey = toDateKey();
       if (currentDateKey === activeDateKeyRef.current) return;
 
+      // La marca se pone antes de esperar: el intervalo y la vuelta a primer plano no lanzan un
+      // segundo cierre para el mismo día. Si falla, se retira para reintentar en el siguiente aviso.
+      const previousDateKey = activeDateKeyRef.current;
       activeDateKeyRef.current = currentDateKey;
-      void (async () => {
-        await closeMissedDays();
-        await refresh();
-      })();
+      closeMissedDays()
+        .then(refresh)
+        .catch(() => {
+          activeDateKeyRef.current = previousDateKey;
+        });
     }
 
     refreshIfLocalDayChanged();
@@ -133,6 +158,18 @@ export default function RootLayout() {
     router.push({ pathname: '/rank-up', params: { from, to } });
   }, [pendingRankUp, consumeRankUp, pathname, router]);
 
+  if (bootError && !isReady) {
+    return (
+      <SystemErrorScreen
+        detail={bootError}
+        language={language}
+        message={t(language, 'bootErrorCopy')}
+        onRetry={() => void boot()}
+        title={t(language, 'bootErrorTitle')}
+      />
+    );
+  }
+
   if (!fontsLoaded || !isReady) {
     return (
       <View style={{ alignItems: 'center', backgroundColor: colors.background.void, flex: 1, justifyContent: 'center' }}>
@@ -144,23 +181,31 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background.void },
-        }}
+      {/* Con NYX en pantalla el fondo queda fuera del árbol de accesibilidad: en Android
+          accessibilityViewIsModal no basta y TalkBack podía seguir leyendo la pantalla de detrás. */}
+      <View
+        accessibilityElementsHidden={interjectionVisible}
+        importantForAccessibility={interjectionVisible ? 'no-hide-descendants' : 'auto'}
+        style={{ flex: 1 }}
       >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="habit/new" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="habit/[id]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="habit/edit/[id]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="onboarding" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="rank-up" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="shop" />
-        <Stack.Screen name="achievements" />
-        <Stack.Screen name="system-chat" />
-        <Stack.Screen name="system-ai" />
-      </Stack>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background.void },
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="habit/new" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="habit/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="habit/edit/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="onboarding" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="rank-up" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="shop" />
+          <Stack.Screen name="achievements" />
+          <Stack.Screen name="system-chat" />
+          <Stack.Screen name="system-ai" />
+        </Stack>
+      </View>
       {/* Celebración: toast ARRIBA. Aparición del Sistema: panel ABAJO. No se solapan. */}
       <CelebrationOverlay />
       <SystemInterjectionOverlay />

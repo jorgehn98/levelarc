@@ -19,7 +19,6 @@ import {
   clearAiMessages,
   getAiProfile,
   listAiMessages,
-  listHabits,
   setAiEnabled,
   setAiEngine,
   setAiModelStatus,
@@ -352,11 +351,9 @@ async function markInterjectionShown(trigger: InterjectionTrigger, today: string
   }
 }
 
-// Contexto del Sistema + nº de hábitos activos. buildSystemContext solo conoce los hábitos de HOY, y
-// sin el total no se distingue "aún no tienes hábitos" de "hoy no toca ninguno".
-async function loadSystemContext(): Promise<SystemContext> {
-  const [ctx, habits] = await Promise.all([buildSystemContext(), listHabits()]);
-  return { ...ctx, habitosActivos: habits.length };
+// Contexto del Sistema. buildSystemContext ya incluye el nº de hábitos activos.
+function loadSystemContext(): Promise<SystemContext> {
+  return buildSystemContext();
 }
 
 // Resuelve un SystemReply del motor a texto en el idioma activo del appStore.

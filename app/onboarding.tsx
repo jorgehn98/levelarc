@@ -41,9 +41,8 @@ export default function OnboardingScreen() {
     if (isFirstRun && !isValid) return;
     setIsSubmitting(true);
     try {
-      if (isFirstRun || name.trim() !== player?.nombre) {
-        await setPlayerName(name.trim());
-      }
+      // Si el nombre no se guardó, el store ya avisó: seguimos aquí en vez de entrar sin jugador.
+      if ((isFirstRun || name.trim() !== player?.nombre) && !(await setPlayerName(name.trim()))) return;
       router.replace('/');
     } finally {
       setIsSubmitting(false);

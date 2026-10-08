@@ -35,6 +35,7 @@ function makeContext(overrides: Partial<SystemContext> = {}): SystemContext {
     faltaParaNivel: 100,
     rachaMisiones: 0,
     atributoTop: null,
+    habitosActivos: 1,
     habitosHoyTotal: 0,
     completadosHoy: 0,
     pendientesHoy: 0,

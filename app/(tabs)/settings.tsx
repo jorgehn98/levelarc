@@ -36,29 +36,18 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { TimePickerField } from '@/components/TimePickerField';
 import { t, type Language } from '@/i18n';
-import {
-  cancelEndOfDayReminder,
-  requestNotificationPermissions,
-  scheduleEndOfDayReminder,
-} from '@/lib/notifications';
+import { notify } from '@/lib/confirm';
+import { requestNotificationPermissions } from '@/lib/notifications';
+import { warnRemindersDisabled } from '@/lib/reminderNotice';
+import { clearEndOfDayReminder, getEndOfDayReminderTime, saveEndOfDayReminder } from '@/lib/reminders';
 import { useAiStore } from '@/stores/aiStore';
 import { useAppStore } from '@/stores/appStore';
 import { colors, radii, typography } from '@/theme/colors';
 
-const END_OF_DAY_REMINDER_TIME_KEY = 'levelarc.endOfDayReminderTime';
-const END_OF_DAY_REMINDER_ID_KEY = 'levelarc.endOfDayReminderNotificationId';
 const VIBRATION_KEY = 'levelarc.settings.vibration';
 const SOUND_KEY = 'levelarc.settings.sound';
 const INTERJECTIONS_ENABLED_KEY = 'levelarc.interjectionsEnabled';
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.2';
-
-async function clearEndOfDayReminder() {
-  const existingId = await AsyncStorage.getItem(END_OF_DAY_REMINDER_ID_KEY);
-  await Promise.all([
-    cancelEndOfDayReminder(existingId),
-    AsyncStorage.multiRemove([END_OF_DAY_REMINDER_TIME_KEY, END_OF_DAY_REMINDER_ID_KEY]),
-  ]);
-}
 
 type SettingsState = {
   isImportOpen: boolean;
@@ -190,7 +179,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     async function loadEndOfDayReminder() {
       const [storedTime, storedVibration, storedSound, storedInterjections] = await Promise.all([
-        AsyncStorage.getItem(END_OF_DAY_REMINDER_TIME_KEY),
+        getEndOfDayReminderTime(),
         AsyncStorage.getItem(VIBRATION_KEY),
         AsyncStorage.getItem(SOUND_KEY),
         AsyncStorage.getItem(INTERJECTIONS_ENABLED_KEY),
@@ -204,8 +193,15 @@ export default function SettingsScreen() {
       });
     }
 
-    void loadEndOfDayReminder();
+    // Si las preferencias no se pueden leer, la pantalla sigue con los valores por defecto.
+    loadEndOfDayReminder().catch(() => undefined);
   }, []);
+
+  // Los manejadores locales de esta pantalla (preferencias y recordatorio) no pasan por el store:
+  // si fallan, avisan igual que una acción en vez de perderse en una promesa sin tratar.
+  const guarded = (task: () => Promise<void>) => {
+    task().catch(() => notify(t(language, 'actionFailed'), t(language, 'actionFailedCopy')));
+  };
 
   const handleImportBackup = () => {
     Alert.alert(t(language, 'restoreConfirmTitle'), t(language, 'restoreConfirmCopy'), [
@@ -215,7 +211,8 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: () => {
           void (async () => {
-            await importBackup(backupJson);
+            // Si falla, el store ya explicó el motivo: el diálogo sigue abierto con el texto pegado.
+            if (!(await importBackup(backupJson))) return;
             dispatch({ type: 'setBackupJson', value: '' });
             dispatch({ type: 'setImportOpen', value: false });
             Alert.alert(t(language, 'backupImported'), t(language, 'backupImportedCopy'));
@@ -226,7 +223,7 @@ export default function SettingsScreen() {
   };
 
   const handleSaveName = async () => {
-    await setPlayerName(playerName);
+    if (!(await setPlayerName(playerName))) return;
     dispatch({ type: 'setNameOpen', value: false });
     Alert.alert(t(language, 'nameUpdated'), t(language, 'nameUpdatedCopy'));
   };
@@ -259,25 +256,17 @@ export default function SettingsScreen() {
       return;
     }
 
-    const existingId = await AsyncStorage.getItem(END_OF_DAY_REMINDER_ID_KEY);
-    const [, notificationId] = await Promise.all([
-      cancelEndOfDayReminder(existingId),
-      scheduleEndOfDayReminder(
-        normalizedTime,
-        t(language, 'endOfDayNotificationTitle'),
-        t(language, 'endOfDayNotificationBody'),
-      ),
-    ]);
-
-    if (!notificationId) {
-      Alert.alert(t(language, 'notificationPermissionDenied'), t(language, 'notificationPermissionDeniedCopy'));
+    // Solo se da por guardado si quedó programado: el interruptor nunca queda encendido sin aviso.
+    const status = await saveEndOfDayReminder(normalizedTime, language);
+    if (status === 'denied') {
+      warnRemindersDisabled(language, 'notificationPermissionDeniedCopy');
+      return;
+    }
+    if (status !== 'scheduled') {
+      notify(t(language, 'reminderUnavailable'), t(language, 'reminderUnavailableCopy'));
       return;
     }
 
-    await AsyncStorage.multiSet([
-      [END_OF_DAY_REMINDER_TIME_KEY, normalizedTime],
-      [END_OF_DAY_REMINDER_ID_KEY, notificationId],
-    ]);
     dispatch({ type: 'saveEndOfDayReminder', value: normalizedTime });
     Alert.alert(t(language, 'reminderSaved'), t(language, 'reminderSavedCopy'));
   };
@@ -316,9 +305,9 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: () => {
           void (async () => {
-            await clearEndOfDayReminder();
+            // resetAll también borra el recordatorio de fin de día, y solo si el reinicio entró.
+            if (!(await resetAll())) return;
             dispatch({ type: 'clearEndOfDayReminder' });
-            await resetAll();
             Alert.alert(t(language, 'resetDone'), t(language, 'resetDoneCopy'));
             router.replace('/onboarding');
           })();
@@ -368,10 +357,10 @@ export default function SettingsScreen() {
               active={Boolean(endOfDayReminderTime)}
               onPress={() => {
                 if (endOfDayReminderTime) {
-                  void handleDisableEndOfDayReminder();
+                  guarded(handleDisableEndOfDayReminder);
                   return;
                 }
-                void requestNotificationPermissions();
+                void requestNotificationPermissions(language).catch(() => undefined);
                 dispatch({ type: 'setEndOfDayReminderDraft', value: '21:30' });
                 dispatch({ type: 'setEndOfDayReminderOpen', value: true });
               }}
@@ -379,17 +368,17 @@ export default function SettingsScreen() {
           </SettingRow>
 
           <SettingRow compact icon={Snowflake} title={t(language, 'vibration')} value={t(language, 'vibrationCopy')}>
-            <Toggle active={vibrationEnabled} onPress={() => void handleToggleVibration()} />
+            <Toggle active={vibrationEnabled} onPress={() => guarded(handleToggleVibration)} />
           </SettingRow>
 
           <SettingRow compact icon={Music} title={t(language, 'sound')} value={t(language, 'soundCopy')}>
-            <Toggle active={soundEnabled} onPress={() => void handleToggleSound()} />
+            <Toggle active={soundEnabled} onPress={() => guarded(handleToggleSound)} />
           </SettingRow>
         </SettingsSection>
 
         <SettingsSection accent={colors.brand.cyanCore} label={t(language, 'system')}>
           <SettingRow compact icon={Cpu} title={t(language, 'interjectionsToggle')} value={t(language, 'interjectionsToggleCopy')}>
-            <Toggle active={interjectionsEnabled} onPress={() => void handleToggleInterjections()} />
+            <Toggle active={interjectionsEnabled} onPress={() => guarded(handleToggleInterjections)} />
           </SettingRow>
 
           <SettingRow icon={Terminal} title={t(language, 'systemChatTitle')} value={t(language, 'systemChatRowCopy')}>
@@ -491,8 +480,8 @@ export default function SettingsScreen() {
         language={language}
         onCancel={() => dispatch({ type: 'setEndOfDayReminderOpen', value: false })}
         onChange={(value) => dispatch({ type: 'setEndOfDayReminderDraft', value })}
-        onDisable={() => void handleDisableEndOfDayReminder()}
-        onSave={() => void handleSaveEndOfDayReminder()}
+        onDisable={() => guarded(handleDisableEndOfDayReminder)}
+        onSave={() => guarded(handleSaveEndOfDayReminder)}
         value={endOfDayReminderDraft}
         visible={isEndOfDayReminderOpen}
       />

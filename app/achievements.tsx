@@ -35,7 +35,13 @@ export default function AchievementsScreen() {
     <Screen>
       <ScreenHeader
         action={
-          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
+          <Pressable
+            accessibilityLabel={t(language, 'goBack')}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <ChevronLeft color={colors.brand.cyanCore} size={20} />
           </Pressable>
         }
