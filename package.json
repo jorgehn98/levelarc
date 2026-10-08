@@ -37,8 +37,6 @@
     "@babel/plugin-transform-react-jsx": "^7.28.6",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~56.0.12",
-    "drizzle-kit": "^0.31.10",
-    "drizzle-orm": "^0.45.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~56.0.4",
     "tailwindcss": "^3.4.17",
@@ -54,7 +52,6 @@
     "test": "vitest run",
     "check": "tsc --noEmit && eslint . --max-warnings 0 && vitest run",
     "doctor": "npx expo-doctor",
-    "db:generate": "drizzle-kit generate",
     "build:android:preview": "npx eas-cli build --platform android --profile preview",
     "build:android:production": "npx eas-cli build --platform android --profile production",
     "update:preview": "npx eas-cli update --channel preview --environment preview",
@@ -62,6 +59,9 @@
     "lint": "eslint ."
   },
   "private": true,
+  "engines": {
+    "node": ">=22.13"
+  },
   "knip": {
     "ignore": [
       "docs/UI-UX/**"

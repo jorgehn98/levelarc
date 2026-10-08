@@ -10,7 +10,7 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionHeader } from '@/components/SectionHeader';
 import { SystemMessageCard } from '@/components/SystemMessageCard';
-import { getDailyMissionProgress, getPerfectWeekMissionProgress } from '@/core/missions';
+import { canClaimPerfectWeek as canClaimPerfectWeekBonus, getDailyMissionProgress, getPerfectWeekMissionProgress } from '@/core/missions';
 import type { TodayHabit } from '@/db/repository';
 import { t, type Language } from '@/i18n';
 import { useAiStore } from '@/stores/aiStore';
@@ -41,7 +41,7 @@ export default function TodayScreen() {
   const mission = getDailyMissionProgress(dailyMission?.completados ?? 0, dailyMission?.objetivo ?? todayHabits.length);
   const perfectWeekMission = getPerfectWeekMissionProgress(dailyMission?.perfectStreakDays ?? 0);
   const canClaim = mission.isComplete && !dailyMission?.reclamada;
-  const canClaimPerfectWeek = perfectWeekMission.isComplete && !dailyMission?.streakBonusClaimed;
+  const canClaimPerfectWeek = canClaimPerfectWeekBonus(dailyMission);
   const showPerfectWeekMission = (dailyMission?.perfectStreakDays ?? 0) >= 6;
   const pendingHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'pendiente'), [todayHabits]);
   const completedHabits = useMemo(() => todayHabits.filter((habit) => habit.estado === 'completado'), [todayHabits]);
@@ -117,7 +117,7 @@ export default function TodayScreen() {
               <View style={styles.claim}>
                 <Button icon={Flame} label={t(language, 'claimXp', { xp: dailyMission?.streakBonusXp ?? 30 })} onPress={claimPerfectWeekMission} />
               </View>
-            ) : perfectWeekMission.isComplete ? (
+            ) : dailyMission?.streakBonusClaimed ? (
               <Text style={styles.claimed}>{t(language, 'perfectWeekClaimed')} · +{dailyMission?.streakBonusXp ?? 30} XP</Text>
             ) : (
               <Text style={styles.metaText}>{t(language, 'perfectWeekProgress', { done: perfectWeekMission.completed, target: perfectWeekMission.target })}</Text>

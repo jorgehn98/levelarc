@@ -1,1 +1,0 @@
-ALTER TABLE `habits` ADD `notification_id` text;

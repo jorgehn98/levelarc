@@ -3,8 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DAILY_MISSION_BONUS_XP,
   PERFECT_WEEK_BONUS_XP,
+  canClaimPerfectWeek,
   getClaimedDailyMissionStreak,
   getDailyMissionBonus,
+  getPerfectDayStreak,
 } from '@/core/missions';
 import {
   getCompletionEssence,
@@ -16,7 +18,7 @@ import { getLevelFromXp, getLevelProgress } from '@/core/ranks';
 import type { SystemContext } from '@/core/aiContext';
 import { DEFAULT_AURA_ID, getShopItem, meetsRequirement } from '@/core/shop';
 import { getScheduledCompletionStreak } from '@/core/streaks';
-import { applyXpDelta, getCompletionXp, getFailureXp, type HabitImportance } from '@/core/xp';
+import { applyXpDelta, getCompletionXp, getFailureXp } from '@/core/xp';
 import {
   applyAttributeDeltas,
   attributeIds,
@@ -25,155 +27,36 @@ import {
   getAttributeLevelProgress,
   normalizeAttributeXp,
   serializeHabitAttributes,
-  type AttributeXp,
 } from '@/core/attributes';
 import { evaluateUnlocked, getAchievement, type AchievementContext } from '@/core/achievements';
-import { BACKUP_LIMITS, asLimitedBackupArray, boundedBackupString } from '@/lib/backupValidation';
-import { toDateKey, toIsoTimestamp } from '@/lib/date';
+import { isAiRole, keepNewestAiMessages, normalizeBackupData } from '@/lib/backupValidation';
+import { shiftDateKey, toDateKey, toIsoTimestamp, toLocalEndOfDay } from '@/lib/date';
 import { normalizeHabitIcon } from '@/lib/habitIcons';
 import { createId } from '@/lib/id';
-import type { Rank } from '@/theme/colors';
 
-export type HabitType = 'binario' | 'contable';
-export type ProgressState = 'pendiente' | 'completado' | 'fallado';
-export type EventType = 'completado' | 'fallado';
+import type {
+  AchievementUnlockedRecord,
+  AiEngine,
+  AiMessage,
+  AiModelStatus,
+  AiProfile,
+  AiRole,
+  DailyMissionRecord,
+  DailyProgressRecord,
+  EquipResult,
+  EventRecord,
+  EventType,
+  HabitInput,
+  HabitInsightDay,
+  HabitInsightRecord,
+  HabitRecord,
+  PlayerRecord,
+  PurchaseResult,
+  RewardRecord,
+  TodayHabit,
+} from './types';
 
-export type HabitRecord = {
-  id: string;
-  nombre: string;
-  icono: string;
-  atributos: string;
-  importancia: HabitImportance;
-  tipo: HabitType;
-  meta: number;
-  diasSemana: string;
-  horaRecordatorio: string | null;
-  notificationId: string | null;
-  archivado: boolean;
-  creadoEn: string;
-};
-
-export type HabitInput = {
-  nombre: string;
-  icono: string;
-  atributos: string;
-  importancia: HabitImportance;
-  tipo: HabitType;
-  meta: number;
-  diasSemana: string;
-  horaRecordatorio: string | null;
-};
-
-export type TodayHabit = HabitRecord & {
-  cantidad: number;
-  estado: ProgressState;
-};
-
-export type PlayerRecord = {
-  nombre: string | null;
-  xpTotal: number;
-  nivel: number;
-  rango: Rank;
-  rachaMisiones: number;
-  atributosXp: AttributeXp;
-  esencia: number;
-  nivelEsenciaOtorgado: number;
-  tituloEquipado: string | null;
-  auraEquipada: string;
-  actualizadoEn: string;
-};
-
-export type PurchaseResult = { ok: boolean; reason?: 'unknown' | 'owned' | 'locked' | 'insufficient' };
-export type EquipResult = { ok: boolean; reason?: 'unknown' | 'notOwned' };
-
-type RewardRecord = {
-  id: string;
-  rewardId: string;
-  kind: string;
-  adquiridoEn: string;
-};
-
-type AchievementUnlockedRecord = {
-  id: string;
-  achievementId: string;
-  desbloqueadoEn: string;
-};
-
-export type DailyMissionRecord = {
-  fecha: string;
-  objetivo: number;
-  completados: number;
-  reclamada: boolean;
-  xpBonus: number;
-  perfectStreakDays: number;
-  streakBonusClaimed: boolean;
-  streakBonusXp: number;
-  esenciaOtorgada: number;
-};
-
-export type EventRecord = {
-  id: string;
-  habitId: string;
-  fecha: string;
-  tipoEvento: EventType;
-  xpDelta: number;
-  attributeDelta: AttributeXp;
-  esenciaOtorgada: number;
-  registradoEn: string;
-  habitName?: string;
-};
-
-export type AiEngine = 'template' | 'llama';
-export type AiModelStatus = 'none' | 'downloading' | 'ready' | 'error';
-export type AiRole = 'system' | 'user' | 'assistant';
-
-export type AiProfile = {
-  enabled: boolean;
-  engine: AiEngine;
-  modelStatus: AiModelStatus;
-  modelPath: string | null;
-  actualizadoEn: string;
-};
-
-export type AiMessage = {
-  id: string;
-  rol: AiRole;
-  contenido: string;
-  fecha: string;
-  creadoEn: string;
-};
-
-type HabitDayStatus = ProgressState | 'no_programado';
-
-export type HabitInsightDay = {
-  fecha: string;
-  weekday: number;
-  status: HabitDayStatus;
-  cantidad: number;
-  meta: number;
-};
-
-export type HabitInsightRecord = {
-  today: HabitInsightDay;
-  currentStreak: number;
-  consistency30: {
-    completed: number;
-    scheduled: number;
-    failed: number;
-    ratio: number;
-  };
-  last7: HabitInsightDay[];
-  recentEvents: EventRecord[];
-};
-
-type DailyProgressRecord = {
-  id: string;
-  habitId: string;
-  fecha: string;
-  cantidad: number;
-  estado: ProgressState;
-  actualizadoEn: string;
-};
+export type * from './types';
 
 type WebDb = {
   habits: HabitRecord[];
@@ -390,39 +273,40 @@ export async function undoTodayHabit(habitId: string, dateKey = toDateKey()) {
   await saveDb(db);
 }
 
-function recalculatePlayerFromLedger(db: WebDb) {
-  // Solo reconstruye XP y atributos desde el ledger. La esencia es gastable (no derivada de
-  // eventos), así que NO se recalcula aquí; su reversión se gestiona en cada acción. El
-  // syncPlayer final llama a syncLevelUpEssence, que es idempotente y nunca resta.
-  db.player.xpTotal = 0;
-  db.player.atributosXp = createEmptyAttributeXp();
+// Proyecta XP, atributos y racha de misiones desde el ledger (eventos + bonus reclamados) en el
+// orden real en que ocurrieron. La esencia es gastable, no derivada: no se toca aquí.
+function projectLedger(db: WebDb) {
   const ledger = [
-    ...db.events.map((event) => ({
-      attributeDelta: event.attributeDelta,
-      registradoEn: event.registradoEn,
-      xpDelta: event.xpDelta,
-    })),
+    ...db.events.map((event) => ({ attributeDelta: event.attributeDelta, instante: event.registradoEn, xpDelta: event.xpDelta })),
     ...db.missions.flatMap((mission) => [
       ...(mission.reclamada
-        ? [{ attributeDelta: createEmptyAttributeXp(), registradoEn: `${mission.fecha}T23:59:59.000Z`, xpDelta: mission.xpBonus }]
+        ? [{ attributeDelta: createEmptyAttributeXp(), instante: mission.reclamadaEn ?? mission.fecha, xpDelta: mission.xpBonus }]
         : []),
       ...(mission.streakBonusClaimed
-        ? [{ attributeDelta: createEmptyAttributeXp(), registradoEn: `${mission.fecha}T23:59:59.000Z`, xpDelta: mission.streakBonusXp }]
+        ? [{ attributeDelta: createEmptyAttributeXp(), instante: mission.streakBonusReclamadoEn ?? mission.fecha, xpDelta: mission.streakBonusXp }]
         : []),
     ]),
-  ].sort((a, b) => a.registradoEn.localeCompare(b.registradoEn));
+  ].sort((a, b) => (a.instante < b.instante ? -1 : a.instante > b.instante ? 1 : 0));
 
+  db.player.xpTotal = 0;
+  db.player.atributosXp = createEmptyAttributeXp();
   for (const entry of ledger) {
     db.player.xpTotal = applyXpDelta(db.player.xpTotal, entry.xpDelta);
     db.player.atributosXp = applyAttributeDeltas(db.player.atributosXp, entry.attributeDelta);
   }
   db.player.rachaMisiones = getLatestClaimedMissionStreak(db);
+}
+
+function recalculatePlayerFromLedger(db: WebDb) {
+  projectLedger(db);
+  // syncPlayer llama a syncLevelUpEssence, que es idempotente y nunca resta.
   syncPlayer(db);
 }
 
-export async function getPlayer() {
+export async function getPlayer(): Promise<PlayerRecord> {
   const db = await loadDb();
-  return db.player;
+  // Suelo en cero solo al exponerlo: el saldo guardado puede ser negativo (gastar y deshacer).
+  return { ...db.player, esencia: Math.max(0, db.player.esencia) };
 }
 
 export async function updatePlayerName(name: string) {
@@ -449,7 +333,7 @@ export async function purchaseReward(rewardId: string): Promise<PurchaseResult> 
   const db = await loadDb();
   if (db.rewards.some((reward) => reward.rewardId === rewardId)) return { ok: false, reason: 'owned' };
   if (!meetsRequirement(item, db.player.nivel, db.player.rango)) return { ok: false, reason: 'locked' };
-  if (db.player.esencia < item.cost) return { ok: false, reason: 'insufficient' };
+  if (Math.max(0, db.player.esencia) < item.cost) return { ok: false, reason: 'insufficient' };
 
   grantEssence(db, -item.cost);
   db.rewards.push({ id: createId(), rewardId, kind: item.kind, adquiridoEn: toIsoTimestamp() });
@@ -498,16 +382,19 @@ export async function claimDailyMission(dateKey = toDateKey()) {
   if (syncMission(db, dateKey)) {
     recalculatePlayerFromLedger(db);
   }
-  if (mission.reclamada || mission.completados < mission.objetivo) return;
-  // Persistimos la esencia concedida en el claim para revertir ese valor exacto si la misión
-  // deja de estar completa, en vez de recomputarla desde un objetivo que pudo cambiar.
-  const esenciaOtorgada = getMissionEssence(mission.objetivo);
-  mission.reclamada = true;
-  mission.esenciaOtorgada = esenciaOtorgada;
-  db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.xpBonus);
-  db.player.rachaMisiones = getPreviousClaimedMissionStreak(db, dateKey) + 1;
-  syncPlayer(db);
-  grantEssence(db, esenciaOtorgada);
+  if (!mission.reclamada && mission.objetivo > 0 && mission.completados >= mission.objetivo) {
+    // Persistimos la esencia concedida en el claim para revertir ese valor exacto si la misión
+    // deja de estar completa, en vez de recomputarla desde un objetivo que pudo cambiar.
+    const esenciaOtorgada = getMissionEssence(mission.objetivo);
+    mission.reclamada = true;
+    mission.reclamadaEn = toIsoTimestamp();
+    mission.esenciaOtorgada = esenciaOtorgada;
+    db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.xpBonus);
+    db.player.rachaMisiones = getClaimedDailyMissionStreak(db.missions, shiftDateKey(dateKey, -1)) + 1;
+    syncPlayer(db);
+    grantEssence(db, esenciaOtorgada);
+  }
+  // Se guarda siempre: la sincronización previa ya pudo cambiar la misión o revocar un bonus.
   await saveDb(db);
 }
 
@@ -517,11 +404,13 @@ export async function claimPerfectWeekMission(dateKey = toDateKey()) {
   if (syncMission(db, dateKey)) {
     recalculatePlayerFromLedger(db);
   }
-  if (mission.streakBonusClaimed || mission.perfectStreakDays < 7 || mission.completados < mission.objetivo) return;
-  mission.streakBonusClaimed = true;
-  db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.streakBonusXp);
-  syncPlayer(db);
-  grantEssence(db, getPerfectWeekEssence());
+  if (canClaimPerfectWeek(mission)) {
+    mission.streakBonusClaimed = true;
+    mission.streakBonusReclamadoEn = toIsoTimestamp();
+    db.player.xpTotal = applyXpDelta(db.player.xpTotal, mission.streakBonusXp);
+    syncPlayer(db);
+    grantEssence(db, getPerfectWeekEssence());
+  }
   await saveDb(db);
 }
 
@@ -570,6 +459,8 @@ export async function addAiMessage(rol: AiRole, contenido: string, dateKey = toD
   const db = await loadDb();
   const message: AiMessage = { id: createId(), rol, contenido, fecha: dateKey, creadoEn: toIsoTimestamp() };
   db.aiMessages.push(message);
+  // Poda: se conservan solo los mensajes más recientes, los mismos que caben en un backup.
+  db.aiMessages = keepNewestAiMessages(db.aiMessages);
   await saveDb(db);
   return message;
 }
@@ -644,7 +535,7 @@ export async function buildSystemContext(dateKey = toDateKey()): Promise<SystemC
     nombre: player.nombre,
     nivel: player.nivel,
     rango: player.rango,
-    esencia: player.esencia,
+    esencia: Math.max(0, player.esencia),
     ratioNivel: progress.ratio,
     faltaParaNivel: Math.max(0, progress.neededForLevel - progress.gainedInLevel),
     rachaMisiones: player.rachaMisiones,
@@ -735,18 +626,42 @@ export async function evaluateAndUnlockAchievements(): Promise<{ id: string; ess
 }
 
 export async function exportAllData() {
-  return loadDb();
+  const db = await loadDb();
+  return { ...db, aiMessages: keepNewestAiMessages(db.aiMessages) };
 }
 
 export async function importAllData(data: unknown) {
-  await saveDb(normalizeBackupData(data));
-  await ensureDailyMission(toDateKey());
+  const backup = normalizeBackupData(data);
+  const db = createEmptyDb();
+  db.habits = backup.habits;
+  db.events = backup.events;
+  db.progress = backup.habitDailyProgress;
+  db.missions = backup.dailyMissions;
+  db.rewards = backup.playerRewards;
+  db.achievements = backup.achievementsUnlocked;
+  db.aiMessages = backup.aiMessages;
+  // La caché del jugador no se copia del fichero: sale del ledger importado. El marcador de esencia
+  // de nivel nunca queda por debajo del nivel resultante, así que importar no vuelve a pagar niveles
+  // que el saldo del backup ya incluye. La IA vuelve a plantilla: la ruta del modelo no es portable.
+  projectLedger(db);
+  const progress = getLevelProgress(db.player.xpTotal);
+  db.player = {
+    ...db.player,
+    ...backup.player,
+    nivel: progress.level,
+    rango: progress.rank,
+    nivelEsenciaOtorgado: Math.max(backup.player.nivelEsenciaOtorgado, progress.level),
+  };
+  ensureMission(db, toDateKey());
+  if (syncMission(db, toDateKey())) recalculatePlayerFromLedger(db);
+  await saveDb(db);
 }
 
 async function ensureDailyMission(dateKey: string) {
   const db = await loadDb();
   ensureMission(db, dateKey);
-  syncMission(db, dateKey);
+  // Si la sincronización revoca una misión reclamada, el XP del bonus sale también de la caché.
+  if (syncMission(db, dateKey)) recalculatePlayerFromLedger(db);
   await saveDb(db);
 }
 
@@ -772,6 +687,8 @@ function ensureMission(db: WebDb, dateKey: string) {
       streakBonusClaimed: false,
       streakBonusXp: PERFECT_WEEK_BONUS_XP,
       esenciaOtorgada: 0,
+      reclamadaEn: null,
+      streakBonusReclamadoEn: null,
     };
     db.missions.push(mission);
   }
@@ -795,18 +712,19 @@ function syncMission(db: WebDb, dateKey: string) {
   mission.completados = db.progress.filter(
     (item) => item.fecha === dateKey && item.estado === 'completado' && scheduledHabitIds.has(item.habitId),
   ).length;
-  mission.xpBonus = getDailyMissionBonus(mission.objetivo);
-  const previousPerfectStreak = getPreviousPerfectDayStreak(db, dateKey);
+  const previousPerfectStreak = getPerfectDayStreak(db.missions, shiftDateKey(dateKey, -1));
   const isPerfectToday = mission.objetivo > 0 && mission.completados >= mission.objetivo;
   mission.perfectStreakDays = isPerfectToday ? previousPerfectStreak + 1 : previousPerfectStreak;
-  mission.streakBonusXp = PERFECT_WEEK_BONUS_XP;
   if (!isPerfectToday) {
     mission.reclamada = false;
+    mission.reclamadaEn = null;
     mission.streakBonusClaimed = false;
+    mission.streakBonusReclamadoEn = null;
   }
-  if (mission.objetivo === 0) {
-    mission.reclamada = false;
-  }
+  // Lo ya reclamado no se reescribe: archivar, desarchivar o editar hábitos después no cambia el XP
+  // que ese claim aportó al ledger.
+  if (!mission.reclamada) mission.xpBonus = getDailyMissionBonus(mission.objetivo);
+  if (!mission.streakBonusClaimed) mission.streakBonusXp = PERFECT_WEEK_BONUS_XP;
 
   const missionRevoked = wasClaimed && !mission.reclamada;
   const streakBonusRevoked = wasStreakBonusClaimed && !mission.streakBonusClaimed;
@@ -826,27 +744,6 @@ function syncMission(db: WebDb, dateKey: string) {
   return missionRevoked || streakBonusRevoked;
 }
 
-function getPreviousPerfectDayStreak(db: WebDb, dateKey: string) {
-  let streak = 0;
-  const cursor = new Date(`${dateKey}T12:00:00`);
-
-  while (true) {
-    cursor.setDate(cursor.getDate() - 1);
-    const key = toDateKey(cursor);
-    const mission = db.missions.find((item) => item.fecha === key);
-    if (!mission || mission.objetivo <= 0 || mission.completados < mission.objetivo) break;
-    streak += 1;
-  }
-
-  return streak;
-}
-
-function getPreviousClaimedMissionStreak(db: WebDb, dateKey: string) {
-  const previousDate = new Date(`${dateKey}T12:00:00`);
-  previousDate.setDate(previousDate.getDate() - 1);
-  return getClaimedDailyMissionStreak(db.missions, toDateKey(previousDate));
-}
-
 function getLatestClaimedMissionStreak(db: WebDb) {
   const latest = db.missions
     .filter((mission) => mission.objetivo > 0 && mission.reclamada)
@@ -862,9 +759,10 @@ function syncPlayer(db: WebDb) {
   syncLevelUpEssence(db);
 }
 
-// Suma (o resta, con delta negativo) esencia gastable, con suelo en cero.
+// Suma (o resta, con delta negativo) esencia gastable. Sin suelo: tras gastar y deshacer el saldo
+// guardado queda negativo, y eso impide fabricar esencia repitiendo completar-gastar-deshacer.
 function grantEssence(db: WebDb, deltaEsencia: number) {
-  db.player.esencia = Math.max(0, db.player.esencia + deltaEsencia);
+  db.player.esencia += deltaEsencia;
 }
 
 // Otorga esencia por las subidas de nivel pendientes. Idempotente y monotónico: el nivel
@@ -985,13 +883,18 @@ async function loadDb(): Promise<WebDb> {
   db.achievements = Array.isArray(db.achievements) ? db.achievements : [];
   // Blob antiguo sin IA → defaults / []. La tabla no existía, no hay nada que restaurar.
   db.aiProfile = normalizeAiProfile(parsed.aiProfile) ?? createDefaultAiProfile();
-  db.aiMessages = Array.isArray(db.aiMessages) ? db.aiMessages.map(normalizeAiMessage) : [];
+  db.aiMessages = Array.isArray(db.aiMessages)
+    ? db.aiMessages.map((message) => ({ ...message, rol: isAiRole(message.rol) ? message.rol : 'system' }))
+    : [];
   db.missions = db.missions.map((mission) => ({
     ...mission,
     perfectStreakDays: Math.max(0, Math.floor(Number(mission.perfectStreakDays ?? 0))),
     streakBonusClaimed: Boolean(mission.streakBonusClaimed),
     streakBonusXp: Math.max(0, Math.floor(Number(mission.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
     esenciaOtorgada: Math.max(0, Math.floor(Number(mission.esenciaOtorgada ?? 0))),
+    // Blob anterior a la hora de claim: final del día local de su fecha.
+    reclamadaEn: mission.reclamada ? mission.reclamadaEn ?? toLocalEndOfDay(mission.fecha) : null,
+    streakBonusReclamadoEn: mission.streakBonusClaimed ? mission.streakBonusReclamadoEn ?? toLocalEndOfDay(mission.fecha) : null,
   }));
   return db;
 }
@@ -1037,156 +940,20 @@ function createDefaultAiProfile(): AiProfile {
   };
 }
 
-function normalizeBackupData(data: unknown): WebDb {
-  if (!isRecord(data)) throw new Error('Invalid backup data');
-  const empty = createEmptyDb();
-  const habits = asArray(data.habits, 'habits', BACKUP_LIMITS.habits).map(normalizeHabit);
-  const events = asArray(data.events, 'events', BACKUP_LIMITS.events).map(normalizeEvent);
-  const progress = asArray(data.habitDailyProgress ?? data.progress, 'progress', BACKUP_LIMITS.habitDailyProgress).map(normalizeProgress);
-  const player = normalizePlayer(asArray(data.player)[0] ?? data.player) ?? empty.player;
-  const missions = asArray(data.dailyMissions ?? data.missions, 'missions', BACKUP_LIMITS.dailyMissions).map(normalizeMission);
-  const rewards = asArray(data.playerRewards ?? data.rewards, 'rewards', BACKUP_LIMITS.playerRewards).map(normalizeReward);
-  // Backups antiguos sin la tabla → []. La tabla no existía, así que no hay nada que restaurar.
-  const achievements = asArray(data.achievementsUnlocked ?? data.achievements, 'achievements', BACKUP_LIMITS.achievementsUnlocked).map(normalizeAchievement);
-  // No restauramos engine/model_status/model_path desde JSON: el fichero GGUF vive en este
-  // dispositivo y su ruta local no es portable. Tras importar, la IA vuelve a plantilla segura.
-  const aiProfile = createDefaultAiProfile();
-  const aiMessages = asArray(data.aiMessages, 'aiMessages', BACKUP_LIMITS.aiMessages).map(normalizeAiMessage);
-
-  return { habits, events, progress, player, missions, rewards, achievements, aiProfile, aiMessages };
-}
-
 function normalizeAiProfile(row: unknown): AiProfile | null {
   if (!isRecord(row)) return null;
-  const engine = row.engine === 'llama' ? 'llama' : 'template';
-  const status = row.modelStatus ?? row.model_status;
+  const status = row.modelStatus;
   return {
-    enabled: asBoolean(row.enabled),
-    engine,
+    enabled: row.enabled === true,
+    engine: row.engine === 'llama' ? 'llama' : 'template',
     modelStatus: isAiModelStatus(status) ? status : 'none',
-    modelPath: nullableString(row.modelPath ?? row.model_path),
-    actualizadoEn: asString((row.actualizadoEn ?? row.actualizado_en) || toIsoTimestamp()),
+    modelPath: typeof row.modelPath === 'string' && row.modelPath ? row.modelPath : null,
+    actualizadoEn: typeof row.actualizadoEn === 'string' ? row.actualizadoEn : toIsoTimestamp(),
   };
-}
-
-function normalizeAiMessage(row: unknown): AiMessage {
-  if (!isRecord(row)) throw new Error('Invalid ai message row');
-  const rol = isAiRole(row.rol) ? row.rol : 'system';
-  return {
-    id: asString(row.id),
-    rol,
-    contenido: typeof row.contenido === 'string' ? boundedString(row.contenido, BACKUP_LIMITS.aiMessageLength) : '',
-    fecha: asString((row.fecha as string) || toDateKey()),
-    creadoEn: asString((row.creadoEn ?? row.creado_en) || toIsoTimestamp()),
-  };
-}
-
-function isAiRole(value: unknown): value is AiRole {
-  return value === 'system' || value === 'user' || value === 'assistant';
 }
 
 function isAiModelStatus(value: unknown): value is AiModelStatus {
   return value === 'none' || value === 'downloading' || value === 'ready' || value === 'error';
-}
-
-function normalizeHabit(row: unknown): HabitRecord {
-  if (!isRecord(row)) throw new Error('Invalid habit row');
-  const tipo = row.tipo === 'contable' ? 'contable' : 'binario';
-  return {
-    id: asString(row.id),
-    nombre: asString(row.nombre).trim(),
-    icono: normalizeHabitIcon(row.icono ?? row.icon),
-    atributos: serializeHabitAttributes(row.atributos ?? row.attributes),
-    importancia: clampImportance(asNumber(row.importancia)),
-    tipo,
-    meta: tipo === 'binario' ? 1 : Math.max(1, Math.floor(asNumber(row.meta))),
-    diasSemana: asString((row.dias_semana ?? row.diasSemana) || '1,2,3,4,5,6,7'),
-    horaRecordatorio: nullableString(row.hora_recordatorio ?? row.horaRecordatorio),
-    notificationId: null,
-    archivado: asBoolean(row.archivado),
-    creadoEn: asString((row.creado_en ?? row.creadoEn) || toIsoTimestamp()),
-  };
-}
-
-function normalizeProgress(row: unknown): DailyProgressRecord {
-  if (!isRecord(row)) throw new Error('Invalid progress row');
-  return {
-    id: asString(row.id),
-    habitId: asString(row.habit_id ?? row.habitId),
-    fecha: asString(row.fecha),
-    cantidad: Math.max(0, Math.floor(asNumber(row.cantidad))),
-    estado: normalizeProgressState(row.estado),
-    actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
-  };
-}
-
-function normalizeEvent(row: unknown): EventRecord {
-  if (!isRecord(row)) throw new Error('Invalid event row');
-  return {
-    id: asString(row.id),
-    habitId: asString(row.habit_id ?? row.habitId),
-    habitName: typeof row.nombre === 'string' ? row.nombre : typeof row.habitName === 'string' ? row.habitName : undefined,
-    fecha: asString(row.fecha),
-    tipoEvento: row.tipo_evento === 'fallado' || row.tipoEvento === 'fallado' ? 'fallado' : 'completado',
-    xpDelta: asNumber(row.xp_delta ?? row.xpDelta),
-    attributeDelta: normalizeAttributeXp(row.attribute_delta ?? row.attributeDelta),
-    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
-    registradoEn: asString((row.registrado_en ?? row.registradoEn) || toIsoTimestamp()),
-  };
-}
-
-function normalizeMission(row: unknown): DailyMissionRecord {
-  if (!isRecord(row)) throw new Error('Invalid mission row');
-  return {
-    fecha: asString(row.fecha),
-    objetivo: Math.max(1, Math.floor(asNumber(row.objetivo))),
-    completados: Math.max(0, Math.floor(asNumber(row.completados))),
-    reclamada: asBoolean(row.reclamada),
-    xpBonus: Math.max(0, Math.floor(asNumber(row.xp_bonus ?? row.xpBonus))),
-    perfectStreakDays: Math.max(0, Math.floor(asNumber(row.perfect_streak_days ?? row.perfectStreakDays ?? 0))),
-    streakBonusClaimed: asBoolean(row.streak_bonus_claimed ?? row.streakBonusClaimed),
-    streakBonusXp: Math.max(0, Math.floor(asNumber(row.streak_bonus_xp ?? row.streakBonusXp ?? PERFECT_WEEK_BONUS_XP))),
-    esenciaOtorgada: Math.max(0, Math.floor(asNumber(row.esencia_otorgada ?? row.esenciaOtorgada ?? 0))),
-  };
-}
-
-function normalizePlayer(row: unknown): PlayerRecord | null {
-  if (!isRecord(row)) return null;
-  const xpTotal = asNumber(row.xp_total ?? row.xpTotal);
-  const progress = getLevelProgress(xpTotal);
-  const nivel = Math.max(1, Math.floor(asNumber(row.nivel ?? progress.level)));
-  return {
-    nombre: nullableString(row.nombre ?? row.name),
-    xpTotal,
-    nivel,
-    rango: isRank(row.rango) ? row.rango : progress.rank,
-    rachaMisiones: Math.max(0, Math.floor(asNumber(row.racha_misiones ?? row.rachaMisiones))),
-    atributosXp: normalizeAttributeXp(row.atributos_xp ?? row.atributosXp ?? row.attributeXp),
-    esencia: Math.max(0, Math.floor(asNumber(row.esencia ?? 0))),
-    nivelEsenciaOtorgado: Math.max(1, Math.floor(asNumber(row.nivel_esencia_otorgado ?? row.nivelEsenciaOtorgado ?? nivel))),
-    tituloEquipado: nullableString(row.titulo_equipado ?? row.tituloEquipado),
-    auraEquipada: nullableString(row.aura_equipada ?? row.auraEquipada) ?? DEFAULT_AURA_ID,
-    actualizadoEn: asString((row.actualizado_en ?? row.actualizadoEn) || toIsoTimestamp()),
-  };
-}
-
-function normalizeReward(row: unknown): RewardRecord {
-  if (!isRecord(row)) throw new Error('Invalid reward row');
-  return {
-    id: asString(row.id),
-    rewardId: asString(row.reward_id ?? row.rewardId),
-    kind: asString(row.kind),
-    adquiridoEn: asString((row.adquirido_en ?? row.adquiridoEn) || toIsoTimestamp()),
-  };
-}
-
-function normalizeAchievement(row: unknown): AchievementUnlockedRecord {
-  if (!isRecord(row)) throw new Error('Invalid achievement row');
-  return {
-    id: asString(row.id),
-    achievementId: asString(row.achievement_id ?? row.achievementId),
-    desbloqueadoEn: asString((row.desbloqueado_en ?? row.desbloqueadoEn) || toIsoTimestamp()),
-  };
 }
 
 function normalizePlayerName(name: string) {
@@ -1197,48 +964,6 @@ function normalizePlayerName(name: string) {
   return trimmed;
 }
 
-function normalizeProgressState(value: unknown): ProgressState {
-  if (value === 'completado' || value === 'fallado') return value;
-  return 'pendiente';
-}
-
-function clampImportance(value: number): HabitImportance {
-  if (value <= 1) return 1;
-  if (value >= 5) return 5;
-  return Math.round(value) as HabitImportance;
-}
-
-function asArray(value: unknown, label = 'array', maxItems = Number.POSITIVE_INFINITY): unknown[] {
-  return asLimitedBackupArray(value, label, maxItems);
-}
-
-function asString(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim()) throw new Error('Invalid backup field');
-  return boundedBackupString(value, BACKUP_LIMITS.stringLength);
-}
-
-function boundedString(value: string, maxLength: number): string {
-  return boundedBackupString(value, maxLength);
-}
-
-function nullableString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value : null;
-}
-
-function asNumber(value: unknown): number {
-  const number = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(number)) throw new Error('Invalid backup number');
-  return number;
-}
-
-function asBoolean(value: unknown): boolean {
-  return value === true || value === 1;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isRank(value: unknown): value is Rank {
-  return value === 'E' || value === 'D' || value === 'C' || value === 'B' || value === 'A' || value === 'S';
 }

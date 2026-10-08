@@ -32,13 +32,19 @@ export function getXpForLevel(level: number): number {
   return Math.ceil(LEVEL_CURVE_BASE * Math.pow(level - 1, LEVEL_CURVE_EXPONENT));
 }
 
-export function getLevelFromXp(totalXp: number): number {
-  const safeXp = Math.max(0, Math.floor(totalXp));
-  let level = 1;
+// Tope de XP que el cálculo de nivel acepta. Por encima de 2^53 los enteros dejan de ser exactos y
+// `level + 1 === level`, así que cualquier bucle de corrección dejaría de terminar.
+const MAX_LEVEL_XP = Number.MAX_SAFE_INTEGER;
 
-  while (safeXp >= getXpForLevel(level + 1)) {
-    level += 1;
-  }
+// Forma cerrada (inversa de getXpForLevel) con corrección de exactitud: Math.pow puede desviar la
+// estimación un nivel en cualquier sentido, así que se ajusta contra la curva real. Coste O(1) para
+// cualquier entrada, incluidos NaN, Infinity o 1e300 (p. ej. un backup hostil).
+export function getLevelFromXp(totalXp: number): number {
+  const safeXp = Number.isNaN(totalXp) ? 0 : Math.min(MAX_LEVEL_XP, Math.max(0, Math.floor(totalXp)));
+  let level = Math.floor(Math.pow(safeXp / LEVEL_CURVE_BASE, 1 / LEVEL_CURVE_EXPONENT)) + 1;
+
+  while (level > 1 && getXpForLevel(level) > safeXp) level -= 1;
+  while (getXpForLevel(level + 1) <= safeXp) level += 1;
 
   return level;
 }

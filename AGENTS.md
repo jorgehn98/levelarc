@@ -50,9 +50,9 @@ MVP stack:
 - Expo Updates / EAS Update.
 - Zustand.
 - NativeWind/Tailwind.
-- SQLite + Drizzle on native.
+- SQLite on native through `expo-sqlite` with raw SQL (no ORM).
 - AsyncStorage fallback on web for development preview only.
-- Vitest for pure business logic.
+- Vitest for pure business logic and for the SQLite repository (real SQL through `node:sqlite`; needs Node >= 22.13).
 
 Use Spanish UI copy as the default, with English supported through `src/i18n/index.ts`.
 
@@ -68,7 +68,6 @@ pnpm android
 pnpm check
 pnpm test
 pnpm exec tsc --noEmit
-pnpm db:generate
 pnpm doctor
 pnpm build:android:preview
 pnpm build:android:production
@@ -76,7 +75,7 @@ pnpm update:preview --message "Fix UI copy"
 pnpm update:production --message "Fix UI copy"
 ```
 
-`pnpm check` is the main local gate: TypeScript + tests.
+`pnpm check` is the main local gate: TypeScript + ESLint + tests.
 
 `pnpm doctor` currently may fail one check because Expo SDK 56 + pnpm resolves duplicate `expo-constants` (`56.0.14` through `expo-linking`, `56.0.15` elsewhere). This is documented in `README.md`. Do not hide this with random dependency hacks; the preview native build has passed with this warning.
 
@@ -108,10 +107,13 @@ EAS workflows are manual by design. Do not trigger full builds on every push to 
 - `app/(tabs)/settings.tsx` — language, notifications, backup, close day.
 - `app/habit/new.tsx` and `app/habit/[id].tsx` — create/edit habit.
 - `src/core/` — pure gamification logic. Keep UI/db out of here.
-- `src/db/schema.ts` — Drizzle schema.
+- `src/db/types.ts` — public repository types, shared by the native and web repositories.
 - `src/db/repository.ts` — native SQLite implementation.
 - `src/db/repository.web.ts` — web AsyncStorage fallback. Keep API compatible with native repository.
-- `src/db/migrate.ts` — runtime SQLite table setup.
+- `src/db/migrate.ts` — single source of the SQLite schema; versioned migrations on `PRAGMA user_version`.
+- `src/lib/backupValidation.ts` — pure backup validation shared by both repositories.
+- `test/` — test-only stand-ins (`expo-sqlite` over `node:sqlite`, notifications, AsyncStorage) wired in `vitest.config.mjs`.
+- `docs/architecture/datos.md` — ledger/cache model, mutation queue, migrations, backup format.
 - `src/stores/appStore.ts` — Zustand state and app actions.
 - `src/components/` — shared UI.
 - `src/i18n/index.ts` — typed ES/EN dictionary.
@@ -124,7 +126,12 @@ Do not create backend code, auth, remote sync, or cloud dependencies unless the 
 Important invariants:
 
 - `events` is the immutable XP source of truth.
-- `player` is cached and recalculable.
+- `player` is cached and recalculable: after any sequence of actions it must equal the projection of the ledger (`events` + claimed mission bonuses, ordered by real instant).
+- Every write in `src/db/repository.ts` goes through `mutate` (one module-level queue, one transaction per mutation). Inside a mutation use the internal helpers, never an exported mutator, and never await notifications or other external IO.
+- The stored Esencia balance may be negative (spend, then undo); clamp to zero only when exposing it.
+- The perfect-streak bonus is paid once every 7 consecutive perfect days. `canClaimPerfectWeek` in `src/core/missions.ts` is the single rule for UI and repositories.
+- Days without scheduled habits neither break nor advance mission streaks or the perfect-day streak.
+- The bonus of an already claimed mission is never rewritten.
 - `habit_daily_progress` is mutable per-day state for partial countable habits.
 - Habits should be archived, not hard-deleted, so history remains valid.
 - Completing a habit creates a positive XP event.
@@ -171,14 +178,16 @@ Keep exported types and function names compatible.
 
 ## Migrations
 
-When changing `src/db/schema.ts`:
+`src/db/migrate.ts` is the only schema source. There is no ORM and no generated SQL.
 
-1. Update `src/db/migrate.ts` if runtime native DB needs the change.
-2. Run `pnpm db:generate`.
-3. Check generated SQL under `src/db/migrations/`.
-4. Run `pnpm check`.
+To change the schema:
 
-Do not create AI tables yet. The project bible documents future AI tables, but MVP should not create unused IA tables.
+1. Append a new function to `MIGRATIONS` in `src/db/migrate.ts`. Its position is its version: `MIGRATIONS[n]` moves the database from `user_version` n to n + 1.
+2. Never edit a migration that has shipped; installed databases already ran it. Use `addColumnIfMissing` for new columns and backfill existing rows in the same migration.
+3. Update the row types and SQL in `src/db/repository.ts`, the shared types in `src/db/types.ts`, and `src/db/repository.web.ts`. If the backup format changes, bump `BACKUP_VERSION` in `src/lib/backup.ts`, keep reading older versions and update `src/lib/backupValidation.ts`.
+4. Extend `src/db/migrate.test.ts` (fresh database and upgrade from the previous version) and run `pnpm check`.
+
+Each migration runs in a transaction together with its `user_version` bump, and a failure rejects: the app must not start on a half-migrated schema.
 
 ## i18n
 
@@ -195,6 +204,8 @@ For any meaningful code change:
 ```bash
 pnpm check
 ```
+
+Repository tests (`src/db/*.test.ts`) run the real SQL against an in-memory `node:sqlite` database through `test/expoSqlite.js`. They prove the rules and the transaction logic, not the behaviour of `expo-sqlite` on a device: connection, locking and performance still need Android QA.
 
 For UI/frontend changes:
 
